@@ -6,6 +6,14 @@ Versioning follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH
 The version is defined in `PocketOBI.ino` as `FW_VERSION` and shown
 on the on-device "Version / info" screen.
 
+## [0.6.1] - 2026-07-21
+
+### Changed
+- Ground is now taken from the main B- terminal (simpler and more reliable than
+  signal pin 5; same ground). Wiring docs updated accordingly.
+- "beta" tag shown on the splash and About screens; README gains a "Step 1
+  (beta)" status section and a link to The Repair Forge YouTube channel.
+
 ## [0.6.0] - 2026-07-21
 
 ### Changed

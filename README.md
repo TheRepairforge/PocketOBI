@@ -10,7 +10,16 @@ protocol documented by the [Open Battery Information](https://github.com/mnh-jan
 project, but as a self-contained handheld device with a TFT screen and a
 rotary encoder instead of a computer.
 
-Created by **The Repair Forge**.
+Created by **The Repair Forge** — follow the build on YouTube:
+https://www.youtube.com/channel/UCQL_-pcIEkrDPyljl3QPzcw
+
+## Project status — Step 1 (beta)
+
+This is an early **beta** and a work in progress. So far it has only been tested
+against a single, semi-responsive battery, so the battery communication is
+**not yet validated** on healthy packs. Expect rough edges; experimentation is
+ongoing. Feedback and test reports (especially serial logs from real packs) are
+very welcome.
 
 > ⚠️ **Safety first.** These packs contain lithium cells and up to ~21 V on
 > B+. **Never connect B+ to the ESP32.** Resetting a BMS error only helps a
@@ -47,7 +56,7 @@ Created by **The Repair Forge**.
 |---|---|
 | Battery DATA (pin 2) | GPIO3 + 4.7 kΩ pull-up to 3.3 V |
 | Battery ENABLE (pin 6) | GPIO4 + 4.7 kΩ pull-up to 3.3 V |
-| Battery GND (pin 5) | GND |
+| Battery GND | main **B-** terminal (simpler/more reliable than signal pin 5; same ground) → ESP32 GND |
 | Battery B+ (18 V) | **NEVER CONNECT** |
 | TFT SCLK / MOSI / RST / DC / CS | GPIO0 / 1 / 10 / 20 / 21 |
 | TFT VCC / BLK | 3.3 V |
@@ -55,7 +64,9 @@ Created by **The Repair Forge**.
 | Module KO (back button) | GPIO2 |
 
 The Makita signal connector pins are numbered from the B+ side: pin 2 = Data,
-pin 5 = GND, pin 6 = Enable. Both DATA and ENABLE need their own 4.7 kΩ pull-up.
+pin 6 = Enable. Take the ground from the main **B-** terminal (equivalent to
+signal pin 5, but a sturdier contact). Both DATA and ENABLE need their own
+4.7 kΩ pull-up.
 
 ## Build & flash (Arduino IDE)
 

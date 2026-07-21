@@ -21,7 +21,8 @@
  * Battery protocol wiring (reference: appositeit/obi-esp32 project):
  *  GPIO3  -> Battery pin 2 (DATA, OneWire)   + 4.7k pull-up to 3.3V
  *  GPIO4  -> Battery pin 6 (ENABLE)          + 4.7k pull-up to 3.3V
- *  GND    -> Battery pin 5 (B-)
+ *  GND    -> Battery B- (main negative terminal; simpler and more reliable
+ *            than signal pin 5, they share the same ground)
  *  NEVER connect B+ (18V) to the ESP32.
  *
  * TFT SPI display wiring (configured directly in this file):
@@ -78,7 +79,7 @@ OneWire makita(ONEWIRE_PIN);
 Adafruit_ST7789 tft = Adafruit_ST7789(&SPI, TFT_CS, TFT_DC, TFT_RST);
 
 // Firmware version (see CHANGELOG.md).
-#define FW_VERSION "0.6.0"
+#define FW_VERSION "0.6.1"
 
 // ---------- Color palette (dark dashboard theme) ----------
 // Compile-time RGB888 -> RGB565 conversion.
@@ -756,7 +757,7 @@ void drawAbout() {
 
   tft.setTextSize(1);
   tft.setTextColor(COL_MUTED, COL_BG);
-  tft.setCursor(6, 66);   tft.printf("Firmware v%s  -  %s", FW_VERSION, __DATE__);
+  tft.setCursor(6, 66);   tft.printf("Firmware v%s (beta)  -  %s", FW_VERSION, __DATE__);
   tft.setCursor(6, 80);   tft.print("ESP32-C3 + ST7789  standalone OBI client");
 
   // Creator
@@ -796,8 +797,8 @@ void drawSplash() {
   tft.print("standalone OBI client");
 
   tft.setTextSize(1);
-  tft.setCursor(73, 180);
-  tft.printf("v%s  -  reading battery...", FW_VERSION);
+  tft.setCursor(64, 180);
+  tft.printf("v%s beta  -  reading battery...", FW_VERSION);
 }
 
 void render() {
