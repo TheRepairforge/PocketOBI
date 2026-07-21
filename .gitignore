@@ -1,0 +1,14 @@
+# Arduino / PlatformIO build output
+build/
+*.hex
+*.bin
+*.elf
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# Editor / OS
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp
