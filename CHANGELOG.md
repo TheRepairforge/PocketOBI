@@ -20,9 +20,6 @@ on the on-device "Version / info" screen.
 ## [0.5.0] - 2026-07-21
 
 ### Added
-- RepairForge branding: stylized logo (anvil + wrench + orange spark) drawn with
-  primitives, shown on the boot splash and the About screen, plus the REPAIR
-  FORGE wordmark.
 - Credit to the base project on the About screen: Open Battery Information by
   Martin Jansson (MIT), github.com/mnh-jansson.
 
