@@ -6,6 +6,45 @@ Versioning follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH
 The version is defined in `PocketOBI.ino` as `FW_VERSION` and shown
 on the on-device "Version / info" screen.
 
+## [0.8.1] - 2026-07-21
+
+### Changed
+- Clearer lock status: home footer shows **UNLOCKED** (green) / **LOCKED** (red)
+  instead of "OK". Added an explicit colored "State: UNLOCKED/LOCKED" line to the
+  Details screen.
+
+## [0.8.0] - 2026-07-21
+
+### Added
+- **PC bridge mode** (menu entry "PC bridge"): the device acts as a USB <->
+  OneWire bridge, a drop-in replacement for the ArduinoOBI, so the desktop
+  **Open Battery Information** app talks to PocketOBI directly (select the
+  Arduino OBI interface + PocketOBI's COM port). Handles the version query and
+  the 0xCC / 0x33 / F0513 (0x31,0x32) commands via the existing sendCommand().
+  Back button exits. Dual use: standalone tester AND PC adapter.
+
+### Changed
+- COMM_DEBUG serial tracing defaults to OFF (comms validated). It MUST stay off
+  in PC bridge mode or it would corrupt the binary protocol.
+
+## [0.7.0] - 2026-07-21
+
+### Added
+- Estimated state of charge (SoC ~%) on the home screen, derived from the
+  average cell voltage (piecewise-linear Li-ion OCV curve; approximate, shown
+  with a "~").
+
+### Changed
+- Boot now goes: splash (~1.5 s) -> menu directly. No auto-read and no
+  "no battery" home screen; the user picks what to do from the menu.
+
+## [0.6.2] - 2026-07-21
+
+### Changed
+- Removed the auto-read at boot. The boot splash now shows for ~1.5 s as a
+  simple logo screen, then the home screen appears; the user starts a read from
+  the menu. (First real-hardware validation: reads a BL1860B correctly.)
+
 ## [0.6.1] - 2026-07-21
 
 ### Changed

@@ -29,16 +29,19 @@ very welcome.
 
 ## Features
 
-- Auto-read on boot: plug in a pack, power up, see its state.
+- Standalone reader with a menu-driven UI (rotary encoder + click, plus a
+  secondary back button: short = back, long = home).
 - Per-cell voltage bars with color-coded health (green / yellow / red) and
   imbalance detection.
-- Pack voltage, cell and MOSFET temperatures, cell spread.
+- Pack voltage, estimated state of charge, cell and MOSFET temperatures, spread.
 - Model, charge count, manufacturing date, capacity, error code, lock state.
 - Automatic detection of standard vs older **F0513** BMS generations.
 - Error reset with before → after feedback.
 - Pack LED test (on/off).
 - Raw debug view (ROM ID + message frame).
-- Secondary "back" button (short = back, long = home).
+- **PC bridge mode**: acts as a USB↔OneWire adapter (drop-in ArduinoOBI), so the
+  desktop *Open Battery Information* app works through PocketOBI. Dual use:
+  standalone tester **and** PC adapter.
 
 ## Hardware
 
@@ -47,15 +50,15 @@ very welcome.
 | ESP32-C3 SuperMini | any ESP32-C3 board with native USB |
 | 2.4" SPI TFT, ST7789 (240×320) | + integrated EC11 rotary encoder module |
 | Makita BL1830 LXT adapter | clips onto the 18V pack |
-| 2 × 4.7 kΩ resistors | pull-ups for the DATA and ENABLE lines |
+| 2 × 470 Ω resistors | pull-ups for the DATA and ENABLE lines |
 | USB-C power (power bank/charger) | powers the tool — NOT the battery |
 
 ### Pinout
 
 | Function | ESP32-C3 |
 |---|---|
-| Battery DATA (pin 2) | GPIO3 + 4.7 kΩ pull-up to 3.3 V |
-| Battery ENABLE (pin 6) | GPIO4 + 4.7 kΩ pull-up to 3.3 V |
+| Battery DATA (pin 2) | GPIO3 + 470 Ω pull-up to 3.3 V |
+| Battery ENABLE (pin 6) | GPIO4 + 470 Ω pull-up to 3.3 V |
 | Battery GND | main **B-** terminal (simpler/more reliable than signal pin 5; same ground) → ESP32 GND |
 | Battery B+ (18 V) | **NEVER CONNECT** |
 | TFT SCLK / MOSI / RST / DC / CS | GPIO0 / 1 / 10 / 20 / 21 |
@@ -66,7 +69,11 @@ very welcome.
 The Makita signal connector pins are numbered from the B+ side: pin 2 = Data,
 pin 6 = Enable. Take the ground from the main **B-** terminal (equivalent to
 signal pin 5, but a sturdier contact). Both DATA and ENABLE need their own
-4.7 kΩ pull-up.
+**470 Ω** pull-up (DATA needs the strong pull-up for the 3.3 V input threshold;
+ENABLE is driven, so the same value is used for a single-value BOM).
+
+A carrier-PCB design (netlist, BOM, footprints, KiCad quick-start) is drafted in
+[HARDWARE.md](HARDWARE.md) — not manufactured yet.
 
 ## Build & flash (Arduino IDE)
 

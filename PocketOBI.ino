@@ -19,8 +19,10 @@
  *    with the ESP32-C3 (which has no hardware pulse-counter peripheral).
  *
  * Battery protocol wiring (reference: appositeit/obi-esp32 project):
- *  GPIO3  -> Battery pin 2 (DATA, OneWire)   + 4.7k pull-up to 3.3V
- *  GPIO4  -> Battery pin 6 (ENABLE)          + 4.7k pull-up to 3.3V
+ *  GPIO3  -> Battery pin 2 (DATA, OneWire)   + 470 ohm pull-up to 3.3V
+ *  GPIO4  -> Battery pin 6 (ENABLE)          + 470 ohm pull-up to 3.3V
+ *  (470 ohm on both: DATA needs the strong pull-up for the 3.3V input
+ *   threshold; ENABLE is driven, so same value for a single-value BOM)
  *  GND    -> Battery B- (main negative terminal; simpler and more reliable
  *            than signal pin 5, they share the same ground)
  *  NEVER connect B+ (18V) to the ESP32.
@@ -79,7 +81,7 @@ OneWire makita(ONEWIRE_PIN);
 Adafruit_ST7789 tft = Adafruit_ST7789(&SPI, TFT_CS, TFT_DC, TFT_RST);
 
 // Firmware version (see CHANGELOG.md).
-#define FW_VERSION "0.6.1"
+#define FW_VERSION "0.8.1"
 
 // ---------- Color palette (dark dashboard theme) ----------
 // Compile-time RGB888 -> RGB565 conversion.
@@ -117,7 +119,7 @@ const uint8_t F0513_VCELL5_CMD[] = {0x01, 0x01, 0x02, 0xCC, 0x35};
 const uint8_t F0513_TEMP_CMD[]   = {0x01, 0x01, 0x02, 0xCC, 0x52};
 
 // ---------- UI state ----------
-enum UiState { HOME, MENU, DETAILS, CONFIRM_RESET, RESET_RESULT, DEBUG_RAW, COMM_ERROR, ABOUT };
+enum UiState { HOME, MENU, DETAILS, CONFIRM_RESET, RESET_RESULT, DEBUG_RAW, COMM_ERROR, ABOUT, PC_BRIDGE };
 UiState state = HOME;
 int lastRenderedState = -1; // so the screen is only cleared when the screen changes
 
@@ -128,13 +130,14 @@ const char* menuItems[] = {
   "Pack LEDs on",
   "Pack LEDs off",
   "Debug / raw",
+  "PC bridge",
   "Version / info"
 };
-// Bullet color per menu entry (small accent dot, drawn with a primitive).
+// Icon color per menu entry.
 const uint16_t menuIcons[] = {
-  COL_GREEN, COL_ACCENT, COL_RED, COL_YELLOW, COL_MUTED, COL_MUTED, COL_ACCENT
+  COL_GREEN, COL_ACCENT, COL_RED, COL_YELLOW, COL_MUTED, COL_MUTED, COL_ACCENT, COL_ACCENT
 };
-const int menuCount = 7;
+const int menuCount = 8;
 int menuIndex = 0;
 
 // Kept for the reset visual feedback (error code before -> after).
@@ -162,7 +165,9 @@ unsigned long backStart = 0;
 #define ENC_DEBUG 0
 
 // Set to 1 to trace OneWire battery transactions over serial (diagnostic).
-#define COMM_DEBUG 1
+// IMPORTANT: keep this 0 when using PC bridge mode — the debug prints share the
+// USB serial port and would corrupt the binary protocol the PC app expects.
+#define COMM_DEBUG 0
 
 // ---------- Battery data ----------
 struct BatteryData {
@@ -459,6 +464,24 @@ void ledsOff() {
 #define DIFF_WARN    0.15f
 #define DIFF_BAD     0.30f
 
+// Rough Li-ion state-of-charge estimate from the average resting cell voltage.
+// Piecewise-linear over the OCV curve -> APPROXIMATE (voltage sags under load
+// and the mid-curve is flat), shown with a "~" to make that clear.
+int estimateSoC(float vcell) {
+  static const float vtab[] = {2.50,3.00,3.20,3.30,3.40,3.50,3.60,3.70,3.80,3.90,4.00,4.10,4.20};
+  static const int   stab[] = {   0,   3,   8,  13,  20,  30,  40,  50,  62,  70,  80,  90, 100};
+  const int n = 13;
+  if (vcell <= vtab[0]) return 0;
+  if (vcell >= vtab[n - 1]) return 100;
+  for (int i = 1; i < n; i++) {
+    if (vcell < vtab[i]) {
+      float f = (vcell - vtab[i - 1]) / (vtab[i] - vtab[i - 1]);
+      return (int)(stab[i - 1] + f * (stab[i] - stab[i - 1]) + 0.5f);
+    }
+  }
+  return 100;
+}
+
 // Cell color based on its voltage and its position within the pack.
 uint16_t cellColor(float v, float minV, float diff) {
   if (v < CELL_V_CRIT) return COL_RED;
@@ -521,6 +544,13 @@ void drawHome() {
   tft.setCursor(6 + 5 * 18 + 8, 40);
   tft.print("V");
 
+  // Estimated state of charge (from average cell voltage)
+  int soc = estimateSoC(bat.packVoltage / 5.0);
+  tft.setTextSize(2);
+  tft.setTextColor(COL_ACCENT, COL_BG);
+  tft.setCursor(170, 40);
+  tft.printf("~%d%%", soc);
+
   // Lowest cell (for imbalance coloring)
   float minV = 99;
   for (int i = 0; i < 5; i++) if (bat.cell[i] < minV) minV = bat.cell[i];
@@ -550,17 +580,18 @@ void drawHome() {
     tft.printf("%.2f", bat.cell[i]);
   }
 
-  // Footer chips: temperature, spread, error/state
+  // Footer chips: temperature, spread, lock state (explicit + colored)
   int fy = top + 5 * rowH + 6;
   char buf[16];
   snprintf(buf, sizeof(buf), "T %.0fC", bat.tempCell);
-  drawChip(6, fy, 96, buf, COL_TEXT);
+  drawChip(6, fy, 88, buf, COL_TEXT);
   snprintf(buf, sizeof(buf), "dV%.2f", bat.cellDiff);
-  drawChip(108, fy, 96, buf, COL_TEXT);
+  drawChip(100, fy, 86, buf, COL_TEXT);
   if (isF0513) {
-    drawChip(210, fy, 104, "F0513", COL_YELLOW);
+    drawChip(192, fy, 122, "F0513", COL_YELLOW);
   } else {
-    drawChip(210, fy, 104, bat.locked ? "LOCKED" : "OK", bat.locked ? COL_RED : COL_GREEN);
+    drawChip(192, fy, 122, bat.locked ? "LOCKED" : "UNLOCKED",
+             bat.locked ? COL_RED : COL_GREEN);
   }
 }
 
@@ -602,6 +633,14 @@ void iconInfo(int cx, int cy, uint16_t c) {
   tft.fillRect(cx - 1, cy - 4, 2, 2, c);   // dot
   tft.fillRect(cx - 1, cy - 1, 2, 5, c);   // stem
 }
+void iconBridge(int cx, int cy, uint16_t c) {                        // PC bridge = two arrows
+  tft.drawFastHLine(cx - 7, cy - 3, 12, c);
+  tft.drawLine(cx + 5, cy - 3, cx + 2, cy - 6, c);
+  tft.drawLine(cx + 5, cy - 3, cx + 2, cy, c);
+  tft.drawFastHLine(cx - 5, cy + 3, 12, c);
+  tft.drawLine(cx - 5, cy + 3, cx - 2, cy + 6, c);
+  tft.drawLine(cx - 5, cy + 3, cx - 2, cy, c);
+}
 
 void drawMenuIcon(int i, int cx, int cy, uint16_t c) {
   switch (i) {
@@ -611,7 +650,8 @@ void drawMenuIcon(int i, int cx, int cy, uint16_t c) {
     case 3: iconSun(cx, cy, c);     break;
     case 4: iconSunOff(cx, cy, c);  break;
     case 5: iconCode(cx, cy, c);    break;
-    case 6: iconInfo(cx, cy, c);    break;
+    case 6: iconBridge(cx, cy, c);  break;
+    case 7: iconInfo(cx, cy, c);    break;
   }
 }
 
@@ -660,6 +700,10 @@ void drawDetails() {
     tft.setCursor(6, y + 2 * lh); tft.printf("Capacity: %.1f Ah", bat.capacityAh);
     tft.setCursor(6, y + 3 * lh); tft.printf("Type: %d", bat.batteryType);
     tft.setCursor(6, y + 4 * lh); tft.printf("ErrCode: 0x%02X", bat.errorCode);
+    tft.setCursor(6, y + 5 * lh); tft.print("State: ");
+    tft.setTextColor(bat.locked ? COL_RED : COL_GREEN, COL_BG);
+    tft.print(bat.locked ? "LOCKED" : "UNLOCKED");
+    tft.setTextColor(COL_TEXT, COL_BG);
   }
   tft.setTextColor(COL_MUTED, COL_BG);
   tft.setCursor(6, 220);
@@ -778,8 +822,28 @@ void drawAbout() {
   tft.print("(click = back)");
 }
 
-// Boot splash shown while the first auto-read runs.
-// Name in big two-tone letters: "Pocket" (teal) + "OBI" (orange).
+// PC bridge mode: the tool acts as a USB<->OneWire bridge for the Open Battery
+// Information PC app (drop-in ArduinoOBI replacement). Serial debug is suppressed
+// while in this state (it would corrupt the binary protocol).
+void drawPcBridge() {
+  drawHeader("PC BRIDGE");
+  tft.setTextSize(3);
+  tft.setTextColor(COL_ACCENT, COL_BG);
+  tft.setCursor(30, 60);
+  tft.print("PC MODE");
+  tft.setTextSize(2);
+  tft.setTextColor(COL_TEXT, COL_BG);
+  tft.setCursor(6, 108);  tft.print("USB bridge active.");
+  tft.setTextColor(COL_MUTED, COL_BG);
+  tft.setTextSize(1);
+  tft.setCursor(6, 138);  tft.print("Open 'Open Battery Information' on");
+  tft.setCursor(6, 150);  tft.print("your PC, pick the Arduino OBI");
+  tft.setCursor(6, 162);  tft.print("interface + this COM port.");
+  tft.setTextColor(COL_MUTED, COL_BG);
+  tft.setCursor(6, 220);  tft.print("(back button = exit)");
+}
+
+// Boot splash: name in big two-tone letters, "Pocket" (teal) + "OBI" (orange).
 void drawSplash() {
   tft.fillScreen(COL_BG);
 
@@ -797,8 +861,8 @@ void drawSplash() {
   tft.print("standalone OBI client");
 
   tft.setTextSize(1);
-  tft.setCursor(64, 180);
-  tft.printf("v%s beta  -  reading battery...", FW_VERSION);
+  tft.setCursor(120, 180);
+  tft.printf("v%s beta", FW_VERSION);
 }
 
 void render() {
@@ -816,6 +880,7 @@ void render() {
     case DEBUG_RAW:     drawDebugRaw();      break;
     case COMM_ERROR:    drawCommError();     break;
     case ABOUT:         drawAbout();         break;
+    case PC_BRIDGE:     drawPcBridge();      break;
   }
 }
 
@@ -845,7 +910,10 @@ void handleClick() {
         case 5: // Debug
           state = DEBUG_RAW;
           break;
-        case 6: // Version / info
+        case 6: // PC bridge
+          state = PC_BRIDGE;
+          break;
+        case 7: // Version / info
           state = ABOUT;
           break;
       }
@@ -855,6 +923,7 @@ void handleClick() {
     case COMM_ERROR:
     case RESET_RESULT:
     case ABOUT:
+    case PC_BRIDGE:
       state = MENU;
       break;
     case CONFIRM_RESET:
@@ -907,6 +976,63 @@ void goHome() {
   }
 }
 
+// ---------- PC bridge (ArduinoOBI-compatible USB <-> OneWire) ----------
+// Reads one command frame [0x01, len, rsp_len, cmd, data...] from Serial,
+// runs it (same OneWire transactions as standalone), and writes back the
+// response [cmd, rsp_len, payload...]. Drop-in for the ArduinoOBI USB bridge,
+// so the Open Battery Information PC app talks to PocketOBI directly.
+// Only called in the PC_BRIDGE state; serial debug is suppressed there.
+
+static uint8_t bridgeReadByte(uint16_t timeoutMs) {
+  unsigned long t0 = millis();
+  while (!Serial.available()) {
+    if (millis() - t0 > timeoutMs) return 0;
+  }
+  return (uint8_t)Serial.read();
+}
+
+void serviceBridge() {
+  if (Serial.available() < 1) return;
+  if ((uint8_t)Serial.peek() != 0x01) { Serial.read(); return; } // resync on junk
+  Serial.read();                                    // consume start byte 0x01
+
+  uint8_t len    = bridgeReadByte(50);
+  uint8_t rspLen = bridgeReadByte(50);
+  uint8_t cmd    = bridgeReadByte(50);
+  uint8_t data[48];
+  for (int i = 0; i < len && i < (int)sizeof(data); i++) data[i] = bridgeReadByte(50);
+
+  uint8_t rsp[48];
+  int outLen = rspLen;
+
+  if (cmd == 0x01) {                                // interface version query
+    rsp[0] = 0; rsp[1] = 8; rsp[2] = 0;             // report firmware 0.8.x
+  } else if (cmd == 0x31 || cmd == 0x32) {          // F0513 raw model/version
+    uint8_t b1 = 0xFF, b2 = 0xFF;
+    readF0513Raw(cmd, &b1, &b2);
+    rsp[0] = b2; rsp[1] = b1;                        // ArduinoOBI byte order
+  } else if (cmd == 0x33) {
+    uint8_t c[52]; c[0] = 0x01; c[1] = len; c[2] = rspLen; c[3] = cmd;
+    for (int i = 0; i < len; i++) c[4 + i] = data[i];
+    uint8_t payload[40], rom[8];
+    sendCommand(c, payload, rom);
+    for (int i = 0; i < 8 && i < outLen; i++) rsp[i] = rom[i];
+    for (int i = 0; i < outLen - 8; i++) rsp[8 + i] = payload[i];
+  } else if (cmd == 0xCC) {
+    uint8_t c[52]; c[0] = 0x01; c[1] = len; c[2] = rspLen; c[3] = cmd;
+    for (int i = 0; i < len; i++) c[4 + i] = data[i];
+    uint8_t payload[40];
+    sendCommand(c, payload);
+    for (int i = 0; i < outLen; i++) rsp[i] = payload[i];
+  } else {
+    outLen = 0;
+  }
+
+  Serial.write(cmd);
+  Serial.write(rspLen);
+  for (int i = 0; i < outLen; i++) Serial.write(rsp[i]);
+}
+
 // ---------- Setup / loop ----------
 void setup() {
   Serial.begin(115200);
@@ -930,17 +1056,20 @@ void setup() {
   tft.invertDisplay(false);  // correct colors for this ST7789 panel
   tft.setRotation(1);
 
-  // Auto-read at boot so the home screen reflects reality instead of claiming
-  // "no battery" before ever checking. The splash covers the read latency.
+  // Boot splash only, then straight to the menu. No auto-read: the user does
+  // whatever they want from the menu.
   drawSplash();
-  readAllData();
-  state = HOME;
+  delay(1500);
+  state = MENU;
   render();
 }
 
 void loop() {
   // Encoder polling: to be called as often as possible.
   encoder->tick();
+
+  // PC bridge mode: act as a USB<->OneWire bridge for the PC app.
+  if (state == PC_BRIDGE) serviceBridge();
 
 #if ENC_DEBUG
   // Trace raw pin transitions + the library position over serial.
