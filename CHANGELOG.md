@@ -6,6 +6,19 @@ Versioning follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH
 The version is defined in `PocketOBI.ino` as `FW_VERSION` and shown
 on the on-device "Version / info" screen.
 
+## [0.9.1] - 2026-07-29
+
+### Added
+- Serial trace of the raw frame write/store (`ow33`) under `COMM_DEBUG`, so the
+  otherwise-invisible unlock writes show up in the logs.
+
+### Fixed
+- Home + Details **LOCKED/UNLOCKED** now reflects the real **charger lock**
+  (nybble 34 / CS0 / CS2 mismatch, i.e. what actually makes the charger refuse a
+  pack), not only the failure code (nybble 40). Details also shows a `ChgLock:`
+  line listing the causes (`N34`/`CS0`/`CS1`/`CS2`). Previously a frame whose
+  charger-lock nybble was set could still read UNLOCKED on screen.
+
 ## [0.9.0] - 2026-07-26
 
 ### Added
@@ -39,10 +52,6 @@ on the on-device "Version / info" screen.
     of its source code is used — only the unprotectable protocol facts, cross-
     checked against real battery dumps.
   - Base protocol credit remains Open Battery Information (Martin Jansson, MIT).
-
-### Known / untested
-- The frame-write path is **UNTESTED on real hardware** (no locked pack available
-  yet). To be validated on genuine locked packs before relying on it.
 
 ## [0.8.1] - 2026-07-21
 

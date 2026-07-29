@@ -100,7 +100,7 @@ OneWire makita(ONEWIRE_PIN);
 Adafruit_ST7789 tft = Adafruit_ST7789(&SPI, TFT_CS, TFT_DC, TFT_RST);
 
 // Firmware version (see CHANGELOG.md).
-#define FW_VERSION "0.9.0"
+#define FW_VERSION "0.9.1"
 
 // ---------- Color palette (dark dashboard theme) ----------
 // Compile-time RGB888 -> RGB565 conversion.
@@ -161,7 +161,8 @@ const char* menuItems[] = {
 };
 // Icon color per menu entry.
 const uint16_t menuIcons[] = {
-  COL_GREEN, COL_ACCENT, COL_RED, COL_ORANGE, COL_YELLOW, COL_MUTED, COL_MUTED, COL_ACCENT, COL_ACCENT
+  COL_GREEN, COL_ACCENT, COL_RED, COL_ORANGE, COL_YELLOW, COL_MUTED, COL_MUTED,
+  COL_ACCENT, COL_ACCENT
 };
 const int menuCount = 9;
 int menuIndex = 0;
@@ -207,7 +208,8 @@ struct BatteryData {
   uint8_t romId[8];
   uint8_t msg[32];        // raw "battery message" frame (after ROM ID)
   uint16_t chargeCount;
-  bool locked;
+  bool locked;          // failure code (nybble 40) > 0 (OBI meaning)
+  bool chargerLocked;   // charger will refuse: nybble34 / CS0 / CS2 (lockCauses != 0)
   uint8_t errorCode;
   uint8_t mfgDay, mfgMonth;
   uint16_t mfgYear;
@@ -363,6 +365,7 @@ bool readStaticInfo() {
     uint16_t swapped = (nibbleSwap(payload[26]) << 8) | nibbleSwap(payload[27]);
     bat.chargeCount = swapped & 0x0FFF;
     bat.locked = (payload[20] & 0x0F) > 0;
+    bat.chargerLocked = (lockCauses(payload) != 0);
     bat.errorCode = payload[19];
     bat.capacityAh = nibbleSwap(payload[16]) / 10.0;
     bat.batteryType = nibbleSwap(payload[11]);
@@ -383,6 +386,7 @@ bool readStaticInfo() {
 
     bat.chargeCount = 0;
     bat.locked = false;
+    bat.chargerLocked = false;
     bat.errorCode = 0;
     bat.capacityAh = 0;
     bat.batteryType = 0;
@@ -571,6 +575,12 @@ void ow33(const uint8_t *data, uint8_t dataLen, uint8_t *rsp, uint8_t rspLen) {
   delayMicroseconds(400);
   for (int i = 0; i < rspLen; i++) rsp[i] = mkRead();
   digitalWrite(ENABLE_PIN, LOW);
+
+#if COMM_DEBUG
+  Serial.print("ow33 wr:");
+  for (int i = 0; i < dataLen; i++) Serial.printf(" %02X", data[i]);
+  Serial.println();
+#endif
 }
 
 // Write a 32-byte frame back to the BMS and commit it. UNTESTED (see warning).
@@ -745,8 +755,9 @@ void drawHome() {
   if (isF0513) {
     drawChip(192, fy, 122, "F0513", COL_YELLOW);
   } else {
-    drawChip(192, fy, 122, bat.locked ? "LOCKED" : "UNLOCKED",
-             bat.locked ? COL_RED : COL_GREEN);
+    bool lk = bat.locked || bat.chargerLocked;
+    drawChip(192, fy, 122, lk ? "LOCKED" : "UNLOCKED",
+             lk ? COL_RED : COL_GREEN);
   }
 }
 
@@ -862,10 +873,13 @@ void drawDetails() {
     tft.setCursor(6, y + 2 * lh); tft.printf("Capacity: %.1f Ah", bat.capacityAh);
     tft.setCursor(6, y + 3 * lh); tft.printf("Type: %d", bat.batteryType);
     tft.setCursor(6, y + 4 * lh); tft.printf("ErrCode: 0x%02X", bat.errorCode);
+    bool lk = bat.locked || bat.chargerLocked;
     tft.setCursor(6, y + 5 * lh); tft.print("State: ");
-    tft.setTextColor(bat.locked ? COL_RED : COL_GREEN, COL_BG);
-    tft.print(bat.locked ? "LOCKED" : "UNLOCKED");
+    tft.setTextColor(lk ? COL_RED : COL_GREEN, COL_BG);
+    tft.print(lk ? "LOCKED" : "UNLOCKED");
     tft.setTextColor(COL_TEXT, COL_BG);
+    char cb[24]; lockCausesText(lockCauses(bat.msg), cb, sizeof(cb));
+    tft.setCursor(6, y + 6 * lh); tft.printf("ChgLock: %s", cb);
   }
   tft.setTextColor(COL_MUTED, COL_BG);
   tft.setCursor(6, 220);
