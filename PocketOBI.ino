@@ -50,6 +50,25 @@
  *  - cmd 0xCC: reset, write 0xCC, write `len` data bytes, read rsp_len
  *  - cmd 0x33: reset, write 0x33, read 8 ROM ID bytes, write `len` data bytes,
  *              read (rsp_len - 8) remaining bytes (rsp_len includes the 8 ROM ID)
+ *
+ * UNLOCK / FRAME REPAIR (v0.9.0):
+ * The write-back / charger-unlock capability (writeFrame(), the CS0/CS2 checksum
+ * math, the nybble-34 charger-lock and the arm/write/store opcodes) is a
+ * CLEAN-ROOM reimplementation from the publicly documented protocol facts of the
+ * synrais/Makita-LXT-Battery-Monitor-Unlocker project. That repository ships
+ * with NO license (all rights reserved), so NONE of its source code is copied
+ * here; only the unprotectable protocol facts (opcodes, checksum formula, byte
+ * map) are reused, cross-checked against real battery dumps. Credit to synrais
+ * for the frame-repair research, to the rosvall/makita-lxt-protocol project for
+ * the root protocol reverse-engineering (frame byte map, checksum ranges), and
+ * to Open Battery Information (Martin Jansson, MIT) for the base protocol.
+ * See README.md and CHANGELOG.md.
+ *
+ * Charger acceptance depends on exactly three frame fields (empirically
+ * established by synrais over 200+ tests): nybble 34 (byte 17 low = charger
+ * lock, must be 0), CS0 (nybble 41 = sum(nybbles 0-15) & 0x0F) and CS2
+ * (nybble 43 = sum(nybbles 32-40) & 0x0F). Byte 19 (status, e.g. 0xA5) and the
+ * cell temperatures are NOT part of the charger's frame check.
  */
 
 #include "OneWire2.h"
@@ -81,7 +100,7 @@ OneWire makita(ONEWIRE_PIN);
 Adafruit_ST7789 tft = Adafruit_ST7789(&SPI, TFT_CS, TFT_DC, TFT_RST);
 
 // Firmware version (see CHANGELOG.md).
-#define FW_VERSION "0.8.1"
+#define FW_VERSION "0.9.0"
 
 // ---------- Color palette (dark dashboard theme) ----------
 // Compile-time RGB888 -> RGB565 conversion.
@@ -110,6 +129,11 @@ const uint8_t RESET_ERROR_CMD[] = {0x01, 0x02, 0x09, 0x33, 0xDA, 0x04};
 const uint8_t READ_MSG_CMD[]    = {0x01, 0x02, 0x28, 0x33, 0xAA, 0x00};
 const uint8_t CLEAR_CMD[]       = {0x01, 0x02, 0x00, 0xCC, 0xF0, 0x00};
 
+// Exit test mode (skip-ROM CC + D9 FF FF), and "arm" for a frame write
+// (skip-ROM CC + F0 00, reading back 32 bytes). Used by the unlock/repair path.
+const uint8_t TESTMODE_EXIT_CMD[] = {0x01, 0x03, 0x00, 0xCC, 0xD9, 0xFF, 0xFF};
+const uint8_t ARM_CMD[]           = {0x01, 0x02, 0x20, 0xCC, 0xF0, 0x00};
+
 // Commands specific to older F0513 batteries
 const uint8_t F0513_VCELL1_CMD[] = {0x01, 0x01, 0x02, 0xCC, 0x31};
 const uint8_t F0513_VCELL2_CMD[] = {0x01, 0x01, 0x02, 0xCC, 0x32};
@@ -119,7 +143,8 @@ const uint8_t F0513_VCELL5_CMD[] = {0x01, 0x01, 0x02, 0xCC, 0x35};
 const uint8_t F0513_TEMP_CMD[]   = {0x01, 0x01, 0x02, 0xCC, 0x52};
 
 // ---------- UI state ----------
-enum UiState { HOME, MENU, DETAILS, CONFIRM_RESET, RESET_RESULT, DEBUG_RAW, COMM_ERROR, ABOUT, PC_BRIDGE };
+enum UiState { HOME, MENU, DETAILS, CONFIRM_RESET, RESET_RESULT, CONFIRM_UNLOCK,
+               UNLOCK_RESULT, DEBUG_RAW, COMM_ERROR, ABOUT, PC_BRIDGE };
 UiState state = HOME;
 int lastRenderedState = -1; // so the screen is only cleared when the screen changes
 
@@ -127,6 +152,7 @@ const char* menuItems[] = {
   "Read battery info",
   "View details",
   "Reset error",
+  "Unlock / repair",
   "Pack LEDs on",
   "Pack LEDs off",
   "Debug / raw",
@@ -135,15 +161,19 @@ const char* menuItems[] = {
 };
 // Icon color per menu entry.
 const uint16_t menuIcons[] = {
-  COL_GREEN, COL_ACCENT, COL_RED, COL_YELLOW, COL_MUTED, COL_MUTED, COL_ACCENT, COL_ACCENT
+  COL_GREEN, COL_ACCENT, COL_RED, COL_ORANGE, COL_YELLOW, COL_MUTED, COL_MUTED, COL_ACCENT, COL_ACCENT
 };
-const int menuCount = 8;
+const int menuCount = 9;
 int menuIndex = 0;
 
 // Kept for the reset visual feedback (error code before -> after).
 uint8_t resetErrBefore = 0;
 uint8_t resetErrAfter = 0;
 bool resetLockedAfter = false;
+
+// Unlock/repair feedback: charger-lock causes before -> after (bitmask, see LF_*).
+uint8_t unlockCausesBefore = 0;
+uint8_t unlockCausesAfter = 0;
 
 // ---------- Encoder ----------
 // Software decoding via RotaryEncoder (Matthias Hertel). Robust state machine:
@@ -429,12 +459,29 @@ bool readAllData() {
   return ok1 && ok2;
 }
 
-// Error reset -> on_reset_errors_click(): TESTMODE then RESET_ERROR
+// Power-cycle the OneWire bus: drop ENABLE, wait, raise, settle, drop again.
+// Lets the BMS commit a written frame / settle after a reset. Note: this toggles
+// the ENABLE line only; it does NOT reset the BMS's own state (a true reset needs
+// physically removing the pack).
+void busPowerCycle() {
+  digitalWrite(ENABLE_PIN, LOW);
+  delay(100);
+  digitalWrite(ENABLE_PIN, HIGH);
+  delay(150);
+  digitalWrite(ENABLE_PIN, LOW);
+}
+
+// Error reset. Base sequence from on_reset_errors_click() (TESTMODE + RESET),
+// extended with the test-mode exit + bus power-cycle so the BMS actually commits
+// the internal error-register clear (mirrors the documented full DA 04 flow).
 void resetErrors() {
   uint8_t tmp[8];
-  sendCommand(TESTMODE_CMD, tmp);
-  delay(20);
-  sendCommand(RESET_ERROR_CMD, tmp);
+  sendCommand(TESTMODE_CMD, tmp);       // enter test mode
+  delay(30);
+  sendCommand(RESET_ERROR_CMD, tmp);    // 0xDA 0x04 -> clear internal error register
+  delay(30);
+  sendCommand(TESTMODE_EXIT_CMD, tmp);  // exit test mode (CC D9 FF FF)
+  busPowerCycle();                      // let the BMS settle / commit
 }
 
 void ledsOn() {
@@ -449,6 +496,114 @@ void ledsOff() {
   sendCommand(TESTMODE_CMD, tmp);
   delay(20);
   sendCommand(LEDS_OFF_CMD, tmp);
+}
+
+// ---------- Unlock / frame repair (clean-room, see header credit) ----------
+// The Makita charger gates on exactly three fields of the 32-byte frame:
+//   - nybble 34 (byte 17 low)  = charger lock, must be 0
+//   - CS0 (nybble 41)          = sum(nybbles 0-15) & 0x0F
+//   - CS2 (nybble 43)          = sum(nybbles 32-40) & 0x0F
+// A pack whose cells are healthy but whose frame trips one of these can be
+// unlocked by rewriting the lock nybble and recomputing the checksums.
+//
+// WARNING: writeFrame() writes to the BMS flash. This path is UNTESTED on real
+// hardware (no locked pack available yet) and is gated behind a confirmation
+// screen. Only nybble 34, CS0 and CS2 are ever modified; all manufacturing and
+// status bytes (0-4, 12, 19, ...) are preserved untouched.
+
+// Lock-cause bits. CS0/CS2 + N34 gate the CHARGER (empirically, synrais); CS1
+// additionally gates the battery's own internal lock (rosvall root protocol doc:
+// locked if checksums for ranges 0-15, 16-31 or 32-40 mismatch).
+enum { LF_CS0 = 0x01, LF_CS2 = 0x02, LF_N34 = 0x04, LF_CS1 = 0x08 };
+
+// Read one 4-bit nybble n from a byte buffer (n even = low nybble, n odd = high).
+uint8_t nybGet(const uint8_t *d, uint8_t n) {
+  return (n & 1) ? ((d[n >> 1] >> 4) & 0x0F) : (d[n >> 1] & 0x0F);
+}
+
+// Write one 4-bit nybble n into a byte buffer.
+void nybSet(uint8_t *d, uint8_t n, uint8_t v) {
+  v &= 0x0F;
+  if (n & 1) d[n >> 1] = (d[n >> 1] & 0x0F) | (v << 4);
+  else       d[n >> 1] = (d[n >> 1] & 0xF0) | v;
+}
+
+// Makita frame checksum: sum of the nybbles in [s, e] (inclusive), low nybble.
+uint8_t csCalc(const uint8_t *d, uint8_t s, uint8_t e) {
+  uint8_t sum = 0;
+  for (uint8_t i = s; i <= e; i++) sum += nybGet(d, i);
+  return sum & 0x0F;
+}
+
+// Which of the three charger-lock conditions a frame currently trips (LF_* mask).
+uint8_t lockCauses(const uint8_t *frame) {
+  uint8_t c = 0;
+  if (nybGet(frame, 41) != csCalc(frame, 0, 15))  c |= LF_CS0;
+  if (nybGet(frame, 42) != csCalc(frame, 16, 31)) c |= LF_CS1;
+  if (nybGet(frame, 43) != csCalc(frame, 32, 40)) c |= LF_CS2;
+  if (nybGet(frame, 34) != 0)                     c |= LF_N34;
+  return c;
+}
+
+// Build a repaired copy: clear the charger-lock nybble and recompute all three
+// checksums. Nybble 34 lives in the CS2 range, so CS2 is recomputed AFTER
+// clearing it. The failure code (nybble 40, e.g. 0xF = dead) is deliberately
+// NOT touched: we never force a genuinely-dead pack back into service.
+void buildRepairedFrame(const uint8_t *in, uint8_t *out) {
+  memcpy(out, in, 32);
+  nybSet(out, 34, 0);                     // charger lock -> unlocked
+  nybSet(out, 41, csCalc(out, 0, 15));    // CS0
+  nybSet(out, 42, csCalc(out, 16, 31));   // CS1 (battery internal lock, rosvall)
+  nybSet(out, 43, csCalc(out, 32, 40));   // CS2
+}
+
+// Low-level read-ROM (0x33) transaction: reset, write 0x33, read+discard the 8
+// ROM bytes, write `dataLen` bytes, read `rspLen` bytes. Mirrors the documented
+// cmd_33 flow (the ROM is always clocked out after 0x33, even when unused).
+void ow33(const uint8_t *data, uint8_t dataLen, uint8_t *rsp, uint8_t rspLen) {
+  digitalWrite(ENABLE_PIN, HIGH);
+  delay(400);
+  makita.reset();
+  delayMicroseconds(400);
+  mkWrite(0x33);
+  for (int i = 0; i < 8; i++) mkRead();               // ROM ID, discarded
+  for (int i = 0; i < dataLen; i++) mkWrite(data[i]);
+  delayMicroseconds(400);
+  for (int i = 0; i < rspLen; i++) rsp[i] = mkRead();
+  digitalWrite(ENABLE_PIN, LOW);
+}
+
+// Write a 32-byte frame back to the BMS and commit it. UNTESTED (see warning).
+// Sequence: arm (CC F0 00) -> write (33 0F 00 + 32 bytes) -> store (33 55 A5).
+// The arm is accepted only once per pack insertion; to retry, remove/reinsert.
+void writeFrame(const uint8_t *frame) {
+  uint8_t junk[32];
+  sendCommand(ARM_CMD, junk);               // arm the charger-write
+  delay(30);
+
+  uint8_t payload[34];
+  payload[0] = 0x0F;                         // frame-write opcode
+  payload[1] = 0x00;                         // pad
+  memcpy(&payload[2], frame, 32);
+  ow33(payload, 34, nullptr, 0);            // write frame
+  delay(30);
+
+  uint8_t store[2] = {0x55, 0xA5};
+  ow33(store, 2, nullptr, 0);               // store / commit
+  delay(30);
+}
+
+// Full unlock/repair operation on the currently-read battery. Returns the lock
+// causes still present after the attempt (0 = fully unlocked). Assumes bat.msg
+// holds a fresh, standard-battery frame.
+uint8_t unlockRepair() {
+  uint8_t repaired[32];
+  buildRepairedFrame(bat.msg, repaired);
+  writeFrame(repaired);
+  busPowerCycle();     // let the BMS commit to flash
+  resetErrors();       // also clear the internal error register
+  readAllData();       // re-read to verify
+  return bat.valid ? lockCauses(bat.msg) : 0xFF;
 }
 
 // ---------- Display ----------
@@ -628,6 +783,12 @@ void iconCode(int cx, int cy, uint16_t c) {
   tft.drawLine(cx - 2, cy - 5, cx - 7, cy, c); tft.drawLine(cx - 7, cy, cx - 2, cy + 5, c);
   tft.drawLine(cx + 2, cy - 5, cx + 7, cy, c); tft.drawLine(cx + 7, cy, cx + 2, cy + 5, c);
 }
+void iconKey(int cx, int cy, uint16_t c) {                           // unlock / repair
+  tft.drawCircle(cx - 4, cy, 4, c);        // bow
+  tft.drawFastHLine(cx, cy, 9, c);         // shaft
+  tft.drawFastVLine(cx + 6, cy, 4, c);     // tooth
+  tft.drawFastVLine(cx + 8, cy, 3, c);     // tooth
+}
 void iconInfo(int cx, int cy, uint16_t c) {
   tft.drawCircle(cx, cy, 7, c);
   tft.fillRect(cx - 1, cy - 4, 2, 2, c);   // dot
@@ -647,11 +808,12 @@ void drawMenuIcon(int i, int cx, int cy, uint16_t c) {
     case 0: iconBattery(cx, cy, c); break;
     case 1: iconList(cx, cy, c);    break;
     case 2: iconRefresh(cx, cy, c); break;
-    case 3: iconSun(cx, cy, c);     break;
-    case 4: iconSunOff(cx, cy, c);  break;
-    case 5: iconCode(cx, cy, c);    break;
-    case 6: iconBridge(cx, cy, c);  break;
-    case 7: iconInfo(cx, cy, c);    break;
+    case 3: iconKey(cx, cy, c);     break;
+    case 4: iconSun(cx, cy, c);     break;
+    case 5: iconSunOff(cx, cy, c);  break;
+    case 6: iconCode(cx, cy, c);    break;
+    case 7: iconBridge(cx, cy, c);  break;
+    case 8: iconInfo(cx, cy, c);    break;
   }
 }
 
@@ -751,6 +913,102 @@ void drawResetResult() {
   tft.print("(click = back)");
 }
 
+// Compact text for a lock-cause bitmask, e.g. "CS0 CS2 N34" or "none".
+void lockCausesText(uint8_t causes, char *out, size_t n) {
+  out[0] = 0;
+  if (causes == 0) { strncpy(out, "none", n); return; }
+  if (causes & LF_N34) strncat(out, "N34 ", n - strlen(out) - 1);
+  if (causes & LF_CS0) strncat(out, "CS0 ", n - strlen(out) - 1);
+  if (causes & LF_CS1) strncat(out, "CS1 ", n - strlen(out) - 1);
+  if (causes & LF_CS2) strncat(out, "CS2 ", n - strlen(out) - 1);
+}
+
+// Confirmation before writing to the BMS flash. Shows the detected charger-lock
+// causes and a clear "untested/beta, writes flash" warning. If nothing is
+// locked (or F0513), clicking just returns to the menu (no write is performed).
+void drawConfirmUnlock() {
+  drawHeader("UNLOCK / REPAIR");
+  int y = HEADER_H + 8;
+  bool isF0513 = strcmp(bat.commandVersion, "F0513") == 0;
+
+  tft.setTextSize(2);
+  if (isF0513) {
+    tft.setTextColor(COL_YELLOW, COL_BG);
+    tft.setCursor(6, y);      tft.print("F0513: not supported");
+    tft.setTextColor(COL_MUTED, COL_BG);
+    tft.setCursor(6, 220);    tft.print("(click / turn = back)");
+    return;
+  }
+
+  uint8_t causes = bat.valid ? lockCauses(bat.msg) : 0;
+  char cbuf[24];
+  lockCausesText(causes, cbuf, sizeof(cbuf));
+
+  tft.setTextColor(COL_TEXT, COL_BG);
+  tft.setCursor(6, y);        tft.print("Charger lock:");
+  tft.setTextColor(causes ? COL_RED : COL_GREEN, COL_BG);
+  tft.setCursor(6, y + 22);   tft.print(cbuf);
+
+  if (causes == 0) {
+    tft.setTextColor(COL_GREEN, COL_BG);
+    tft.setCursor(6, y + 56);  tft.print("Frame already valid.");
+    tft.setTextColor(COL_MUTED, COL_BG);
+    tft.setTextSize(1);
+    tft.setCursor(6, y + 82);  tft.print("Nothing to repair - no write will be done.");
+    tft.setTextSize(2);
+    tft.setTextColor(COL_MUTED, COL_BG);
+    tft.setCursor(6, 220);     tft.print("(click / turn = back)");
+    return;
+  }
+
+  // Warning block (writes flash, untested)
+  tft.setTextSize(1);
+  tft.setTextColor(COL_RED, COL_BG);
+  tft.setCursor(6, y + 52);   tft.print("WARNING: writes to the BMS flash.");
+  tft.setCursor(6, y + 64);   tft.print("Sets nybble34=0, recomputes CS0/1/2.");
+  tft.setCursor(6, y + 76);   tft.print("UNTESTED on hardware (beta).");
+
+  tft.setTextSize(2);
+  tft.setTextColor(COL_GREEN, COL_BG);
+  tft.setCursor(6, y + 100);  tft.print("Click = write");
+  tft.setTextColor(COL_RED, COL_BG);
+  tft.setCursor(6, y + 124);  tft.print("Turn  = cancel");
+}
+
+// Result after an unlock attempt: lock causes before -> after, plus a verdict.
+void drawUnlockResult() {
+  drawHeader("UNLOCK DONE");
+  int y = HEADER_H + 10;
+  char b[24], a[24];
+  lockCausesText(unlockCausesBefore, b, sizeof(b));
+  lockCausesText(unlockCausesAfter, a, sizeof(a));
+
+  tft.setTextSize(2);
+  tft.setTextColor(COL_TEXT, COL_BG);
+  tft.setCursor(6, y);        tft.printf("Before: %s", b);
+  tft.setCursor(6, y + 24);   tft.printf("After : %s", a);
+
+  tft.setCursor(6, y + 60);
+  if (unlockCausesAfter == 0xFF) {
+    tft.setTextColor(COL_YELLOW, COL_BG);
+    tft.print("-> No read after write");
+  } else if (unlockCausesAfter == 0) {
+    tft.setTextColor(COL_GREEN, COL_BG);
+    tft.print("-> Unlocked!");
+  } else {
+    tft.setTextColor(COL_RED, COL_BG);
+    tft.print("-> Still locked");
+  }
+
+  tft.setTextColor(COL_MUTED, COL_BG);
+  tft.setTextSize(1);
+  tft.setCursor(6, y + 92);   tft.print("To retry, remove & reinsert the pack first.");
+
+  tft.setTextColor(COL_MUTED, COL_BG);
+  tft.setTextSize(2);
+  tft.setCursor(6, 220);      tft.print("(click = back)");
+}
+
 void drawDebugRaw() {
   drawHeader("DEBUG / RAW");
   int y = HEADER_H + 6;
@@ -814,11 +1072,13 @@ void drawAbout() {
   // Credit to the base project
   tft.setTextSize(1);
   tft.setTextColor(COL_MUTED, COL_BG);
-  tft.setCursor(6, 158);  tft.print("Based on Open Battery Information");
-  tft.setCursor(6, 172);  tft.print("by Martin Jansson (MIT)");
-  tft.setCursor(6, 186);  tft.print("github.com/mnh-jansson");
+  tft.setCursor(6, 152);  tft.print("Based on Open Battery Information");
+  tft.setCursor(6, 164);  tft.print("by Martin Jansson (MIT)");
+  tft.setCursor(6, 176);  tft.print("github.com/mnh-jansson");
+  tft.setCursor(6, 194);  tft.print("Protocol/unlock: rosvall, synrais");
+  tft.setCursor(6, 206);  tft.print("(facts reused clean-room, no code)");
 
-  tft.setCursor(6, 220);
+  tft.setCursor(6, 224);
   tft.print("(click = back)");
 }
 
@@ -877,6 +1137,8 @@ void render() {
     case DETAILS:       drawDetails();      break;
     case CONFIRM_RESET: drawConfirmReset(); break;
     case RESET_RESULT:  drawResetResult();  break;
+    case CONFIRM_UNLOCK: drawConfirmUnlock(); break;
+    case UNLOCK_RESULT:  drawUnlockResult();  break;
     case DEBUG_RAW:     drawDebugRaw();      break;
     case COMM_ERROR:    drawCommError();     break;
     case ABOUT:         drawAbout();         break;
@@ -901,19 +1163,22 @@ void handleClick() {
         case 2: // Reset error
           state = CONFIRM_RESET;
           break;
-        case 3: // Pack LEDs on
+        case 3: // Unlock / repair
+          state = readAllData() ? CONFIRM_UNLOCK : COMM_ERROR;
+          break;
+        case 4: // Pack LEDs on
           ledsOn();
           break;
-        case 4: // Pack LEDs off
+        case 5: // Pack LEDs off
           ledsOff();
           break;
-        case 5: // Debug
+        case 6: // Debug
           state = DEBUG_RAW;
           break;
-        case 6: // PC bridge
+        case 7: // PC bridge
           state = PC_BRIDGE;
           break;
-        case 7: // Version / info
+        case 8: // Version / info
           state = ABOUT;
           break;
       }
@@ -922,6 +1187,7 @@ void handleClick() {
     case DEBUG_RAW:
     case COMM_ERROR:
     case RESET_RESULT:
+    case UNLOCK_RESULT:
     case ABOUT:
     case PC_BRIDGE:
       state = MENU;
@@ -934,6 +1200,15 @@ void handleClick() {
       resetLockedAfter = bat.locked;
       state = RESET_RESULT;                // before -> after verdict screen
       break;
+    case CONFIRM_UNLOCK: {
+      bool isF0513 = strcmp(bat.commandVersion, "F0513") == 0;
+      uint8_t causes = (bat.valid && !isF0513) ? lockCauses(bat.msg) : 0;
+      if (causes == 0) { state = MENU; break; }  // nothing to repair -> no write
+      unlockCausesBefore = causes;
+      unlockCausesAfter = unlockRepair();        // write + commit + reset + re-read
+      state = UNLOCK_RESULT;
+      break;
+    }
   }
   render();
 }
@@ -946,8 +1221,8 @@ void handleRotate(int dir) {
   } else if (state == MENU) {
     menuIndex = (menuIndex + dir + menuCount) % menuCount;
     render();
-  } else if (state == CONFIRM_RESET) {
-    // Turn = cancel the reset, back to the menu.
+  } else if (state == CONFIRM_RESET || state == CONFIRM_UNLOCK) {
+    // Turn = cancel, back to the menu (no write performed).
     state = MENU;
     render();
   }

@@ -36,7 +36,10 @@ very welcome.
 - Pack voltage, estimated state of charge, cell and MOSFET temperatures, spread.
 - Model, charge count, manufacturing date, capacity, error code, lock state.
 - Automatic detection of standard vs older **F0513** BMS generations.
-- Error reset with before → after feedback.
+- Error reset with before → after feedback (full test-mode + power-cycle sequence).
+- **Unlock / repair** (beta): rewrites the frame to lift a charger lockout on a
+  pack whose cells are healthy — clears the charger-lock nybble and recomputes
+  the charger-validated checksums, then writes the frame back. See below.
 - Pack LED test (on/off).
 - Raw debug view (ROM ID + message frame).
 - **PC bridge mode**: acts as a USB↔OneWire adapter (drop-in ArduinoOBI), so the
@@ -99,6 +102,29 @@ If the home screen shows "No battery found", check wiring and use
 Menu → Read battery. "Comm error" / all-`0xFF` means the pack's BMS is not
 responding (dead, or not an OBI-compatible pack).
 
+## Unlock / repair (beta, untested)
+
+Some packs refuse to charge even though their cells are healthy and balanced:
+the BMS stores a frame that trips the charger's lock. The Makita charger only
+validates **three** fields of the 32-byte frame:
+
+- **nybble 34** (byte 17, low) — the charger lock, must be `0`;
+- **CS0** (nybble 41) — `sum(nybbles 0–15) & 0x0F`;
+- **CS2** (nybble 43) — `sum(nybbles 32–40) & 0x0F`.
+
+The status byte (byte 19, e.g. `0xA5`) and the reported temperatures are **not**
+part of that check. The battery's own internal lock additionally checks **CS1**
+(nybbles 16–31, per the rosvall protocol docs), so the repair recomputes all
+three checksums. The Unlock / repair menu entry clears nybble 34, recomputes
+CS0/CS1/CS2, writes the frame back (arm → write → store) and clears the internal
+error register. The failure code (nybble 40, e.g. `0xF` = dead) is **never**
+cleared — a genuinely dead pack is not forced back into service. Manufacturing/status bytes are never touched, and if the frame
+is already valid no write is performed.
+
+> ⚠️ This path **writes to the BMS flash** and is currently **UNTESTED on real
+> hardware**. It is gated behind a confirmation screen. Only use it on a pack you
+> understand, and never to force a genuinely bad cell back into service.
+
 ## Versioning
 
 See [CHANGELOG.md](CHANGELOG.md). The current version is shown on the
@@ -110,6 +136,17 @@ Version / info screen and defined as `FW_VERSION` in the sketch.
   documents the Makita protocol and provides the OneWire2 library.
   https://github.com/mnh-jansson/open-battery-information (MIT)
 - ESP32-C3 wiring reference: the `obi-esp32` port by appositeit.
+- Root protocol reverse-engineering: the
+  [rosvall/makita-lxt-protocol](https://codeberg.org/rosvall/makita-lxt-protocol)
+  documentation (frame byte/nybble map, the three checksum ranges, per-type
+  command sets) — the origin much of the LXT decoding traces back to.
+- Unlock / frame-repair research: the
+  [synrais/Makita-LXT-Battery-Monitor-Unlocker](https://github.com/synrais/Makita-LXT-Battery-Monitor-Unlocker)
+  project, which documented the frame byte map, the CS0/CS2 checksums, the
+  charger-lock nybble and the arm/write/store opcodes. That repository ships with
+  **no license** (all rights reserved), so **none of its code is used here**;
+  PocketOBI's unlock feature is a clean-room reimplementation from those
+  (unprotectable) protocol facts only, cross-checked against real battery dumps.
 
 ## License
 

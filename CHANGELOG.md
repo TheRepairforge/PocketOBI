@@ -6,6 +6,44 @@ Versioning follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH
 The version is defined in `PocketOBI.ino` as `FW_VERSION` and shown
 on the on-device "Version / info" screen.
 
+## [0.9.0] - 2026-07-26
+
+### Added
+- **Unlock / repair** menu entry: rewrites a battery frame to make the charger
+  accept a pack whose cells are healthy but whose stored frame trips the charger
+  lock. Clears the charger-lock nybble (nybble 34) and recomputes all three
+  frame checksums (CS0, CS1, CS2 - CS0/CS2 gate the charger, CS1 the battery's
+  internal lock), then writes the frame back
+  (arm `CC F0 00` -> write `33 0F 00` + 32 bytes -> store `33 55 A5`), power-
+  cycles the bus and clears the internal error register. Guarded by a
+  confirmation screen; if the frame is already valid, no write is performed.
+  Shows the lock causes before -> after. Manufacturing/status bytes (incl.
+  byte 19 / `0xA5`) and the failure code (nybble 40) are never modified.
+- Result screen reporting the remaining lock causes (`CS0`/`CS1`/`CS2`/`N34`) and
+  an Unlocked / Still-locked verdict.
+
+### Changed
+- **Error reset** now runs the full sequence: enter test mode -> `DA 04` ->
+  exit test mode (`CC D9 FF FF`) -> bus power-cycle, so the BMS actually commits
+  the internal error-register clear (previously it stopped after `DA 04`).
+
+### Notes / credit
+- The unlock/frame-repair capability is a **clean-room** reimplementation from
+  publicly documented protocol facts (frame byte/nybble map, checksum ranges +
+  formula, nybble-34 charger lock, arm/write/store opcodes). Sources:
+  - **rosvall/makita-lxt-protocol** (Codeberg) — root reverse-engineering of the
+    frame layout and the three checksum ranges (0-15, 16-31, 32-40).
+  - **synrais/Makita-LXT-Battery-Monitor-Unlocker** — frame-repair method and the
+    empirical charger-validation results (only nybble 34, CS0, CS2 gate the
+    charger). This repo ships with **no license** (all rights reserved), so none
+    of its source code is used — only the unprotectable protocol facts, cross-
+    checked against real battery dumps.
+  - Base protocol credit remains Open Battery Information (Martin Jansson, MIT).
+
+### Known / untested
+- The frame-write path is **UNTESTED on real hardware** (no locked pack available
+  yet). To be validated on genuine locked packs before relying on it.
+
 ## [0.8.1] - 2026-07-21
 
 ### Changed
