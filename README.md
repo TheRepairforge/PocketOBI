@@ -125,6 +125,21 @@ is already valid no write is performed.
 > hardware**. It is gated behind a confirmation screen. Only use it on a pack you
 > understand, and never to force a genuinely bad cell back into service.
 
+## Note on temperature units
+
+Temperatures are decoded as **1/10 K** (`T_C = raw / 10 - 273.15`), following the
+[rosvall protocol docs](https://codeberg.org/rosvall/makita-lxt-protocol) and the
+obi-esp32 encoding. The original Open Battery Information app decodes the same
+field as **Celsius x100** — the exact unit is **not definitively documented**, so
+treat the absolute value as approximate. The dependable signal is *relative*: a
+reading far outside a plausible window (shown as `T -30?` in red) or one sensor
+disagreeing strongly with the other points to a likely faulty thermistor.
+
+The two sensors are reported by the BMS over the data line (there is **no
+separate thermistor pin** on the connector). The original protocol simply labels
+them "Sensor 1" and "Sensor 2"; their exact physical placement on the BMS board
+is not documented in the public literature.
+
 ## Versioning
 
 See [CHANGELOG.md](CHANGELOG.md). The current version is shown on the
