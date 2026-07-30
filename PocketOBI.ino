@@ -100,7 +100,7 @@ OneWire makita(ONEWIRE_PIN);
 Adafruit_ST7789 tft = Adafruit_ST7789(&SPI, TFT_CS, TFT_DC, TFT_RST);
 
 // Firmware version (see CHANGELOG.md).
-#define FW_VERSION "0.9.2"
+#define FW_VERSION "0.9.3"
 
 // ---------- Color palette (dark dashboard theme) ----------
 // Compile-time RGB888 -> RGB565 conversion.
@@ -633,6 +633,12 @@ uint8_t unlockRepair() {
 #define DIFF_WARN    0.15f
 #define DIFF_BAD     0.30f
 
+// Plausible temperature window. A reading outside this is almost certainly a
+// faulty thermistor, shown as "T <val>?" in red on the home screen. It is a
+// suspicion (hence the "?"), not a confirmed diagnosis.
+#define TEMP_MIN_PLAUS  -20.0f
+#define TEMP_MAX_PLAUS   80.0f
+
 // Rough Li-ion state-of-charge estimate from the average resting cell voltage.
 // Piecewise-linear over the OCV curve -> APPROXIMATE (voltage sags under load
 // and the mid-curve is flat), shown with a "~" to make that clear.
@@ -752,8 +758,10 @@ void drawHome() {
   // Footer chips: temperature, spread, lock state (explicit + colored)
   int fy = top + 5 * rowH + 6;
   char buf[16];
-  snprintf(buf, sizeof(buf), "T %.0fC", bat.tempCell);
-  drawChip(6, fy, 88, buf, COL_TEXT);
+  // Red "?" when the reading is implausible = likely faulty thermistor (a guess).
+  bool tPlaus = (bat.tempCell > TEMP_MIN_PLAUS && bat.tempCell < TEMP_MAX_PLAUS);
+  snprintf(buf, sizeof(buf), tPlaus ? "T %.0fC" : "T %.0f?", bat.tempCell);
+  drawChip(6, fy, 88, buf, tPlaus ? COL_TEXT : COL_RED);
   snprintf(buf, sizeof(buf), "dV%.2f", bat.cellDiff);
   drawChip(100, fy, 86, buf, COL_TEXT);
   if (isF0513) {

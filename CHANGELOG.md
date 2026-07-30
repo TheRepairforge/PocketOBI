@@ -6,6 +6,14 @@ Versioning follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH
 The version is defined in `PocketOBI.ino` as `FW_VERSION` and shown
 on the on-device "Version / info" screen.
 
+## [0.9.3] - 2026-07-30
+
+### Added
+- Implausible-temperature flag: when the cell temperature falls outside a
+  plausible window (`TEMP_MIN_PLAUS`..`TEMP_MAX_PLAUS`, -20..80 C), the home
+  temperature chip turns red and shows a trailing `?` (e.g. `T -30?`) — a
+  likely faulty thermistor. It is a suspicion, not a confirmed diagnosis.
+
 ## [0.9.2] - 2026-07-30
 
 ### Fixed
