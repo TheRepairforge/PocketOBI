@@ -6,6 +6,16 @@ Versioning follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH
 The version is defined in `PocketOBI.ino` as `FW_VERSION` and shown
 on the on-device "Version / info" screen.
 
+## [0.9.2] - 2026-07-30
+
+### Fixed
+- **Temperature decoding**: the protocol reports temperature in **1/10 K**
+  (`raw = (T_C + 273.15) * 10`), not Celsius x100. Cell and MOSFET temperatures
+  are now decoded as `raw / 10 - 273.15`. Previous values were a few degrees off
+  on a healthy pack, and — more importantly — a **faulty thermistor** (which
+  reports an absurd value the charger rejects as a "temperature" fault) now shows
+  its true reading (e.g. ~ -30 C) instead of a misleading normal-looking number.
+
 ## [0.9.1] - 2026-07-29
 
 ### Added

@@ -100,7 +100,7 @@ OneWire makita(ONEWIRE_PIN);
 Adafruit_ST7789 tft = Adafruit_ST7789(&SPI, TFT_CS, TFT_DC, TFT_RST);
 
 // Firmware version (see CHANGELOG.md).
-#define FW_VERSION "0.9.1"
+#define FW_VERSION "0.9.2"
 
 // ---------- Color palette (dark dashboard theme) ----------
 // Compile-time RGB888 -> RGB565 conversion.
@@ -452,8 +452,12 @@ bool readLiveData() {
     if (bat.cell[i] > mx) mx = bat.cell[i];
   }
   bat.cellDiff = mx - mn;
-  bat.tempCell = le16(payload, 14) / 100.0;
-  bat.tempMosfet = le16(payload, 16) / 100.0;
+  // Temperature is 1/10 K in the protocol (rosvall / obi-esp32): the raw value
+  // is (T_Celsius + 273.15) * 10, so T_Celsius = raw / 10 - 273.15. A faulty
+  // internal thermistor then reads as an absurd value (e.g. ~ -30 C), which the
+  // charger sees over the data line and refuses as a "temperature" fault.
+  bat.tempCell = le16(payload, 14) / 10.0 - 273.15;
+  bat.tempMosfet = le16(payload, 16) / 10.0 - 273.15;
   return true;
 }
 
