@@ -6,6 +6,20 @@ Versioning follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH
 The version is defined in `PocketOBI.ino` as `FW_VERSION` and shown
 on the on-device "Version / info" screen.
 
+## [0.9.4] - 2026-07-30
+
+### Fixed / hardened (pre-release audit against all protocol sources)
+- **PC bridge** now reports the real firmware version in the interface-version
+  query (was hardcoded to 0.8.x).
+- **F0513**: clear `romId`/`msg` on the F0513 path so Debug/raw no longer shows
+  stale data left over from a previously-read standard pack.
+- **10-cell / 36V packs (BL36xx)**: detected (battery type >= 30) and shown as
+  "not supported (18V only)" instead of a misleading 5-cell dashboard.
+- **Robustness**: guard against a `uint8_t` underflow if a `0x33` command were
+  ever defined with `rsp_len < 8`.
+- Added a note that the **F0513 temperature unit is unverified** (kept at /100;
+  the standard path uses 1/10 K).
+
 ## [0.9.3] - 2026-07-30
 
 ### Added

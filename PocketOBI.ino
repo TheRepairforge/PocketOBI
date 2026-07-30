@@ -100,7 +100,7 @@ OneWire makita(ONEWIRE_PIN);
 Adafruit_ST7789 tft = Adafruit_ST7789(&SPI, TFT_CS, TFT_DC, TFT_RST);
 
 // Firmware version (see CHANGELOG.md).
-#define FW_VERSION "0.9.3"
+#define FW_VERSION "0.9.4"
 
 // ---------- Color palette (dark dashboard theme) ----------
 // Compile-time RGB888 -> RGB565 conversion.
@@ -279,7 +279,7 @@ bool sendCommand(const uint8_t *c, uint8_t *outPayload, uint8_t *romIdOut = null
     for (int i = 0; i < 8; i++) rid[i] = mkRead();
     if (romIdOut) memcpy(romIdOut, rid, 8);
     for (int i = 0; i < dataLen; i++) mkWrite(data[i]);
-    payloadLen = rspLen - 8; // rspLen includes the 8 ROM ID bytes
+    payloadLen = (rspLen >= 8) ? (rspLen - 8) : 0; // #5: guard uint8_t underflow (rspLen includes the 8 ROM ID)
     for (int i = 0; i < payloadLen; i++) outPayload[i] = mkRead();
 #if COMM_DEBUG
     Serial.print("  rom:");
@@ -393,6 +393,10 @@ bool readStaticInfo() {
     bat.mfgYear = 0;
     bat.mfgMonth = 0;
     bat.mfgDay = 0;
+    // #3: F0513 has no ROM-ID message frame; clear these so Debug/raw does not
+    // show stale data from a previously-read standard pack.
+    memset(bat.romId, 0, sizeof(bat.romId));
+    memset(bat.msg, 0, sizeof(bat.msg));
   }
 
   bat.valid = true;
@@ -430,6 +434,9 @@ bool readLiveData() {
     }
     bat.packVoltage = sum;
     bat.cellDiff = mx - mn;
+    // #1: F0513 temperature unit is UNVERIFIED (no F0513 hardware to test). The
+    // standard path uses 1/10 K; this older NEC F0513 generation may differ, so
+    // this /100 is kept as-is until it can be checked on a real F0513 pack.
     bat.tempCell = le16(t, 0) / 100.0;
     bat.tempMosfet = -1; // not available on F0513
     return true;
@@ -706,6 +713,16 @@ void drawHome() {
     tft.print("Connect a pack, then");
     tft.setCursor(10, 146);
     tft.print("Menu > Read battery");
+    return;
+  }
+
+  // #4: 10-cell 36V pack (BL36xx): the 5-cell parsing below would be misleading.
+  if (!isF0513 && bat.batteryType >= 30) {
+    tft.setTextSize(2);
+    tft.setTextColor(COL_RED, COL_BG);
+    tft.setCursor(10, 90);   tft.print("36V / 10-cell pack");
+    tft.setTextColor(COL_MUTED, COL_BG);
+    tft.setCursor(10, 120);  tft.print("not supported (18V only)");
     return;
   }
 
@@ -1307,7 +1324,7 @@ void serviceBridge() {
   int outLen = rspLen;
 
   if (cmd == 0x01) {                                // interface version query
-    rsp[0] = 0; rsp[1] = 8; rsp[2] = 0;             // report firmware 0.8.x
+    rsp[0] = 0; rsp[1] = 9; rsp[2] = 4;             // #2: firmware version (keep in sync with FW_VERSION)
   } else if (cmd == 0x31 || cmd == 0x32) {          // F0513 raw model/version
     uint8_t b1 = 0xFF, b2 = 0xFF;
     readF0513Raw(cmd, &b1, &b2);
