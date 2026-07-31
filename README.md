@@ -46,6 +46,19 @@ very welcome.
   desktop *Open Battery Information* app works through PocketOBI. Dual use:
   standalone tester **and** PC adapter.
 
+## Architecture
+
+[<img src="docs/architecture.png" alt="PocketOBI architecture diagram" width="480">](docs/architecture.png)
+
+*(click for full size — full-resolution file in [`docs/architecture.png`](docs/architecture.png))*
+
+From the battery up: the Makita pack speaks over a single data wire; the bundled
+**OneWire2** driver (reused from OBI) handles the custom Makita bit timings; the
+ESP32-C3 firmware is layered — protocol (frames + ENABLE, pack-type detection),
+data decode (bytes → cells / temperature / errors / lock), display (Adafruit GFX
++ ST7789) and a small UI state machine — driving the TFT and, optionally, a USB
+PC bridge.
+
 ## Hardware
 
 | Component | Notes |
@@ -53,27 +66,51 @@ very welcome.
 | ESP32-C3 SuperMini | any ESP32-C3 board with native USB |
 | 2.4" SPI TFT, ST7789 (240×320) | + integrated EC11 rotary encoder module |
 | Makita BL1830 LXT adapter | clips onto the 18V pack |
-| 2 × 470 Ω resistors | pull-ups for the DATA and ENABLE lines |
+| 2 × 4.7 kΩ resistors | pull-ups for DATA and ENABLE (470 Ω also works) |
 | USB-C power (power bank/charger) | powers the tool — NOT the battery |
 
-### Pinout
+### Wiring
 
-| Function | ESP32-C3 |
-|---|---|
-| Battery DATA (pin 2) | GPIO3 + 470 Ω pull-up to 3.3 V |
-| Battery ENABLE (pin 6) | GPIO4 + 470 Ω pull-up to 3.3 V |
-| Battery GND | main **B-** terminal (simpler/more reliable than signal pin 5; same ground) → ESP32 GND |
-| Battery B+ (18 V) | **NEVER CONNECT** |
-| TFT SCLK / MOSI / RST / DC / CS | GPIO0 / 1 / 10 / 20 / 21 |
-| TFT VCC / BLK | 3.3 V |
-| Encoder A / B / PUSH | GPIO5 / 6 / 7 |
-| Module KO (back button) | GPIO2 |
+[<img src="docs/wiring.png" alt="PocketOBI wiring diagram" width="560">](docs/wiring.png)
 
-The Makita signal connector pins are numbered from the B+ side: pin 2 = Data,
-pin 6 = Enable. Take the ground from the main **B-** terminal (equivalent to
-signal pin 5, but a sturdier contact). Both DATA and ENABLE need their own
-**470 Ω** pull-up (DATA needs the strong pull-up for the 3.3 V input threshold;
-ENABLE is driven, so the same value is used for a single-value BOM).
+*(click for full size — full-resolution file in [`docs/wiring.png`](docs/wiring.png))*
+
+**Display + encoder module (2-in-1 TFT + EC11):**
+
+| ESP32-C3 | Module pin | Role |
+|---|---|---|
+| GPIO0  | SCL  | SPI clock |
+| GPIO1  | SDA  | SPI data (MOSI) |
+| GPIO10 | RES  | reset |
+| GPIO20 | DC   | data / command select |
+| GPIO21 | CS   | chip select (active low) |
+| 3.3 V  | VCC  | logic power |
+| 3.3 V  | BLK  | backlight (or leave unconnected = always on) |
+| GND    | GND  | ground |
+| GPIO5  | A    | encoder phase A |
+| GPIO6  | B    | encoder phase B |
+| GPIO7  | PUSH | encoder push button |
+| GPIO2  | KO   | secondary button (short = back, long = home) |
+
+**Battery adapter (Makita LXT connector):**
+
+| ESP32-C3 | Battery pin | Role |
+|---|---|---|
+| GPIO3 + 4.7 kΩ pull-up to 3.3 V | Pin 2 — **DATA** | OneWire data |
+| GPIO4 + 4.7 kΩ pull-up to 3.3 V | Pin 6 — **ENABLE** | enable (active high) |
+| GND | main **B-** terminal | ground (sturdier than signal pin 5; same ground) |
+| — | Pin 1 — **B+ (18 V)** | **NEVER CONNECT** |
+
+Notes:
+- **Pull-ups:** 4.7 kΩ is the reference value; **470 Ω** was used successfully on
+  a breadboard (on 3.3 V logic the pack loads the DATA line near the input
+  threshold, so a stronger pull-up can help with long/messy wiring).
+- ⚠️ **Identify DATA/ENABLE by the ESP32 silkscreen labels ("3" / "4"), not by
+  the adapter's connector position.** Some AliExpress adapters number their orange
+  connector from the opposite end, so DATA can land on what looks like "plot 6"
+  and ENABLE on "plot 2". Wrong plots = no comms (present = 0, all-`FF`/`00`).
+- Power the tool from **USB-C**, never from the Makita pack (B+ is 18 V, and the
+  BMS can cut its own output on error).
 
 A carrier-PCB design (netlist, BOM, footprints, KiCad quick-start) is drafted in
 [HARDWARE.md](HARDWARE.md) — not manufactured yet.
