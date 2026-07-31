@@ -15,9 +15,7 @@ https://www.youtube.com/channel/UCQL_-pcIEkrDPyljl3QPzcw
 
 ## Project status — Step 1 (beta)
 
-This is an early **beta** and a work in progress. So far it has only been tested
-against a single, semi-responsive battery, so the battery communication is
-**not yet validated** on healthy packs. Expect rough edges; experimentation is
+This is **beta** and a work in progress. Expect rough edges; experimentation is
 ongoing. Feedback and test reports (especially serial logs from real packs) are
 very welcome.
 
@@ -37,8 +35,8 @@ very welcome.
 - Model, charge count, manufacturing date, capacity, error code, lock state.
 - Automatic detection of standard vs older **F0513** BMS generations.
 - Error reset with before → after feedback (full test-mode + power-cycle sequence).
-- **Unlock / repair** (beta): rewrites the frame to lift a charger lockout on a
-  pack whose cells are healthy — clears the charger-lock nybble and recomputes
+- **Unlock / repair** : rewrites the frame to lift a charger lockout on a
+  pack whose cells are healthy, clears the charger-lock nybble and recomputes
   the charger-validated checksums, then writes the frame back. See below.
 - Pack LED test (on/off).
 - Raw debug view (ROM ID + message frame).
@@ -139,7 +137,7 @@ If the home screen shows "No battery found", check wiring and use
 Menu → Read battery. "Comm error" / all-`0xFF` means the pack's BMS is not
 responding (dead, or not an OBI-compatible pack).
 
-## Unlock / repair (beta, untested)
+## Unlock / repair
 
 Some packs refuse to charge even though their cells are healthy and balanced:
 the BMS stores a frame that trips the charger's lock. The Makita charger only
@@ -157,10 +155,6 @@ CS0/CS1/CS2, writes the frame back (arm → write → store) and clears the inte
 error register. The failure code (nybble 40, e.g. `0xF` = dead) is **never**
 cleared — a genuinely dead pack is not forced back into service. Manufacturing/status bytes are never touched, and if the frame
 is already valid no write is performed.
-
-> ⚠️ This path **writes to the BMS flash** and is currently **UNTESTED on real
-> hardware**. It is gated behind a confirmation screen. Only use it on a pack you
-> understand, and never to force a genuinely bad cell back into service.
 
 ## Note on temperature units
 
