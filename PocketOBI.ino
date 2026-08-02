@@ -100,7 +100,7 @@ OneWire makita(ONEWIRE_PIN);
 Adafruit_ST7789 tft = Adafruit_ST7789(&SPI, TFT_CS, TFT_DC, TFT_RST);
 
 // Firmware version (see CHANGELOG.md).
-#define FW_VERSION "0.9.4"
+#define FW_VERSION "0.9.5"
 
 // ---------- Color palette (dark dashboard theme) ----------
 // Compile-time RGB888 -> RGB565 conversion.
@@ -463,6 +463,10 @@ bool readLiveData() {
   // is (T_Celsius + 273.15) * 10, so T_Celsius = raw / 10 - 273.15. A faulty
   // internal thermistor then reads as an absurd value (e.g. ~ -30 C), which the
   // charger sees over the data line and refuses as a "temperature" fault.
+  // NOTE: the BMS reports two sensors, "Sensor 1" (offset 14) and "Sensor 2"
+  // (offset 16). The cell/MOSFET names here follow obi-esp32's interpretation and
+  // are UNVERIFIED (original OBI just calls them Sensor 1/2) — which reading is
+  // physically which is unknown, so the UI shows both values without labeling them.
   bat.tempCell = le16(payload, 14) / 10.0 - 273.15;
   bat.tempMosfet = le16(payload, 16) / 10.0 - 273.15;
   return true;
@@ -521,10 +525,10 @@ void ledsOff() {
 // A pack whose cells are healthy but whose frame trips one of these can be
 // unlocked by rewriting the lock nybble and recomputing the checksums.
 //
-// WARNING: writeFrame() writes to the BMS flash. This path is UNTESTED on real
-// hardware (no locked pack available yet) and is gated behind a confirmation
-// screen. Only nybble 34, CS0 and CS2 are ever modified; all manufacturing and
-// status bytes (0-4, 12, 19, ...) are preserved untouched.
+// NOTE: writeFrame() writes to the BMS flash, gated behind a confirmation screen.
+// It clears a false charger lockout on an otherwise-healthy pack; it never
+// overrides the BMS's own fault protection. Only nybble 34, CS0 and CS2 are ever
+// modified; all manufacturing and status bytes (0-4, 12, 19, ...) are untouched.
 
 // Lock-cause bits. CS0/CS2 + N34 gate the CHARGER (empirically, synrais); CS1
 // additionally gates the battery's own internal lock (rosvall root protocol doc:
@@ -594,7 +598,7 @@ void ow33(const uint8_t *data, uint8_t dataLen, uint8_t *rsp, uint8_t rspLen) {
 #endif
 }
 
-// Write a 32-byte frame back to the BMS and commit it. UNTESTED (see warning).
+// Write a 32-byte frame back to the BMS and commit it. (see NOTE above).
 // Sequence: arm (CC F0 00) -> write (33 0F 00 + 32 bytes) -> store (33 55 A5).
 // The arm is accepted only once per pack insertion; to retry, remove/reinsert.
 void writeFrame(const uint8_t *frame) {
@@ -775,10 +779,19 @@ void drawHome() {
   // Footer chips: temperature, spread, lock state (explicit + colored)
   int fy = top + 5 * rowH + 6;
   char buf[16];
-  // Red "?" when the reading is implausible = likely faulty thermistor (a guess).
-  bool tPlaus = (bat.tempCell > TEMP_MIN_PLAUS && bat.tempCell < TEMP_MAX_PLAUS);
-  snprintf(buf, sizeof(buf), tPlaus ? "T %.0fC" : "T %.0f?", bat.tempCell);
-  drawChip(6, fy, 88, buf, tPlaus ? COL_TEXT : COL_RED);
+  // Temperature chip. Standard packs have two sensors (cell/MOSFET): show both
+  // so a disagreement is visible at a glance; red when either reading is outside
+  // the plausible window = likely faulty thermistor.
+  if (isF0513) {
+    bool tp = (bat.tempCell > TEMP_MIN_PLAUS && bat.tempCell < TEMP_MAX_PLAUS);
+    snprintf(buf, sizeof(buf), tp ? "T %.0fC" : "T %.0f?", bat.tempCell);
+    drawChip(6, fy, 88, buf, tp ? COL_TEXT : COL_RED);
+  } else {
+    bool tp = (bat.tempCell   > TEMP_MIN_PLAUS && bat.tempCell   < TEMP_MAX_PLAUS)
+           && (bat.tempMosfet > TEMP_MIN_PLAUS && bat.tempMosfet < TEMP_MAX_PLAUS);
+    snprintf(buf, sizeof(buf), "%.0f/%.0f", bat.tempCell, bat.tempMosfet);
+    drawChip(6, fy, 88, buf, tp ? COL_TEXT : COL_RED);
+  }
   snprintf(buf, sizeof(buf), "dV%.2f", bat.cellDiff);
   drawChip(100, fy, 86, buf, COL_TEXT);
   if (isF0513) {
@@ -967,7 +980,7 @@ void lockCausesText(uint8_t causes, char *out, size_t n) {
 }
 
 // Confirmation before writing to the BMS flash. Shows the detected charger-lock
-// causes and a clear "untested/beta, writes flash" warning. If nothing is
+// causes and a clear "writes flash" safety warning. If nothing is
 // locked (or F0513), clicking just returns to the menu (no write is performed).
 void drawConfirmUnlock() {
   drawHeader("UNLOCK / REPAIR");
@@ -1009,7 +1022,7 @@ void drawConfirmUnlock() {
   tft.setTextColor(COL_RED, COL_BG);
   tft.setCursor(6, y + 52);   tft.print("WARNING: writes to the BMS flash.");
   tft.setCursor(6, y + 64);   tft.print("Sets nybble34=0, recomputes CS0/1/2.");
-  tft.setCursor(6, y + 76);   tft.print("UNTESTED on hardware (beta).");
+  tft.setCursor(6, y + 76);   tft.print("Repairs a false lockout only.");
 
   tft.setTextSize(2);
   tft.setTextColor(COL_GREEN, COL_BG);
@@ -1324,7 +1337,7 @@ void serviceBridge() {
   int outLen = rspLen;
 
   if (cmd == 0x01) {                                // interface version query
-    rsp[0] = 0; rsp[1] = 9; rsp[2] = 4;             // #2: firmware version (keep in sync with FW_VERSION)
+    rsp[0] = 0; rsp[1] = 9; rsp[2] = 5;             // #2: firmware version (keep in sync with FW_VERSION)
   } else if (cmd == 0x31 || cmd == 0x32) {          // F0513 raw model/version
     uint8_t b1 = 0xFF, b2 = 0xFF;
     readF0513Raw(cmd, &b1, &b2);

@@ -13,13 +13,13 @@ rotary encoder instead of a computer.
 Created by **The Repair Forge** — follow the build on YouTube:
 https://www.youtube.com/channel/UCQL_-pcIEkrDPyljl3QPzcw
 
-## Project status — Step 1 (beta)
+## Project status
 
-This is an early **beta** and a work in progress. So far it has only been tested
-against a single, semi-responsive battery, so the battery communication is
-**not yet validated** on healthy packs. Expect rough edges; experimentation is
-ongoing. Feedback and test reports (especially serial logs from real packs) are
-very welcome.
+Functional and validated on real hardware: PocketOBI reads genuine Makita LXT
+packs correctly (model, per-cell voltages, temperatures, capacity, charge count,
+lock/error state). Developed and demonstrated on The Repair Forge YouTube
+channel. More packs and further testing will keep refining it — feedback and
+serial logs from real packs are very welcome.
 
 > ⚠️ **Safety first.** These packs contain lithium cells and up to ~21 V on
 > B+. **Never connect B+ to the ESP32.** Resetting a BMS error only helps a
@@ -33,11 +33,11 @@ very welcome.
   secondary back button: short = back, long = home).
 - Per-cell voltage bars with color-coded health (green / yellow / red) and
   imbalance detection.
-- Pack voltage, estimated state of charge, cell and MOSFET temperatures, spread.
+- Pack voltage, estimated state of charge, two BMS temperature sensors, spread.
 - Model, charge count, manufacturing date, capacity, error code, lock state.
 - Automatic detection of standard vs older **F0513** BMS generations.
 - Error reset with before → after feedback (full test-mode + power-cycle sequence).
-- **Unlock / repair** (beta): rewrites the frame to lift a charger lockout on a
+- **Unlock / repair**: rewrites the frame to lift a charger lockout on a
   pack whose cells are healthy — clears the charger-lock nybble and recomputes
   the charger-validated checksums, then writes the frame back. See below.
 - Pack LED test (on/off).
@@ -139,7 +139,7 @@ If the home screen shows "No battery found", check wiring and use
 Menu → Read battery. "Comm error" / all-`0xFF` means the pack's BMS is not
 responding (dead, or not an OBI-compatible pack).
 
-## Unlock / repair (beta, untested)
+## Unlock / repair
 
 Some packs refuse to charge even though their cells are healthy and balanced:
 the BMS stores a frame that trips the charger's lock. The Makita charger only
@@ -158,9 +158,10 @@ error register. The failure code (nybble 40, e.g. `0xF` = dead) is **never**
 cleared — a genuinely dead pack is not forced back into service. Manufacturing/status bytes are never touched, and if the frame
 is already valid no write is performed.
 
-> ⚠️ This path **writes to the BMS flash** and is currently **UNTESTED on real
-> hardware**. It is gated behind a confirmation screen. Only use it on a pack you
-> understand, and never to force a genuinely bad cell back into service.
+> ⚠️ This **writes to the BMS flash** and is gated behind a confirmation screen.
+> It only clears a *false* charger lockout on an otherwise-healthy pack; it never
+> overrides the BMS's own fault protection. Never use it to force a pack with a
+> bad or low cell back into service.
 
 ## Note on temperature units
 
@@ -168,14 +169,16 @@ Temperatures are decoded as **1/10 K** (`T_C = raw / 10 - 273.15`), following th
 [rosvall protocol docs](https://codeberg.org/rosvall/makita-lxt-protocol) and the
 obi-esp32 encoding. The original Open Battery Information app decodes the same
 field as **Celsius x100** — the exact unit is **not definitively documented**, so
-treat the absolute value as approximate. The dependable signal is *relative*: a
-reading far outside a plausible window (shown as `T -30?` in red) or one sensor
-disagreeing strongly with the other points to a likely faulty thermistor.
+treat the absolute value as approximate. The dependable signal is *relative*: the
+two sensors are shown side by side (e.g. `28/31`, and in red when a value is
+implausible), so a reading that is far off or that disagrees strongly with the
+other flags a likely faulty thermistor.
 
 The two sensors are reported by the BMS over the data line (there is **no
 separate thermistor pin** on the connector). The original protocol simply labels
-them "Sensor 1" and "Sensor 2"; their exact physical placement on the BMS board
-is not documented in the public literature.
+them **"Sensor 1"** and **"Sensor 2"** — **which reading is the cell sensor vs the
+MOSFET sensor is not documented**, and their physical placement on the BMS board
+is unknown. PocketOBI just shows both values; do not assume which is which.
 
 ## Versioning
 
