@@ -20,13 +20,11 @@ https://www.youtube.com/channel/UCQL_-pcIEkrDPyljl3QPzcw
 Full walkthrough — how it works, the reverse-engineering, and a live demo:
 **https://youtu.be/57KsQQ7-Qd0**
 
-## Project status
+## Project status — Step 1 (beta)
 
-Functional and validated on real hardware: PocketOBI reads genuine Makita LXT
-packs correctly (model, per-cell voltages, temperatures, capacity, charge count,
-lock/error state). Developed and demonstrated on The Repair Forge YouTube
-channel. More packs and further testing will keep refining it — feedback and
-serial logs from real packs are very welcome.
+This is **beta** and a work in progress. Expect rough edges; experimentation is
+ongoing. Feedback and test reports (especially serial logs from real packs) are
+very welcome.
 
 > ⚠️ **Safety first.** These packs contain lithium cells and up to ~21 V on
 > B+. **Never connect B+ to the ESP32.** Resetting a BMS error only helps a
