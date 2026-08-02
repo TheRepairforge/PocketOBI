@@ -6,6 +6,17 @@ Versioning follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH
 The version is defined in `PocketOBI.ino` as `FW_VERSION` and shown
 on the on-device "Version / info" screen.
 
+## [0.9.5] - 2026-08-02
+
+### Changed
+- The home temperature chip now shows **both sensors** (cell / MOSFET, e.g.
+  `28/31`) instead of only the cell reading, so a disagreement between the two is
+  visible at a glance. It turns red when either reading is outside the plausible
+  window (likely faulty thermistor). F0513 (single sensor) is unchanged.
+- README/HARDWARE wording tidied for the public release; the unlock/repair is
+  described by its scope (clears a false charger lockout on an otherwise-healthy
+  pack; never overrides the BMS's own fault protection).
+
 ## [0.9.4] - 2026-07-30
 
 ### Fixed / hardened (pre-release audit against all protocol sources)

@@ -123,5 +123,5 @@ Notes:
 
 ## Recommended path
 
-Because the battery communication is not validated yet (beta), first freeze the
-wiring on a **perfboard** once a healthy pack talks, then commit to this PCB.
+The battery communication is validated on real hardware; still, it is wise to
+freeze the wiring on a **perfboard** first, then commit to this PCB.
