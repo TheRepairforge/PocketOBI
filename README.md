@@ -13,6 +13,13 @@ rotary encoder instead of a computer.
 Created by **The Repair Forge** — follow the build on YouTube:
 https://www.youtube.com/channel/UCQL_-pcIEkrDPyljl3QPzcw
 
+## 📺 Watch it in action
+
+[![PocketOBI on YouTube](https://img.youtube.com/vi/57KsQQ7-Qd0/hqdefault.jpg)](https://youtu.be/57KsQQ7-Qd0)
+
+Full walkthrough — how it works, the reverse-engineering, and a live demo:
+**https://youtu.be/57KsQQ7-Qd0**
+
 ## Project status
 
 Functional and validated on real hardware: PocketOBI reads genuine Makita LXT
