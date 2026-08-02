@@ -120,7 +120,9 @@ Notes:
 A carrier-PCB design (netlist, BOM, footprints, KiCad quick-start) is drafted in
 [HARDWARE.md](HARDWARE.md) — not manufactured yet.
 
-## Build & flash (Arduino IDE)
+## Build & flash
+
+### Arduino IDE
 
 1. Install the **ESP32 board package** (Espressif) via the Boards Manager.
 2. Install these libraries via the Library Manager:
@@ -135,6 +137,19 @@ A carrier-PCB design (netlist, BOM, footprints, KiCad quick-start) is drafted in
 > Note: Arduino requires the sketch to live in a folder named `PocketOBI`.
 > If you downloaded a ZIP (GitHub adds a `-main` suffix), rename the inner
 > sketch folder back to `PocketOBI` before opening it.
+
+### PlatformIO (VS Code)
+
+A ready-made PlatformIO project is in [`platformio/`](platformio/):
+
+```bash
+cd platformio
+pio run             # build
+pio run -t upload   # build + flash
+```
+
+It mirrors the Arduino sources (the root `PocketOBI.ino` stays the source of
+truth); details in [`platformio/README.md`](platformio/README.md).
 
 ## Usage
 

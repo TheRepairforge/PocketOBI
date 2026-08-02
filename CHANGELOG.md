@@ -6,6 +6,14 @@ Versioning follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH
 The version is defined in `PocketOBI.ino` as `FW_VERSION` and shown
 on the on-device "Version / info" screen.
 
+## [0.9.6] - 2026-08-02
+
+### Added
+- **PlatformIO build** (`platformio/`): a conventional PlatformIO project
+  (src/ + lib/) for VS Code users, alongside the Arduino IDE build. It mirrors
+  the root Arduino sources via `platformio/sync.ps1` / `sync.sh`; the root
+  `PocketOBI.ino` remains the single source of truth. (Addresses issue #1.)
+
 ## [0.9.5] - 2026-08-02
 
 ### Changed
