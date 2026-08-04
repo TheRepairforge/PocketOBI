@@ -18,6 +18,18 @@ on the on-device "Version / info" screen.
   [m5din-makita](https://github.com/no-body-in-particular/m5din-makita) fork (its
   reader and its BMS emulator store/read the same bytes the same way). Values are
   best-effort: the absolute figures are not yet confirmed against a bench meter.
+- **Dual capacity-format decode.** Battery capacity (frame byte 16) is now decoded
+  for both encodings: newer packs store it directly in whole Ah, older packs store
+  a nibble-swapped value in tenths of an Ah. (From the MIT-licensed
+  [drakosha/makita-battery-tools](https://github.com/drakosha/makita-battery-tools).)
+
+### Documented
+- **Secondary frame checksums (CS3/CS4 in byte 31).** Added an in-code note on the
+  two secondary checksums (byte 31: covers bytes 22-23 and 24-30, the latter
+  including overload / over-discharge / cycle-count). No behaviour change - the
+  unlock only touches the CS2 range - but any future write to bytes 22-30 must
+  recompute byte 31. Corroborated by drakosha/makita-battery-tools, whose decode of
+  the three primary checksums matches ours exactly.
 
 ### Changed
 - Temperature-unit note (README + code comment) upgraded from "disputed" to

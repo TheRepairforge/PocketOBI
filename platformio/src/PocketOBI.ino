@@ -372,7 +372,16 @@ bool readStaticInfo() {
     bat.locked = (payload[20] & 0x0F) > 0;
     bat.chargerLocked = (lockCauses(payload) != 0);
     bat.errorCode = payload[19];
-    bat.capacityAh = nibbleSwap(payload[16]) / 10.0;
+    // Capacity (byte 16) has two encodings, per drakosha/makita-battery-tools:
+    // newer packs store it directly in Ah (raw 1..8, nibble-swap > 60), older
+    // packs store nibble-swap in tenths of an Ah. Detect and decode accordingly.
+    uint8_t capRaw = payload[16];
+    uint8_t capSw  = nibbleSwap(capRaw);
+    if (capRaw >= 1 && capRaw <= 8 && capSw > 60) {
+      bat.capacityAh = capRaw;         // newer format: whole Ah
+    } else {
+      bat.capacityAh = capSw / 10.0;   // legacy format: tenths of an Ah
+    }
     bat.batteryType = nibbleSwap(payload[11]);
     bat.mfgYear = 2000 + romId[0];
     bat.mfgMonth = romId[1];
@@ -601,6 +610,21 @@ void buildRepairedFrame(const uint8_t *in, uint8_t *out) {
   nybSet(out, 42, csCalc(out, 16, 31));   // CS1 (battery internal lock, rosvall)
   nybSet(out, 43, csCalc(out, 32, 40));   // CS2
 }
+
+// SECONDARY CHECKSUMS (documentation only - not needed by the current unlock).
+// Beyond the three primary checksums above, the frame carries two more in byte 31
+// (corroborated by the drakosha/makita-battery-tools MIT project, whose decode of
+// the three primary checksums matches ours nybble-for-nybble):
+//   - CS3 (nybble 62 = byte 31 low)  = csCalc(frame, 44, 47)  -> covers bytes 22-23
+//   - CS4 (nybble 63 = byte 31 high) = csCalc(frame, 48, 61)  -> covers bytes 24-30
+// Same formula (sum of the nybbles in range, low nybble). CS4 notably covers the
+// overload (byte 25), over-discharge (byte 24) and cycle-count (bytes 26-27)
+// fields. Our unlock only rewrites nybble 34 (in the CS2 range), so byte 31 stays
+// valid and we never recompute it. IMPORTANT: any FUTURE feature that writes to
+// bytes 22-30 (e.g. resetting the cycle count) MUST also recompute byte 31, i.e.
+//   nybSet(out, 62, csCalc(out, 44, 47));
+//   nybSet(out, 63, csCalc(out, 48, 61));
+// or the BMS will reject the frame as corrupt.
 
 // Low-level read-ROM (0x33) transaction: reset, write 0x33, read+discard the 8
 // ROM bytes, write `dataLen` bytes, read `rspLen` bytes. Mirrors the documented
