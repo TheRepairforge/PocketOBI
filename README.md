@@ -185,11 +185,16 @@ is already valid no write is performed.
 
 ## Note on temperature units
 
-Temperatures are decoded as **1/10 K** (`T_C = raw / 10 - 273.15`), following the
-[rosvall protocol docs](https://codeberg.org/rosvall/makita-lxt-protocol) and the
-obi-esp32 encoding. The original Open Battery Information app decodes the same
-field as **Celsius x100** — the exact unit is **not definitively documented**, so
-treat the absolute value as approximate. The dependable signal is *relative*: the
+Temperatures are decoded as **1/10 K** (`T_C = raw / 10 - 273.15`). This is now
+corroborated by four independent sources: the
+[rosvall protocol docs](https://codeberg.org/rosvall/makita-lxt-protocol), the
+obi-esp32 encoding, and both sides of the
+[m5din-makita](https://github.com/no-body-in-particular/m5din-makita) fork — its
+reader (`(raw / 10) - 273.15`) *and* its BMS emulator (`(T_C + 273.15) * 10`).
+The original Open Battery Information app decodes the same field as
+**Celsius x100**; that appears to be the outlier. The unit is still not stated in
+any official Makita document, so treat the absolute value as approximate, but the
+1/10 K interpretation is the well-supported one. The dependable signal is *relative*: the
 two sensors are shown side by side (e.g. `28/31`, and in red when a value is
 implausible), so a reading that is far off or that disagrees strongly with the
 other flags a likely faulty thermistor.

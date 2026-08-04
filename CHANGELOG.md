@@ -6,6 +6,25 @@ Versioning follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH
 The version is defined in `PocketOBI.ino` as `FW_VERSION` and shown
 on the on-device "Version / info" screen.
 
+## [0.9.7] - 2026-08-04
+
+### Added
+- **Details screen: state-of-health estimate + protection thresholds.** The
+  standard-battery Details view now shows `Health~` (a cycle-based SoH *estimate*,
+  the `~` marking it as an estimate rather than the BMS's own gauge) and
+  `Prot OL/OD` (over-current / over-discharge protection thresholds, in %). All
+  three are decoded from the ROM message frame already read — **no extra bus
+  traffic**. The decodes are corroborated by both sides of the
+  [m5din-makita](https://github.com/no-body-in-particular/m5din-makita) fork (its
+  reader and its BMS emulator store/read the same bytes the same way). Values are
+  best-effort: the absolute figures are not yet confirmed against a bench meter.
+
+### Changed
+- Temperature-unit note (README + code comment) upgraded from "disputed" to
+  "well-supported": the 1/10 K decode is now corroborated by four independent
+  sources (rosvall, obi-esp32, and both the reader and BMS emulator of the
+  m5din-makita fork). Open Battery Information's Celsius×100 is the outlier.
+
 ## [0.9.6] - 2026-08-02
 
 ### Added
