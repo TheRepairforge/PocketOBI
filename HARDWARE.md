@@ -29,8 +29,8 @@ carries the two pull-up resistors, and breaks out the battery connector.
 | R1, R2 | 470 Ω resistor | 2 | single value for both pull-ups (see note) |
 | J1 | female header, matches U1 | 1–2 | 2.54 mm pitch |
 | J2 | female header, matches M1 | 1 | 2.54 mm pitch, 12 pins |
-| J3 | JST-XH 6-pin, board header (B6B-XH-A) | 1 | battery signal plug; only 2 pins used |
-| J4 | screw terminal 2-pin, 5.08 mm | 1 | battery GND wire from the B- terminal |
+| J3 | JST-PH 6-pin, board header (B6B-PH-K, top entry) | 1 | battery signal plug; only 2 pins used |
+| J4 | screw terminal 2-pin, 3.5 mm | 1 | battery GND wire from the B- terminal |
 | PCB | 2-layer | 1 | ~JLCPCB/PCBWay |
 
 ## Module pin reference
@@ -66,7 +66,7 @@ NET ENABLE   : U1.GPIO4, R2.p2, J3.p5          ; enable (JST pin 5), pull-up via
 No-Connect   : J3.p2, J3.p3, J3.p4, J3.p6      ; unused JST pins (incl. battery B-/signal GND)
 ```
 
-Battery JST-XH pin map (adapter omits B+, so JST pin N = battery pin N+1):
+Battery JST-PH pin map (adapter omits B+, so JST pin N = battery pin N+1):
 - J3.p1 = battery pin 2 = **DATA** (used)
 - J3.p5 = battery pin 6 = **ENABLE** (used)
 - J3.p2/p3/p4/p6 = battery pins 3/4/5/7 = unused here (p4 = signal GND, p6 = B-)
@@ -90,8 +90,8 @@ Notes:
 | U1 | 2× pin header 2.54 mm (or a community "ESP32-C3 SuperMini" footprint) | verify pin count/row spacing on your board |
 | M1 | 1×12 pin header 2.54 mm | verify count/pitch/order on your module |
 | R1, R2 | R_0805 (SMD) or R_Axial_DIN0207 (through-hole) | beginner: through-hole is easier to hand-solder |
-| J3 | `Connector_JST:JST_XH_B6B-XH-A_1x06_P2.50mm_Vertical` (or `S6B-XH-A ..._Horizontal`) | matches the battery signal plug |
-| J4 | `TerminalBlock:TerminalBlock_bornier-2_P5.08mm` (or any 2-pin 5.08 mm you have) | GND wire from B- |
+| J3 | `Connector_JST:JST_PH_B6B-PH-K_1x06_P2.00mm_Vertical` (top entry; or `S6B-PH-K ..._Horizontal` for side entry) | matches the battery signal plug |
+| J4 | `TerminalBlock_Phoenix:TerminalBlock_Phoenix_MC-1,5-2-3.5_1x02_P3.50mm` (or any 2-pin 3.5 mm you have) | GND wire from B-; wire horizontal / screw on top |
 
 ## Placement / routing guidelines
 
