@@ -6,6 +6,55 @@ Versioning follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH
 The version is defined in `PocketOBI.ino` as `FW_VERSION` and shown
 on the on-device "Version / info" screen.
 
+## [1.0.0] - 2026-08-05
+
+First official, stable release. The core decodes (protocol, temperature, cell
+voltages, capacity, charge count) are cross-validated on real packs. A larger V2
+(more readouts + UI overhaul) is planned separately.
+
+### Changed
+- **Faulty-thermistor reading now flagged explicitly.** When a temperature sensor
+  reads outside the plausible window it is shown with a leading `!` in red on the
+  home chip (e.g. `!-30/31`) = suspected **faulty sensor / hardware fault**, not a
+  real extreme temperature. (A dead thermistor pins near -30 C.)
+
+### Validated
+- **Temperature unit (1/10 K) validated on real packs.** Readings from several packs
+  (including one with a known faulty thermistor) confirm `T_C = raw/10 - 273.15`, and
+  that a dead thermistor reads a pinned absurd value (~ -30 C) — exactly the behaviour
+  PocketOBI already flags. No decode change needed; the comments now record it.
+
+## [0.9.7] - 2026-08-04
+
+### Added
+- **Details screen: state-of-health estimate + protection thresholds.** The
+  standard-battery Details view now shows `Health~` (a cycle-based SoH *estimate*,
+  the `~` marking it as an estimate rather than the BMS's own gauge) and
+  `Prot OL/OD` (over-current / over-discharge protection thresholds, in %). All
+  three are decoded from the ROM message frame already read — **no extra bus
+  traffic**. The decodes are corroborated by both sides of the
+  [m5din-makita](https://github.com/no-body-in-particular/m5din-makita) fork (its
+  reader and its BMS emulator store/read the same bytes the same way). Values are
+  best-effort: the absolute figures are not yet confirmed against a bench meter.
+- **Dual capacity-format decode.** Battery capacity (frame byte 16) is now decoded
+  for both encodings: newer packs store it directly in whole Ah, older packs store
+  a nibble-swapped value in tenths of an Ah. (From the MIT-licensed
+  [drakosha/makita-battery-tools](https://github.com/drakosha/makita-battery-tools).)
+
+### Documented
+- **Secondary frame checksums (CS3/CS4 in byte 31).** Added an in-code note on the
+  two secondary checksums (byte 31: covers bytes 22-23 and 24-30, the latter
+  including overload / over-discharge / cycle-count). No behaviour change - the
+  unlock only touches the CS2 range - but any future write to bytes 22-30 must
+  recompute byte 31. Corroborated by drakosha/makita-battery-tools, whose decode of
+  the three primary checksums matches ours exactly.
+
+### Changed
+- Temperature-unit note (README + code comment) upgraded from "disputed" to
+  "well-supported": the 1/10 K decode is now corroborated by four independent
+  sources (rosvall, obi-esp32, and both the reader and BMS emulator of the
+  m5din-makita fork). Open Battery Information's Celsius×100 is the outlier.
+
 ## [0.9.6] - 2026-08-02
 
 ### Added

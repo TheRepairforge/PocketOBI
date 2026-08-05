@@ -100,7 +100,7 @@ OneWire makita(ONEWIRE_PIN);
 Adafruit_ST7789 tft = Adafruit_ST7789(&SPI, TFT_CS, TFT_DC, TFT_RST);
 
 // Firmware version (see CHANGELOG.md).
-#define FW_VERSION "0.9.6"
+#define FW_VERSION "1.0.0"
 
 // ---------- Color palette (dark dashboard theme) ----------
 // Compile-time RGB888 -> RGB565 conversion.
@@ -215,6 +215,11 @@ struct BatteryData {
   uint16_t mfgYear;
   float capacityAh;
   uint8_t batteryType;
+  // Protection thresholds + state-of-health, all decoded from the ROM message
+  // frame (no extra bus transaction). See readStaticInfo() for the decode.
+  uint8_t overloadPct;      // over-current protection threshold, % (0 = disabled)
+  uint8_t overdischargePct; // over-discharge (undervoltage) protection threshold, %
+  uint8_t healthEstPct;     // cycle-based state-of-health ESTIMATE, % (see note)
 
   float packVoltage;
   float cell[5];
@@ -367,11 +372,37 @@ bool readStaticInfo() {
     bat.locked = (payload[20] & 0x0F) > 0;
     bat.chargerLocked = (lockCauses(payload) != 0);
     bat.errorCode = payload[19];
-    bat.capacityAh = nibbleSwap(payload[16]) / 10.0;
+    // Capacity (byte 16) has two encodings, per drakosha/makita-battery-tools:
+    // newer packs store it directly in Ah (raw 1..8, nibble-swap > 60), older
+    // packs store nibble-swap in tenths of an Ah. Detect and decode accordingly.
+    uint8_t capRaw = payload[16];
+    uint8_t capSw  = nibbleSwap(capRaw);
+    if (capRaw >= 1 && capRaw <= 8 && capSw > 60) {
+      bat.capacityAh = capRaw;         // newer format: whole Ah
+    } else {
+      bat.capacityAh = capSw / 10.0;   // legacy format: tenths of an Ah
+    }
     bat.batteryType = nibbleSwap(payload[11]);
     bat.mfgYear = 2000 + romId[0];
     bat.mfgMonth = romId[1];
     bat.mfgDay = romId[2];
+
+    // Protection thresholds + SoH, decoded from the ROM frame (no extra bus
+    // traffic). These decodes are corroborated by BOTH sides of the m5din-makita
+    // fork: its reader (getMsg) and its BMS emulator (Makita.h set_overload /
+    // set_overdischarge / set_cycle_count store the same bytes the same way).
+    // Overload: msg[25], nibble-swapped; bit 0x20 is the "enabled" flag, low 5
+    // bits are the value in steps of 5 %.
+    uint8_t ol = nibbleSwap(payload[25]);
+    bat.overloadPct = (ol & 0xE0) ? (uint8_t)((ol & 0x1F) * 5) : 0;
+    // Over-discharge: msg[24], stored INVERTED in the high nibble, step 5.33 %.
+    uint8_t odNib = (uint8_t)(~payload[24]) >> 4;
+    bat.overdischargePct = (uint8_t)(odNib * 5.33f + 0.5f);
+    // State-of-health ESTIMATE from cycle count: older packs lose ~1 bar (25 %)
+    // every 224 cycles => ~ -1 %/8.96 cycles. This is an estimate, not the BMS's
+    // own gauge (the extended D4 health command is deliberately not used here).
+    int h = 100 - (int)(bat.chargeCount / 8.96f + 0.5f);
+    bat.healthEstPct = (uint8_t)(h < 0 ? 0 : (h > 100 ? 100 : h));
 
   } else {
     // No valid ASCII response -> try the older F0513 generation
@@ -390,6 +421,9 @@ bool readStaticInfo() {
     bat.errorCode = 0;
     bat.capacityAh = 0;
     bat.batteryType = 0;
+    bat.overloadPct = 0;
+    bat.overdischargePct = 0;
+    bat.healthEstPct = 0;
     bat.mfgYear = 0;
     bat.mfgMonth = 0;
     bat.mfgDay = 0;
@@ -459,10 +493,14 @@ bool readLiveData() {
     if (bat.cell[i] > mx) mx = bat.cell[i];
   }
   bat.cellDiff = mx - mn;
-  // Temperature is 1/10 K in the protocol (rosvall / obi-esp32): the raw value
-  // is (T_Celsius + 273.15) * 10, so T_Celsius = raw / 10 - 273.15. A faulty
+  // Temperature is 1/10 K in the protocol (rosvall / obi-esp32, and both sides of
+  // the m5din-makita fork: reader raw/10-273.15 + BMS emulator (T+273.15)*10): the
+  // raw value is (T_Celsius + 273.15) * 10, so T_Celsius = raw / 10 - 273.15. A faulty
   // internal thermistor then reads as an absurd value (e.g. ~ -30 C), which the
   // charger sees over the data line and refuses as a "temperature" fault.
+  // VALIDATED on real packs: the unit is 1/10 K, and a dead thermistor reads a pinned
+  // raw ~2430 (= -30 C) -> a reading pinned at that low end = faulty sensor / hardware
+  // fault, not a real temperature.
   // NOTE: the BMS reports two sensors, "Sensor 1" (offset 14) and "Sensor 2"
   // (offset 16). The cell/MOSFET names here follow obi-esp32's interpretation and
   // are UNVERIFIED (original OBI just calls them Sensor 1/2) — which reading is
@@ -576,6 +614,21 @@ void buildRepairedFrame(const uint8_t *in, uint8_t *out) {
   nybSet(out, 43, csCalc(out, 32, 40));   // CS2
 }
 
+// SECONDARY CHECKSUMS (documentation only - not needed by the current unlock).
+// Beyond the three primary checksums above, the frame carries two more in byte 31
+// (corroborated by the drakosha/makita-battery-tools MIT project, whose decode of
+// the three primary checksums matches ours nybble-for-nybble):
+//   - CS3 (nybble 62 = byte 31 low)  = csCalc(frame, 44, 47)  -> covers bytes 22-23
+//   - CS4 (nybble 63 = byte 31 high) = csCalc(frame, 48, 61)  -> covers bytes 24-30
+// Same formula (sum of the nybbles in range, low nybble). CS4 notably covers the
+// overload (byte 25), over-discharge (byte 24) and cycle-count (bytes 26-27)
+// fields. Our unlock only rewrites nybble 34 (in the CS2 range), so byte 31 stays
+// valid and we never recompute it. IMPORTANT: any FUTURE feature that writes to
+// bytes 22-30 (e.g. resetting the cycle count) MUST also recompute byte 31, i.e.
+//   nybSet(out, 62, csCalc(out, 44, 47));
+//   nybSet(out, 63, csCalc(out, 48, 61));
+// or the BMS will reject the frame as corrupt.
+
 // Low-level read-ROM (0x33) transaction: reset, write 0x33, read+discard the 8
 // ROM bytes, write `dataLen` bytes, read `rspLen` bytes. Mirrors the documented
 // cmd_33 flow (the ROM is always clocked out after 0x33, even when unused).
@@ -645,8 +698,9 @@ uint8_t unlockRepair() {
 #define DIFF_BAD     0.30f
 
 // Plausible temperature window. A reading outside this is almost certainly a
-// faulty thermistor, shown as "T <val>?" in red on the home screen. It is a
-// suspicion (hence the "?"), not a confirmed diagnosis.
+// faulty thermistor (validated on real packs: a dead sensor pins near -30 C).
+// The home chip marks it with a leading "!" in red = suspected sensor fault
+// (hardware), not a real extreme temperature.
 #define TEMP_MIN_PLAUS  -20.0f
 #define TEMP_MAX_PLAUS   80.0f
 
@@ -789,7 +843,8 @@ void drawHome() {
   } else {
     bool tp = (bat.tempCell   > TEMP_MIN_PLAUS && bat.tempCell   < TEMP_MAX_PLAUS)
            && (bat.tempMosfet > TEMP_MIN_PLAUS && bat.tempMosfet < TEMP_MAX_PLAUS);
-    snprintf(buf, sizeof(buf), "%.0f/%.0f", bat.tempCell, bat.tempMosfet);
+    // "!" prefix when implausible = suspected faulty sensor (hardware), not a real temp.
+    snprintf(buf, sizeof(buf), tp ? "%.0f/%.0f" : "!%.0f/%.0f", bat.tempCell, bat.tempMosfet);
     drawChip(6, fy, 88, buf, tp ? COL_TEXT : COL_RED);
   }
   snprintf(buf, sizeof(buf), "dV%.2f", bat.cellDiff);
@@ -903,28 +958,33 @@ void drawDetails() {
   }
 
   bool isF0513 = strcmp(bat.commandVersion, "F0513") == 0;
-  const int lh = 24;
   if (isF0513) {
+    const int lh = 24;
     tft.setCursor(6, y);          tft.print("Generation: F0513");
     tft.setTextColor(COL_MUTED, COL_BG);
     tft.setCursor(6, y + lh);     tft.print("(older, limited");
     tft.setCursor(6, y + 2 * lh); tft.print(" diagnostics only)");
   } else {
+    // 8 rows now fit at a tighter line height; some fields are paired per line.
+    const int lh = 22;
     tft.setCursor(6, y);          tft.printf("Charges: %d", bat.chargeCount);
     tft.setCursor(6, y + lh);     tft.printf("Mfg: %02d/%02d/%d", bat.mfgDay, bat.mfgMonth, bat.mfgYear);
-    tft.setCursor(6, y + 2 * lh); tft.printf("Capacity: %.1f Ah", bat.capacityAh);
-    tft.setCursor(6, y + 3 * lh); tft.printf("Type: %d", bat.batteryType);
-    tft.setCursor(6, y + 4 * lh); tft.printf("ErrCode: 0x%02X", bat.errorCode);
+    tft.setCursor(6, y + 2 * lh); tft.printf("Cap:%.1fAh Type:%d", bat.capacityAh, bat.batteryType);
+    // '~' marks a cycle-based estimate, not the BMS's own state-of-health gauge.
+    tft.setCursor(6, y + 3 * lh); tft.printf("Health~ %d%%", bat.healthEstPct);
+    // Protection thresholds: OL = over-current, OD = over-discharge.
+    tft.setCursor(6, y + 4 * lh); tft.printf("Prot OL/OD:%d/%d%%", bat.overloadPct, bat.overdischargePct);
+    tft.setCursor(6, y + 5 * lh); tft.printf("ErrCode: 0x%02X", bat.errorCode);
     bool lk = bat.locked || bat.chargerLocked;
-    tft.setCursor(6, y + 5 * lh); tft.print("State: ");
+    tft.setCursor(6, y + 6 * lh); tft.print("State: ");
     tft.setTextColor(lk ? COL_RED : COL_GREEN, COL_BG);
     tft.print(lk ? "LOCKED" : "UNLOCKED");
     tft.setTextColor(COL_TEXT, COL_BG);
     char cb[24]; lockCausesText(lockCauses(bat.msg), cb, sizeof(cb));
-    tft.setCursor(6, y + 6 * lh); tft.printf("ChgLock: %s", cb);
+    tft.setCursor(6, y + 7 * lh); tft.printf("ChgLock: %s", cb);
   }
   tft.setTextColor(COL_MUTED, COL_BG);
-  tft.setCursor(6, 220);
+  tft.setCursor(6, 222);
   tft.print("(click = back)");
 }
 
