@@ -100,7 +100,7 @@ OneWire makita(ONEWIRE_PIN);
 Adafruit_ST7789 tft = Adafruit_ST7789(&SPI, TFT_CS, TFT_DC, TFT_RST);
 
 // Firmware version (see CHANGELOG.md).
-#define FW_VERSION "0.9.7"
+#define FW_VERSION "1.0.0"
 
 // ---------- Color palette (dark dashboard theme) ----------
 // Compile-time RGB888 -> RGB565 conversion.
@@ -498,6 +498,9 @@ bool readLiveData() {
   // raw value is (T_Celsius + 273.15) * 10, so T_Celsius = raw / 10 - 273.15. A faulty
   // internal thermistor then reads as an absurd value (e.g. ~ -30 C), which the
   // charger sees over the data line and refuses as a "temperature" fault.
+  // VALIDATED on real packs: the unit is 1/10 K, and a dead thermistor reads a pinned
+  // raw ~2430 (= -30 C) -> a reading pinned at that low end = faulty sensor / hardware
+  // fault, not a real temperature.
   // NOTE: the BMS reports two sensors, "Sensor 1" (offset 14) and "Sensor 2"
   // (offset 16). The cell/MOSFET names here follow obi-esp32's interpretation and
   // are UNVERIFIED (original OBI just calls them Sensor 1/2) — which reading is
@@ -695,8 +698,9 @@ uint8_t unlockRepair() {
 #define DIFF_BAD     0.30f
 
 // Plausible temperature window. A reading outside this is almost certainly a
-// faulty thermistor, shown as "T <val>?" in red on the home screen. It is a
-// suspicion (hence the "?"), not a confirmed diagnosis.
+// faulty thermistor (validated on real packs: a dead sensor pins near -30 C).
+// The home chip marks it with a leading "!" in red = suspected sensor fault
+// (hardware), not a real extreme temperature.
 #define TEMP_MIN_PLAUS  -20.0f
 #define TEMP_MAX_PLAUS   80.0f
 
@@ -839,7 +843,8 @@ void drawHome() {
   } else {
     bool tp = (bat.tempCell   > TEMP_MIN_PLAUS && bat.tempCell   < TEMP_MAX_PLAUS)
            && (bat.tempMosfet > TEMP_MIN_PLAUS && bat.tempMosfet < TEMP_MAX_PLAUS);
-    snprintf(buf, sizeof(buf), "%.0f/%.0f", bat.tempCell, bat.tempMosfet);
+    // "!" prefix when implausible = suspected faulty sensor (hardware), not a real temp.
+    snprintf(buf, sizeof(buf), tp ? "%.0f/%.0f" : "!%.0f/%.0f", bat.tempCell, bat.tempMosfet);
     drawChip(6, fy, 88, buf, tp ? COL_TEXT : COL_RED);
   }
   snprintf(buf, sizeof(buf), "dV%.2f", bat.cellDiff);

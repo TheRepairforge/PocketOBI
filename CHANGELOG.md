@@ -6,6 +6,24 @@ Versioning follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH
 The version is defined in `PocketOBI.ino` as `FW_VERSION` and shown
 on the on-device "Version / info" screen.
 
+## [1.0.0] - 2026-08-05
+
+First official, stable release. The core decodes (protocol, temperature, cell
+voltages, capacity, charge count) are cross-validated on real packs. A larger V2
+(more readouts + UI overhaul) is planned separately.
+
+### Changed
+- **Faulty-thermistor reading now flagged explicitly.** When a temperature sensor
+  reads outside the plausible window it is shown with a leading `!` in red on the
+  home chip (e.g. `!-30/31`) = suspected **faulty sensor / hardware fault**, not a
+  real extreme temperature. (A dead thermistor pins near -30 C.)
+
+### Validated
+- **Temperature unit (1/10 K) validated on real packs.** Readings from several packs
+  (including one with a known faulty thermistor) confirm `T_C = raw/10 - 273.15`, and
+  that a dead thermistor reads a pinned absurd value (~ -30 C) — exactly the behaviour
+  PocketOBI already flags. No decode change needed; the comments now record it.
+
 ## [0.9.7] - 2026-08-04
 
 ### Added
