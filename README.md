@@ -230,5 +230,22 @@ Version / info screen and defined as `FW_VERSION` in the sketch.
 
 ## License
 
-MIT — see [LICENSE](LICENSE). The bundled OneWire2 retains its own MIT license
-and copyright notices.
+PocketOBI is licensed under the **PolyForm Noncommercial License 1.0.0** — free to
+use, modify, and share for any **noncommercial** purpose (personal, hobby, repair,
+education, research). Commercial use requires a separate license. See [LICENSE](LICENSE).
+
+Bundled and reused third-party components keep their own licenses — see
+[THIRD-PARTY.md](THIRD-PARTY.md). The bundled OneWire2 library and the upstream
+Open Battery Information project remain under the MIT license.
+
+---
+
+```
+ ___         _       _    ___  ___ ___ 
+ | _ \___  __| |_____| |_ / _ \| _ )_ _|
+ |  _/ _ \/ _| / / -_)  _| (_) | _ \| | 
+ |_| \___/\__|_\_\___|\__|\___/|___/___|
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+       . No Guru Meditation required .
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+```

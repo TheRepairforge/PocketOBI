@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright (c) 2026 TheRepairForge
 /*
  * PocketOBI - Standalone Makita LXT battery reader / diagnostic
  * ESP32-C3 SuperMini + SPI TFT display + EC11 rotary encoder
