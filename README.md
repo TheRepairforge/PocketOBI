@@ -76,9 +76,9 @@ PC bridge.
 
 ### Wiring
 
-[<img src="docs/wiring.png" alt="PocketOBI wiring diagram" width="560">](docs/wiring.png)
+[<img src="docs/wiring2.png" alt="PocketOBI wiring diagram" width="560">](docs/wiring2.png)
 
-*(click for full size — full-resolution file in [`docs/wiring.png`](docs/wiring.png))*
+*(click for full size — full-resolution file in [`docs/wiring.png`](docs/wiring2.png))*
 
 **Display + encoder module (2-in-1 TFT + EC11):**
 
