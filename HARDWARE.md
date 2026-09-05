@@ -121,6 +121,42 @@ Notes:
 7. **Plot / Fabrication Outputs** → Gerbers + drill files → zip → send to a
    fab house (JLCPCB / PCBWay).
 
+## Fabrication / JLCPCB export (KiCad 10)
+
+Exact workflow for this 2-layer, hand-assembled board (no stencil).
+
+**`File → Plot` — enable exactly these layers:**
+`F.Cu`, `B.Cu`, `F.Silkscreen`, `B.Silkscreen`, `F.Mask`, `B.Mask`, `Edge.Cuts`.
+Skip `F.Paste`/`B.Paste` (only needed for a stencil) and `F.Fab`/`B.Fab`/`User.*`.
+
+**Plot options:** format `Gerber`; Output directory `gerbers/`; Drill marks `None`;
+Scaling `1:1`; Plot mode `Filled`; keep **Plot reference designators** on; coordinate
+format `4.6 mm`; leave **Use extended X2 format** at the KiCad default. Click **Plot**.
+
+**Drill files — `Generate Drill Files…`:** format `Excellon`; tick **Merge PTH and
+NPTH into one file**; Units `Millimeters`; Drill origin `Absolute`; Map file `None`.
+Click **Generate Drill File**.
+
+**Files produced in `gerbers/` (zip them together, files at the zip root):**
+
+```
+PocketOBI-F_Cu.gbr          front copper
+PocketOBI-B_Cu.gbr          back copper
+PocketOBI-F_Silkscreen.gbr  front silkscreen
+PocketOBI-B_Silkscreen.gbr  back silkscreen
+PocketOBI-F_Mask.gbr        front soldermask
+PocketOBI-B_Mask.gbr        back soldermask
+PocketOBI-Edge_Cuts.gbr     board outline
+PocketOBI.drl               drills (PTH + NPTH merged)
+```
+
+**Upload:** zip → jlcpcb.com → *Add gerber file*; check the preview (outline, 2 layers
+detected, silkscreen legible). Order settings: **Layers = 2**, thickness **1.6 mm**,
+rest default.
+
+**Before upload:** open the `gerbers/` folder in **GerbView** (KiCad's Gerber viewer)
+for a final visual sanity check — what you see there is what the fab receives.
+
 ## Recommended path
 
 The battery communication is validated on real hardware; still, it is wise to

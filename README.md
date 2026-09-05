@@ -15,16 +15,21 @@ https://www.youtube.com/channel/UCQL_-pcIEkrDPyljl3QPzcw
 
 ## 📺 Watch it in action
 
-[![PocketOBI on YouTube](https://img.youtube.com/vi/57KsQQ7-Qd0/hqdefault.jpg)](https://youtu.be/57KsQQ7-Qd0)
+[![PocketOBI v2 on YouTube](https://img.youtube.com/vi/8Qe2dTXrJ8g/hqdefault.jpg)](https://youtu.be/8Qe2dTXrJ8g)
 
-Full walkthrough — how it works, the reverse-engineering, and a live demo:
+The **v2** walkthrough — the new interface, the traffic-light verdict and the staged
+repair wizard in action:
+**https://youtu.be/8Qe2dTXrJ8g**
+
+Original build & protocol deep-dive — how it works, the reverse-engineering, and a live demo:
 **https://youtu.be/57KsQQ7-Qd0**
 
-## Project status — Step 1 (beta)
+## Project status — v2.1.0
 
-This is **beta** and a work in progress. Expect rough edges; experimentation is
-ongoing. Feedback and test reports (especially serial logs from real packs) are
-very welcome.
+The **v2.1.0** release: the V2 interface (a 2×2 launcher, a paged Battery view, a
+traffic-light verdict and a staged Repair wizard), multilingual EN/FR/DE/ES, on a
+single-source build. Validated on real BL18xx packs. Feedback and test reports
+(especially serial logs from real packs) are very welcome.
 
 > ⚠️ **Safety first.** These packs contain lithium cells and up to ~21 V on
 > B+. **Never connect B+ to the ESP32.** Resetting a BMS error only helps a
@@ -34,22 +39,35 @@ very welcome.
 
 ## Features
 
-- Standalone reader with a menu-driven UI (rotary encoder + click, plus a
-  secondary back button: short = back, long = home).
-- Per-cell voltage bars with color-coded health (green / yellow / red) and
-  imbalance detection.
-- Pack voltage, estimated state of charge, two BMS temperature sensors, spread.
-- Model, charge count, manufacturing date, capacity, error code, lock state.
+- **Standalone V2 interface** — a 2×2 launcher (Battery / Repair / Tools / About)
+  driven by the rotary encoder (+ a secondary back button: short = back, long = home);
+  it jumps straight to the Battery view when a pack is connected.
+- **Battery view, paged** (turn the encoder): Overview / Health / Identity.
+  - *Overview*: per-cell voltage bars (green / yellow / red), pack voltage, spread.
+  - *Health*: our own cycle-based Condition estimate, over-discharge / over-load wear
+    counters, cell min/max + spread, both temperature sensors + spread.
+  - *Identity*: model, charge count, manufacturing date, capacity, and the pack
+    **serial number** (ROM ID in Makita 16-char hex format).
+- **Traffic-light verdict** — HEALTHY / REPAIRABLE / REAL FAULT (plus an orange
+  "possible HW fix" tier). One verdict, computed from a single source and shown
+  identically on the Battery tile, the screens and the Repair wizard.
+- **Repair wizard** — a staged, feasibility-first check: comms → hardware faults
+  (broken sense wire / weak group / imbalance / thermistor, each naming the group or
+  sensor) → lock + prognosis (false lockout "should hold" vs a memorised fault
+  "unlikely to hold"). A hardware fault blocks the unlock; the prognosis reads as
+  guidance, never a guarantee.
+- **Unlock / repair** — rewrites the frame to lift a *false* charger lockout on a
+  pack whose cells are healthy: clears the charger-lock nybble, recomputes the
+  charger-validated checksums, writes the frame back. Never forces a genuinely bad
+  pack back into service. See below.
+- **Error reset** with before → after feedback (full test-mode + power-cycle sequence).
 - Automatic detection of standard vs older **F0513** BMS generations.
-- Error reset with before → after feedback (full test-mode + power-cycle sequence).
-- **Unlock / repair**: rewrites the frame to lift a charger lockout on a
-  pack whose cells are healthy — clears the charger-lock nybble and recomputes
-  the charger-validated checksums, then writes the frame back. See below.
-- Pack LED test (on/off).
-- Raw debug view (ROM ID + message frame).
-- **PC bridge mode**: acts as a USB↔OneWire adapter (drop-in ArduinoOBI), so the
-  desktop *Open Battery Information* app works through PocketOBI. Dual use:
-  standalone tester **and** PC adapter.
+- **Multilingual UI** — English, French, German, Spanish.
+- **PC bridge mode** — acts as a USB↔OneWire adapter (drop-in ArduinoOBI), so a desktop
+  app works through PocketOBI: the original *Open Battery Information* app, or our own
+  companion **[PackScope](https://github.com/TheRepairforge/PackScope)** — saved history,
+  a health estimate and a guided repair workflow. Dual use: standalone tester **and** PC adapter.
+- Tools: pack LED test, error reset, raw debug view (ROM ID + message frame).
 
 ## Architecture
 
@@ -125,6 +143,15 @@ A carrier-PCB design (netlist, BOM, footprints, KiCad quick-start) is drafted in
 ### Arduino IDE
 
 1. Install the **ESP32 board package** (Espressif) via the Boards Manager.
+
+   > **Use a stable core (3.x).** PocketOBI is built and tested against the
+   > **stable ESP32 core 3.x** (2.0.x also works). Avoid the **alpha/dev
+   > releases** (e.g. `4.0.0-alpha1`): they build fine but flood the console
+   > with harmless `-Wdeprecated-declarations` / `-Wmissing-field-initializers`
+   > warnings coming from *the core itself* (`esp32-hal-ledc.c`, `Esp.cpp`, …),
+   > not from PocketOBI. If you see those warnings, it is the alpha core, not a
+   > bug here — select a 3.x version in the Boards Manager.
+
 2. Install these libraries via the Library Manager:
    - Adafruit GFX Library
    - Adafruit ST7735 and ST7789 Library
@@ -140,16 +167,17 @@ A carrier-PCB design (netlist, BOM, footprints, KiCad quick-start) is drafted in
 
 ### PlatformIO (VS Code)
 
-A ready-made PlatformIO project is in [`platformio/`](platformio/):
+The `platformio.ini` at the repo root builds the **same sources** the Arduino IDE
+uses, straight from the sketch folder — no separate project, no copy to keep in sync:
 
 ```bash
-cd platformio
 pio run             # build
 pio run -t upload   # build + flash
+pio device monitor  # serial monitor (115200)
 ```
 
-It mirrors the Arduino sources (the root `PocketOBI.ino` stays the source of
-truth); details in [`platformio/README.md`](platformio/README.md).
+Board defaults to `esp32-c3-devkitm-1` (works for the ESP32-C3 SuperMini); change
+`board` in `platformio.ini` for a different ESP32-C3 module.
 
 ## Usage
 

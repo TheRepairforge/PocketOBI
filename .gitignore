@@ -18,3 +18,6 @@ video_scenes/scene2_boot_crash/scene2_boot_crash.ino
 video_scenes/scene1_early_ui/scene1_early_ui.ino
 video_scenes/README.md
 video_scenes/PLAN_DE_TOURNAGE.md
+
+# Claude Code local session settings — per-machine, never shared.
+.claude/

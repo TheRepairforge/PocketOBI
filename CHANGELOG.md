@@ -6,6 +6,62 @@ Versioning follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH
 The version is defined in `PocketOBI.ino` as `FW_VERSION` and shown
 on the on-device "Version / info" screen.
 
+## [2.1.0] - 2026-08-28
+
+First public release since 1.0.0 — the **V2 interface** on a **single-source build**.
+(The `2.0.0` line was developed but never published; its work ships here as part of `2.1.0`.)
+
+### Added
+- **New V2 interface.** A 2×2 launcher (Battery / Repair / Tools / About), encoder-driven,
+  that jumps straight to the Battery view when a pack is connected.
+- **Paged Battery view** (turn the encoder): Overview / Health / Identity.
+  - *Overview* — per-cell voltage bars (green / yellow / red), pack voltage, cell spread.
+  - *Health* — our own cycle-based Condition estimate, over-discharge / over-load wear
+    counters, cell min/max + spread, and both temperature sensors + spread.
+  - *Identity* — model, charge count, manufacturing date, capacity, and the pack
+    **serial number** (ROM ID in Makita 16-char hex format).
+- **Traffic-light verdict** — HEALTHY / REPAIRABLE / REAL FAULT, plus an orange
+  "possible HW fix" tier — shown on the Battery tile and screens.
+- **Repair wizard** — a staged, feasibility-first decision tree: comms check →
+  hardware faults (broken sense wire / weak group / imbalance / thermistor, each naming
+  the group or sensor) → lock + prognosis (false lockout "should hold" vs a memorised
+  fault "unlikely to hold"). A hardware fault blocks the unlock.
+- **Multilingual UI** — English, French, German, Spanish.
+- **Desk compatibility contract** (PC-bridge opcode `0x02`) reporting a protocol version,
+  battery-family id and cell count, so PocketOBI Desk routes to the right decoder and shows
+  a non-blocking warning on a version mismatch. The bridge transport stays a stable drop-in
+  ArduinoOBI regardless of version.
+
+### Changed
+- **Single-source build — the PlatformIO mirror is gone.** A root `platformio.ini`
+  (`src_dir = .`) now builds the same files the Arduino IDE compiles, straight from the
+  sketch folder; the old `platformio/` mirror project and its `sync.ps1` / `sync.sh` are
+  removed. `PocketOBI.ino` stays at the repo root, so the Arduino IDE build is unchanged —
+  one set of sources, both toolchains, nothing to keep in sync.
+- **Thermistor finding is now evidence-based**, an observation plus a suggested re-check
+  rather than a bare "replace the sensor"; a sensor-spread divergence is a soft "possible
+  HW fix" that does **not** block the unlock.
+- **One verdict everywhere.** The Repair wizard banner shows the exact same verdict —
+  word, colour and icon — as the Battery tile, computed from a single source.
+- **The undecoded raw "status" byte no longer drives any decision.** The error-reset
+  result now tracks the real BMS fault register (LOCKED → OK = "cleared", still LOCKED =
+  "unchanged", nothing set = "no error to clear"); the raw byte is shown only on the Debug
+  screen, marked undecoded.
+- **Repair prognosis reads as guidance, not a guarantee** — a memorised-fault marker is a
+  hint ("unlikely to hold"), never a hard verdict, and never blocks an unlock attempt.
+
+### Fixed
+- **PC bridge hardening** — serial buffers are bounded against oversized `len` / `rsp_len`,
+  and truncated frames are dropped instead of half-executed (the PC app simply resends).
+- **Removed the dead V1 menu/screen cluster** (~225 lines) left unreachable under V2
+  navigation.
+- **PC-bridge interface version derives from the firmware version** (was hardcoded/stale).
+
+### Notes
+- The public version jumps **`v1.0.0 → v2.1.0`**; `2.0.0` was internal-only.
+- Licence: PolyForm Noncommercial 1.0.0 (unchanged from 1.0.0). Upstream Open Battery
+  Information and the bundled OneWire2 remain MIT — see `THIRD-PARTY.md`.
+
 ## [1.0.0] - 2026-08-05
 
 First official, stable release. The core decodes (protocol, temperature, cell
