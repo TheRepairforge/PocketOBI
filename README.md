@@ -135,8 +135,9 @@ Notes:
 - Power the tool from **USB-C**, never from the Makita pack (B+ is 18 V, and the
   BMS can cut its own output on error).
 
-A carrier-PCB design (netlist, BOM, footprints, KiCad quick-start) is drafted in
-[HARDWARE.md](HARDWARE.md) — not manufactured yet.
+A carrier PCB has been **fabricated and bench-validated**. The fabrication files
+(Gerbers, schematic PDF, BOM) and ordering notes are in [`hardware/`](hardware/); the
+wiring and pinout reference stays in [HARDWARE.md](HARDWARE.md).
 
 ## Build & flash
 

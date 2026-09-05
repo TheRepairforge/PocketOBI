@@ -1,0 +1,7 @@
+"Refs","Value","Footprint","Qty","DNP"
+"Battery_GND1","Screw_Terminal_01x02","TerminalBlock_Phoenix:TerminalBlock_Phoenix_PT-1,5-2-3.5-H_1x02_P3.50mm_Horizontal","1",""
+"Battery_Interface1","Conn_01x06","Connector_JST:JST_PH_B6B-PH-K_1x06_P2.00mm_Vertical","1",""
+"M1","Conn_01x12","Connector_PinSocket_2.54mm:PinSocket_1x12_P2.54mm_Vertical","1",""
+"R1","R","Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal","1",""
+"R2","R","Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal","1",""
+"U1","U1","ESP32C3-SuperMini:ESP32-C3-SuperMini","1",""
