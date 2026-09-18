@@ -6,6 +6,16 @@ Versioning follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH
 The version is defined in `PocketOBI.ino` as `FW_VERSION` and shown
 on the on-device "Version / info" screen.
 
+## [2.1.1] - 2026-09-18
+
+### Fixed
+- **False "suspect hardware" verdict on healthy BL1850B packs.** The on-device Debug
+  screen showed "Latched: YES" and the verdict read SUSPECT on packs that are balanced,
+  unlocked and working, because the low-level BMS marker it relied on turned out
+  to be a constant these packs always carry, not a stored fault. The marker no longer
+  affects the verdict; a genuinely locked pack is still detected by its charger lock. The
+  Debug screen now shows the raw marker bytes for reference. (Reported via issue #13.)
+
 ## [2.1.0] - 2026-08-28
 
 First public release since 1.0.0 — the **V2 interface** on a **single-source build**.

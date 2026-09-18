@@ -116,8 +116,8 @@ Adafruit_ST7789 tft = Adafruit_ST7789(&SPI, TFT_CS, TFT_DC, TFT_RST);
 // consistent with it.
 #define FW_VER_MAJOR 2
 #define FW_VER_MINOR 1
-#define FW_VER_PATCH 0
-#define FW_VERSION "2.1.0"
+#define FW_VER_PATCH 1
+#define FW_VERSION "2.1.1"
 
 // Companion-app compatibility-contract version. Distinct from FW_VERSION: it bumps
 // ONLY when the coupling with the companion app changes — a bridge command is
@@ -377,7 +377,7 @@ struct BatteryData {
   float tempCell;
   float tempMosfet; // board/MOSFET sensor; valid only if boardTempValid
   bool  boardTempValid = false; // false = single-sensor read (F0513 cell path): ignore tempMosfet
-  bool  latchedFault = false; // D6 0x58D/0x309 != 0 -> latched-fault HINT (seen on 3 packs; unlock may not hold)
+  bool  latchedFault = false; // DISABLED (D24): D6 0x58D/0x309 is the model's resting constant, not a latch. Always false. Raw bytes in faultMkA/B.
   uint8_t asmY = 0, asmM = 0, asmD = 0;  // assembly date (D4 0x000-0x002, YY MM DD, year binary)
 
   // --- Extended D4 diagnostics (family A packs), read in readExtended() ---
@@ -1199,7 +1199,9 @@ void drawDebugRaw() {
   tft.printf("Pk %.2fV C %.2f/%.2f/%.2f/%.2f/%.2f", bat.packVoltage,
              bat.cell[0], bat.cell[1], bat.cell[2], bat.cell[3], bat.cell[4]);
   tft.setCursor(6, ly + 24);
-  tft.printf("T %.0f/%.0f  latched %s", bat.tempCell, bat.tempMosfet, bat.latchedFault ? "YES" : "no");
+  // Raw D6 fault markers (0x58D/0x309), shown for research only - not interpreted as a fault
+  // (D24: 0x0B/0x4x is the healthy BL1850B constant, not a latch).
+  tft.printf("T %.0f/%.0f  faultMk %02X/%02X", bat.tempCell, bat.tempMosfet, bat.faultMkA, bat.faultMkB);
   uint8_t causes = lockCauses(bat.msg);
   char cb[24]; lockCausesText(causes, cb, sizeof(cb));
   tft.setTextColor(COL_MUTED, COL_BG); tft.setCursor(6, ly + 40); tft.print("Lock/CS: ");
@@ -1485,10 +1487,12 @@ Verdict computeVerdict() {
     if (bat.cell[i] > 0.1f && bat.cell[i] < CELL_V_DEAD) red = true;  // genuinely dead cell
   if (thermistorFault()) red = true;                                 // thermistor pinned = confirmed fault
   if (red) return V_FAULT;
-  // Soft / empirical signals -> "possible" HINT, never a firm fault. The latched marker
-  // (D6 0x58D/0x309, seen on 3 packs) and the sensor-spread are both empirical: they
-  // surface as an orange V_SUSPECT, not a red verdict.
-  if (bat.latchedFault) return V_SUSPECT;                            // latched marker (hint)
+  // Soft / empirical signals -> "possible" HINT, never a firm fault. The D6 "latched"
+  // marker used to feed a SUSPECT here; it was retired (D24) as non-discriminating -
+  // healthy BL1850B packs carry the same 0x0B/0x4x constant as the one genuinely-locked
+  // pack it was ever "confirmed" on, so it flagged every BL1850B. A genuinely latched pack
+  // is still caught by its charger lock below (nibble=3 -> V_REPAIRABLE). The sensor-spread
+  // remains the empirical hint, surfaced as an orange V_SUSPECT rather than a red verdict.
   if (bat.chargerLocked || bat.locked) return V_REPAIRABLE;
   // Recoverable over-discharge: a cell below the healthy minimum but above the dead floor,
   // with no imbalance (that would have gone red above). Not a fault - it charges back up - but
@@ -1625,7 +1629,13 @@ void readExtended() {
     return;
   }
 
-  bat.latchedFault = ((a != 0 && a != 0xFF) || (b != 0 && b != 0xFF));
+  // Latched-fault detection DISABLED (D24). The D6 markers (0x58D/0x309) are NOT a per-pack
+  // fault record: two healthy BL1850B units (2022) read an identical 0x0B/0x49, and the one
+  // pack this marker was ever "confirmed" on (0x0B/0x48, 2021) reads the same constant - so
+  // 0x0B/0x4x is the model's resting value, not a latch. That pack was in fact identifiable
+  // by its charger lock, not by this marker. No validated true positive exists, so we do not
+  // derive a verdict from it. Raw a/b stay in faultMkA/faultMkB for the Debug screen.
+  bat.latchedFault = false;
   // Secondary (unproven) wear percentages, denominator = charge count.
   bat.odWearPct = round5up(bat.odEventCount, bat.chargeCount);
   bat.olWearPct = round5up(bat.olEventCount, bat.chargeCount);
