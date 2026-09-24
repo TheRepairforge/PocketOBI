@@ -9,7 +9,7 @@
 [![Platform](https://img.shields.io/badge/platform-ESP32--C3-lightgrey)](#hardware)
 [![Build with](https://img.shields.io/badge/build-Arduino%20%7C%20PlatformIO-blue)](#build--flash)
 
-[Watch it in action](#-watch-it-in-action) · [Status](#project-status) · [Features](#features) · [Hardware](#hardware) · [Build & flash](#build--flash) · [License](#license)
+[Platform family](#platform-family) · [Watch it in action](#-watch-it-in-action) · [Status](#project-status) · [Features](#features) · [Hardware](#hardware) · [Build & flash](#build--flash) · [License](#license)
 
 </div>
 
@@ -25,6 +25,22 @@ rotary encoder instead of a computer.
 
 Created by **The Repair Forge** — follow the build on YouTube:
 https://www.youtube.com/channel/UCQL_-pcIEkrDPyljl3QPzcw
+
+## Platform family
+
+PocketOBI started on Makita LXT (18V) — this repo — and is growing into a small
+family of standalone OBI-client readers, one per battery platform. Same
+hardware/UI approach, same protocol-first philosophy, different pack connector
+and decode tables under the hood.
+
+| Platform | Tag | Status |
+|---|---|---|
+| Makita LXT (18V) | ![LXT](https://img.shields.io/badge/-LXT-f4611c) | ✅ shipping — this repo |
+| Makita XGT (40V) | ![XGT](https://img.shields.io/badge/-XGT-2563eb) | 🔜 planned |
+| HiKOKI (BSL) | ![BSL](https://img.shields.io/badge/-BSL-16a34a) | 🚧 in progress |
+
+Each sibling gets its own repo once it's ready to publish; this table (and its
+own release badge) grows as they ship.
 
 ## 📺 Watch it in action
 
