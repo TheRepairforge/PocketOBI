@@ -1,9 +1,22 @@
+<div align="center">
+
 # PocketOBI
 
-A standalone, screen-based reader and diagnostic tool for Makita LXT (18V)
-batteries, running on an ESP32-C3 — no PC required. It reads cell voltages,
-temperatures, charge count and error/lock state, and can reset false BMS
-lockouts to rescue packs that are still good.
+**A standalone, screen-based reader and diagnostic tool for Makita LXT (18V) batteries** — no PC required.
+
+[![Release](https://img.shields.io/github/v/release/TheRepairforge/PocketOBI?label=release&color=2f81f7)](https://github.com/TheRepairforge/PocketOBI/releases)
+[![License: PolyForm Noncommercial 1.0.0](https://img.shields.io/badge/license-PolyForm--NC--1.0.0-blue)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-ESP32--C3-lightgrey)](#hardware)
+[![Build with](https://img.shields.io/badge/build-Arduino%20%7C%20PlatformIO-blue)](#build--flash)
+
+[Watch it in action](#-watch-it-in-action) · [Status](#project-status) · [Features](#features) · [Hardware](#hardware) · [Build & flash](#build--flash) · [License](#license)
+
+</div>
+
+---
+
+It reads cell voltages, temperatures, charge count and error/lock state, and
+can reset false BMS lockouts to rescue packs that are still good.
 
 PocketOBI is a standalone **OBI client**: it speaks the same Makita OneWire
 protocol documented by the [Open Battery Information](https://github.com/mnh-jansson/open-battery-information)
@@ -24,10 +37,12 @@ repair wizard in action:
 Original build & protocol deep-dive — how it works, the reverse-engineering, and a live demo:
 **https://youtu.be/57KsQQ7-Qd0**
 
-## Project status — v2.1.0
+## Project status
 
-The **v2.1.0** release: the V2 interface (a 2×2 launcher, a paged Battery view, a
-traffic-light verdict and a staged Repair wizard), multilingual EN/FR/DE/ES, on a
+Current release: **[v2.1.1](https://github.com/TheRepairforge/PocketOBI/releases)** — see [CHANGELOG.md](CHANGELOG.md) for details.
+
+The **v2** interface: a 2×2 launcher, a paged Battery view, a
+traffic-light verdict and a staged Repair wizard, multilingual EN/FR/DE/ES, on a
 single-source build. Validated on real BL18xx packs. Feedback and test reports
 (especially serial logs from real packs) are very welcome.
 
@@ -273,6 +288,8 @@ Open Battery Information project remain under the MIT license.
 
 ---
 
+<div align="center">
+
 ```
   ___         _       _    ___  ___ ___ 
  | _ \___  __| |_____| |_ / _ \| _ )_ _|
@@ -282,3 +299,7 @@ Open Battery Information project remain under the MIT license.
        . No Guru Meditation required .
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ```
+
+Built by **[The Repair Forge](https://www.youtube.com/channel/UCQL_-pcIEkrDPyljl3QPzcw)**
+
+</div>
