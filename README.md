@@ -2,8 +2,6 @@
 
 <img src="docs/logo.png" alt="PocketOBI logo" width="480">
 
-# PocketOBI
-
 **A standalone, screen-based reader and diagnostic tool for Makita LXT (18V) batteries** — no PC required.
 
 [![Release](https://img.shields.io/github/v/release/TheRepairforge/PocketOBI?label=release&color=2f81f7)](https://github.com/TheRepairforge/PocketOBI/releases)
