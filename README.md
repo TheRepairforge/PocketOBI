@@ -6,7 +6,7 @@
 
 [![Release](https://img.shields.io/github/v/release/TheRepairforge/PocketOBI?label=release&color=2f81f7)](https://github.com/TheRepairforge/PocketOBI/releases)
 [![License: PolyForm Noncommercial 1.0.0](https://img.shields.io/badge/license-PolyForm--NC--1.0.0-blue)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-ESP32--C3-lightgrey)](#hardware)
+[![Platform](https://img.shields.io/badge/platform-ESP32--C3%20%7C%20CYD-lightgrey)](#hardware)
 [![Build with](https://img.shields.io/badge/build-Arduino%20%7C%20PlatformIO-blue)](#build--flash)
 
 [Platform family](#platform-family) · [Watch it in action](#-watch-it-in-action) · [Status](#project-status) · [Features](#features) · [Hardware](#hardware) · [Build & flash](#build--flash) · [License](#license)
@@ -55,11 +55,13 @@ Original build & protocol deep-dive — how it works, the reverse-engineering, a
 
 ## Project status
 
-Current release: **[v2.1.1](https://github.com/TheRepairforge/PocketOBI/releases)** — see [CHANGELOG.md](CHANGELOG.md) for details.
+Current release: **[v2.2.0](https://github.com/TheRepairforge/PocketOBI/releases)** — see [CHANGELOG.md](CHANGELOG.md) for details.
 
 The **v2** interface: a 2×2 launcher, a paged Battery view, a
 traffic-light verdict and a staged Repair wizard, multilingual EN/FR/DE/ES, on a
-single-source build. Validated on real BL18xx packs. Feedback and test reports
+single-source build. Validated on real BL18xx packs. Since **v2.2** the same firmware
+also runs on the **CYD** (ESP32-2432S028R) with a touch UI, as an
+[alternative board](#alternative-board-cyd-esp32-2432s028r). Feedback and test reports
 (especially serial logs from real packs) are very welcome.
 
 > ⚠️ **Safety first.** These packs contain lithium cells and up to ~21 V on
@@ -170,6 +172,25 @@ A carrier PCB has been **fabricated and bench-validated**. The fabrication files
 (Gerbers, schematic PDF, BOM) and ordering notes are in [`hardware/`](hardware/); the
 wiring and pinout reference stays in [HARDWARE.md](HARDWARE.md).
 
+### Alternative board: CYD (ESP32-2432S028R)
+
+Since v2.2 the firmware also builds for the "Cheap Yellow Display" (dual-USB / ST7789
+revision, XPT2046 resistive touch). Same logic, same screens; the UI is driven by
+touch instead of the encoder, with on-device touch calibration (Settings > Calibrate).
+The ESP32-C3 build above remains the reference product.
+
+The whole pack connection fits on the CYD's 4-pin **CN1** header:
+
+| CN1 | Battery pin | Role |
+|---|---|---|
+| IO22 + 4.7 kΩ pull-up to 3V3 | Pin 2 — **DATA** | OneWire data |
+| IO27 + 4.7 kΩ pull-up to 3V3 | Pin 6 — **ENABLE** | enable (active high) |
+| GND | main **B-** terminal | ground |
+| 3V3 | — | feeds the two pull-ups |
+| — | Pin 1 — **B+ (18 V)** | **NEVER CONNECT** |
+
+Board selection and build notes: [CYD_NOTES.md](CYD_NOTES.md).
+
 ## Build & flash
 
 ### Arduino IDE
@@ -193,6 +214,10 @@ wiring and pinout reference stays in [HARDWARE.md](HARDWARE.md).
 4. Board: **ESP32C3 Dev Module**, USB CDC On Boot: **Enabled**.
 5. Upload.
 
+**CYD build (Arduino IDE):** also install **XPT2046_Touchscreen** (Paul Stoffregen,
+v1.4), select **ESP32 Dev Module**, and put a `board_local.h` next to the sketch
+containing `#define POCKETOBI_BOARD BOARD_CYD` (the file is gitignored).
+
 > Note: Arduino requires the sketch to live in a folder named `PocketOBI`.
 > If you downloaded a ZIP (GitHub adds a `-main` suffix), rename the inner
 > sketch folder back to `PocketOBI` before opening it.
@@ -203,18 +228,20 @@ The `platformio.ini` at the repo root builds the **same sources** the Arduino ID
 uses, straight from the sketch folder — no separate project, no copy to keep in sync:
 
 ```bash
-pio run             # build
-pio run -t upload   # build + flash
-pio device monitor  # serial monitor (115200)
+pio run -e esp32-c3             # build the ESP32-C3 product
+pio run -e esp32-c3 -t upload   # build + flash
+pio run -e cyd -t upload        # CYD alternative board
+pio device monitor              # serial monitor (115200)
 ```
 
-Board defaults to `esp32-c3-devkitm-1` (works for the ESP32-C3 SuperMini); change
-`board` in `platformio.ini` for a different ESP32-C3 module.
+There is one env per board; always pass `-e`, otherwise `pio run -t upload` builds and
+flashes every env in turn. The `esp32-c3` env uses `esp32-c3-devkitm-1` (works for the
+ESP32-C3 SuperMini); change `board` in that env for a different ESP32-C3 module.
 
 ## Usage
 
 Power the tool over USB, connect DATA / ENABLE / GND to the pack (never B+),
-and it reads automatically. Turn the encoder to navigate, click to select.
+and it reads automatically. Turn the encoder to navigate, click to select (on the CYD: tap).
 If the home screen shows "No battery found", check wiring and use
 Menu → Read battery. "Comm error" / all-`0xFF` means the pack's BMS is not
 responding (dead, or not an OBI-compatible pack).

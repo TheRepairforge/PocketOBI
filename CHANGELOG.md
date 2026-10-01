@@ -6,6 +6,36 @@ Versioning follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH
 The version is defined in `PocketOBI.ino` as `FW_VERSION` and shown
 on the on-device "Version / info" screen.
 
+## [2.2.0] - 2026-10-01
+
+Adds a second, alternative carrier board, the **CYD**, with a touch UI. The
+ESP32-C3 product is unchanged.
+
+### Added
+- **Second carrier board: the CYD (ESP32-2432S028R)** — a development /
+  alternative target alongside the shipping ESP32-C3. Same firmware logic,
+  different pins and input device, selected at build time. The per-board pin
+  map and the board selection live in `board_config.h`.
+- **Resistive-touch UI (XPT2046) on the CYD.** The 2×2 launcher, menus and the
+  paged Battery view are tap-navigable, with on-device touch calibration
+  (Settings > Calibrate) stored in NVS.
+
+### Changed
+- **Deterministic multi-board builds.** Each PlatformIO env pins its board with
+  `-D POCKETOBI_BOARD`, and the optional (gitignored) local override file is only
+  consulted when no board was set explicitly — a build always produces the board
+  its env names. The board-selection `#if/#elif` chain lives in `board_config.h`
+  (a real header) so the PlatformIO `.ino`→`.cpp` step cannot mangle it.
+
+### Fixed
+- Includes the 2.1.1 fix (false "suspect hardware" verdict on healthy BL1850B
+  packs), rolled forward from the 2.1 line.
+
+### Note
+- The CYD is an alternative board, **bench-validated end to end** (touch UI and
+  pack read over the CN1 connector). The ESP32-C3 remains the reference product.
+  Wiring and build notes: README (Alternative board: CYD) and `CYD_NOTES.md`.
+
 ## [2.1.1] - 2026-09-18
 
 ### Fixed

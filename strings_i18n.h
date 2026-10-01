@@ -48,6 +48,7 @@ enum StrId {
   S_TOAST_FIXHW, S_TOAST_NOTHING, S_WORKING, S_FRAME_STORE_PC,
   S_HINT_TAG,
   S_TEMP_CB,   // "Cell/Board" temp-row label (Temp1=cell, Temp2=board)
+  S_CALIBRATE, // Settings > Calibrate touch (CYD touch board only)
   S_COUNT
 };
 const char* const STRTAB[S_COUNT][LANG_COUNT] = {
@@ -178,4 +179,5 @@ const char* const STRTAB[S_COUNT][LANG_COUNT] = {
   /*S_FRAME_STORE_PC*/{ "repair frame  ->  store  ->  power-cycle","repare -> stocke -> power-cycle","Frame -> speichern -> Neustart","repara -> guarda -> reinicio" },
   /*S_HINT_TAG*/    { "HINT",            "INDICE",           "HINWEIS",           "PISTA" },
   /*S_TEMP_CB*/     { "Cell/Board",      "Cell/Carte",       "Zelle/Platine",     "Celda/Placa" },
+  /*S_CALIBRATE*/   { "Calibrate touch", "Calibrer tactile", "Touch kalibrieren", "Calibrar tactil" },
 };

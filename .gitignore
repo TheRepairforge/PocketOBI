@@ -21,3 +21,6 @@ video_scenes/PLAN_DE_TOURNAGE.md
 
 # Claude Code local session settings — per-machine, never shared.
 .claude/
+
+# Local board override (per-machine dev target, never committed — see PocketOBI.ino)
+board_local.h

@@ -85,39 +85,49 @@
 #include <Fonts/FreeSansBold24pt7b.h>   // smooth font for the hero pack voltage
 #include "strings_i18n.h"           // i18n string table (data only; tr()/lang stay below)
 #include "icons_bitmaps.h"          // 40x40 launcher icon bitmaps (data only)
-
-// ================= BOARD HEADER: PocketOBI-LXT (ESP32-C3 SuperMini) =================
-// One self-contained pin map for this carrier board. This is an XGT seam
-// (REPO_MAP.md "Adding XGT"): a different board (different MCU or wiring) swaps ONLY
-// this block, not the logic below. Keep every GPIO assignment here, nowhere else.
-// --- Battery bus ---
-#define ONEWIRE_PIN 3
-#define ENABLE_PIN  4
-// --- Rotary encoder (EC11) ---
-#define ENC_A    5
-#define ENC_B    6
-#define ENC_BTN  7
-#define BACK_BTN 2   // module "KO" secondary button: short = back, long = home
-// --- ST7789 TFT display (full config kept in this sketch) ---
-#define TFT_CS   21
-#define TFT_DC   20
-#define TFT_RST  10
-#define TFT_MOSI 1   // SDA
-#define TFT_SCLK 0   // SCL
-// =================================================================================
+#include "board_config.h"           // board selection + per-board pin map (MUST be a real .h:
+                                    // PlatformIO's .ino preprocessor mangles an in-sketch #if/#elif
+                                    // pin chain -> both boards' pins compile, last wins. See the header.)
 
 OneWire makita(ONEWIRE_PIN);
 // Hardware-SPI constructor (much faster than software SPI): (&SPI, cs, dc, rst).
 // SCLK/MOSI pins are assigned via SPI.begin() in setup().
 Adafruit_ST7789 tft = Adafruit_ST7789(&SPI, TFT_CS, TFT_DC, TFT_RST);
 
+#if BOARD_HAS_TOUCH
+// The display drives the default SPI object (remapped to its HSPI pins in setup()),
+// so the XPT2046 touch controller gets its OWN bus on a second SPIClass.
+#include <XPT2046_Touchscreen.h>
+SPIClass touchSPI(HSPI);
+XPT2046_Touchscreen touch(TOUCH_CS, TOUCH_IRQ);
+
+// Resistive-touch calibration: raw XPT2046 -> screen pixels. On this CYD the axes
+// are crossed (screen X from the raw Y axis inverted, screen Y from the raw X axis);
+// map() handles the inverted ranges. The four corner values live in NVS and are
+// editable from Settings > Calibrate; these #defines are the factory fallback,
+// measured on the bench. Re-run Calibrate after a panel swap.
+#define TCAL_DEF_X_LEFT   3765   // raw Y at screen x=0   (left edge)
+#define TCAL_DEF_X_RIGHT   235   // raw Y at screen x=319 (right edge)
+#define TCAL_DEF_Y_TOP     415   // raw X at screen y=0   (top edge)
+#define TCAL_DEF_Y_BOTTOM 3751   // raw X at screen y=239 (bottom edge)
+int tcXL = TCAL_DEF_X_LEFT, tcXR = TCAL_DEF_X_RIGHT,
+    tcYT = TCAL_DEF_Y_TOP,  tcYB = TCAL_DEF_Y_BOTTOM;
+#define TOUCH_Z_MIN 300          // reject ghost / very-light touches below this pressure
+// Set to 1 to calibrate manually: each tap draws a dot where it maps + prints
+// raw/mapped coords and does NOT navigate. Set back to 0 when tuned.
+#define TOUCH_DEBUG 0
+// Edge-detect state: act once per touch, on touch-down (not while held).
+bool touchDown = false;
+unsigned long lastTouchMs = 0;
+#endif
+
 // Firmware version (see CHANGELOG.md). The numeric triplet is the single source
 // of truth reported by the PC bridge (interface-version query); keep FW_VERSION
 // consistent with it.
 #define FW_VER_MAJOR 2
-#define FW_VER_MINOR 1
-#define FW_VER_PATCH 1
-#define FW_VERSION "2.1.1"
+#define FW_VER_MINOR 2
+#define FW_VER_PATCH 0
+#define FW_VERSION "2.2.0"
 
 // Companion-app compatibility-contract version. Distinct from FW_VERSION: it bumps
 // ONLY when the coupling with the companion app changes — a bridge command is
@@ -256,7 +266,11 @@ int lang = LANG_EN;
 inline const char* tr(StrId id) { return STRTAB[id][lang]; }
 
 const int   toolCount = 6;
+#if BOARD_HAS_TOUCH
+const int   settingsCount = 4;   // Flip screen, PC bridge at boot, Language, Calibrate touch
+#else
 const int   settingsCount = 3;   // Flip screen, PC bridge at boot, Language
+#endif
 
 // ---------- Settings (persisted in NVS) ----------
 Preferences prefs;
@@ -1343,7 +1357,11 @@ void drawAbout() {
     // Easter egg engaged: a big retro one-liner where the credits usually sit.
     drawWrapCentered(ABOUT_EGG[aboutEgg - 1], 148, COL_CYAN, 2);
     tft.setTextSize(1); tft.setTextColor(COL_MUTED, COL_BG);
+#if BOARD_HAS_TOUCH
+    const char* h = "keep tapping...";
+#else
     const char* h = "keep turning...";
+#endif
     tft.setCursor((320 - (int)strlen(h) * 6) / 2, 226); tft.print(h);
   }
 }
@@ -2105,16 +2123,19 @@ void drawSettings() {
     } else {
       tft.fillRoundRect(4, iy, 312, 34, 6, COL_BG);
     }
-    gfxText(&FreeSansBold9pt7b, 14, iy + 22, tr((StrId)(S_FLIP + i)), sel ? COL_HEAD : COL_TEXT);
+    const char* lbl = (i <= 2) ? tr((StrId)(S_FLIP + i)) : tr(S_CALIBRATE);
+    gfxText(&FreeSansBold9pt7b, 14, iy + 22, lbl, sel ? COL_HEAD : COL_TEXT);
     tft.setTextSize(2);
     if (i < 2) {                               // boolean toggles
       const char* on = vals[i] ? "ON" : "OFF";
       tft.setTextColor(vals[i] ? COL_GREEN : COL_MUTED);
       int vw = strlen(on) * 12; tft.setCursor(300 - vw, iy + 10); tft.print(on);
-    } else {                                   // Language: current code (click cycles)
+    } else if (i == 2) {                       // Language: current code (click cycles)
       const char* code = LANG_CODE[lang];
       tft.setTextColor(COL_ACCENT);
       int vw = strlen(code) * 12; tft.setCursor(300 - vw, iy + 10); tft.print(code);
+    } else {                                   // Calibrate touch: an action row (chevron)
+      tft.setTextColor(COL_ACCENT); tft.setCursor(300 - 12, iy + 10); tft.print(">");
     }
   }
   tft.setTextSize(1); tft.setTextColor(COL_MUTED, COL_BG);
@@ -2147,10 +2168,15 @@ void render() {
 }
 
 // ---------- Buttons / navigation logic (V2) ----------
-void handleClick() {
-  switch (state) {
+// Activate target `idx` on screen `s`. Shared core of every selection: the
+// encoder calls it with the item under the cursor, a touch board calls it with
+// the item that was tapped (tap-target, no cursor). Screens that carry a cursor
+// (LAUNCHER / TOOLS / SETTINGS) act on `idx`; the others ignore it. It does NOT
+// render — the caller does, exactly like handleRotate() / handleBack().
+void activate(UiState s, int idx) {
+  switch (s) {
     case LAUNCHER:
-      switch (launcherIndex) {
+      switch (idx) {
         case 0: // Battery
           if (readAllData()) { readExtended(); batteryPage = 0; state = BATTERY; }
           else state = COMM_ERROR;
@@ -2202,7 +2228,7 @@ void handleClick() {
       state = RESET_RESULT;
       break;
     case TOOLS:
-      switch (toolIndex) {
+      switch (idx) {
         case 0: bridgeActive = true; state = PC_BRIDGE; break;   // enter active by default
         case 1: ledsOn();  toast(tr(S_LEDS_ON_MSG), COL_GREEN); break;
         case 2: ledsOff(); toast(tr(S_LEDS_OFF_MSG), COL_MUTED); break;
@@ -2212,11 +2238,14 @@ void handleClick() {
       }
       break;
     case SETTINGS:
-      if (settingsIndex == 0) { cfgFlip = !cfgFlip; tft.setRotation(cfgFlip ? 3 : 1);
-                                prefs.putBool("flip", cfgFlip); lastRenderedState = -1; }
-      else if (settingsIndex == 1) { cfgBridgeBoot = !cfgBridgeBoot; prefs.putBool("bridge", cfgBridgeBoot); }
-      else                    { lang = (lang + 1) % LANG_COUNT; prefs.putInt("lang", lang);
-                                lastRenderedState = -1; }   // full redraw so all text swaps
+      if (idx == 0)      { cfgFlip = !cfgFlip; tft.setRotation(cfgFlip ? 3 : 1);
+                           prefs.putBool("flip", cfgFlip); lastRenderedState = -1; }
+      else if (idx == 1) { cfgBridgeBoot = !cfgBridgeBoot; prefs.putBool("bridge", cfgBridgeBoot); }
+      else if (idx == 2) { lang = (lang + 1) % LANG_COUNT; prefs.putInt("lang", lang);
+                           lastRenderedState = -1; }   // full redraw so all text swaps
+#if BOARD_HAS_TOUCH
+      else if (idx == 3) { calibrateTouch(); lastRenderedState = -1; }  // Calibrate touch (CYD)
+#endif
       break;
     case ABOUT:
       if (aboutEgg > 0) { aboutEgg = 0; aboutCrashDrawn = false; lastRenderedState = -1; }  // click = dismiss egg
@@ -2232,6 +2261,22 @@ void handleClick() {
       state = TOOLS;
       break;
   }
+}
+
+// The cursor index the encoder would activate on the current screen. Screens
+// without a cursor return 0 (activate() ignores idx for them).
+static int currentActivationIndex(UiState s) {
+  switch (s) {
+    case LAUNCHER: return launcherIndex;
+    case TOOLS:    return toolIndex;
+    case SETTINGS: return settingsIndex;
+    default:       return 0;
+  }
+}
+
+// Encoder click: activate the item under the cursor on the current screen.
+void handleClick() {
+  activate(state, currentActivationIndex(state));
   render();
 }
 
@@ -2341,6 +2386,132 @@ void serviceBridge() {
   for (int i = 0; i < outLen; i++) Serial.write(rsp[i]);
 }
 
+#if BOARD_HAS_TOUCH
+// ---------- Touch input (CYD): tap-target, drives the shared nav core ----------
+// Map a raw XPT2046 reading (0..4095 per axis) to screen pixels, correcting axis
+// swap/flip and the 180-degree display flip (cfgFlip). Tunable via the TOUCH_* flags.
+void mapTouch(int rawX, int rawY, int *sx, int *sy) {
+  long x = map(rawY, tcXL, tcXR, 0, 319);   // screen X <- raw Y axis (calibration in NVS)
+  long y = map(rawX, tcYT, tcYB, 0, 239);   // screen Y <- raw X axis
+  if (cfgFlip) { x = 319 - x; y = 239 - y; }                 // screen rotated 180 in settings
+  *sx = constrain((int)x, 0, 319);
+  *sy = constrain((int)y, 0, 239);
+}
+
+// Brief visual acknowledgement at the tap point: a touch panel gives no mechanical
+// click, so a ring is drawn and shown for a moment before the screen reacts. The
+// next render() (always called after dispatch) clears it.
+void touchFeedback(int x, int y) {
+  tft.drawCircle(x, y, 10, COL_ACCENT);
+  tft.drawCircle(x, y,  7, COL_ACCENT);
+  delay(40);
+}
+
+// On-device touch calibration: tap three corner targets, recompute the four corner
+// raw values (edge-extrapolated from a 20px inset) and persist them to NVS. Called
+// from Settings > Calibrate; blocks until done, then the caller redraws.
+void calibrateTouch() {
+  const int M = 20;
+  const int tx[3] = { M, 319 - M, M };       // TL, TR, BL target centres
+  const int ty[3] = { M, M, 239 - M };
+  int rx[3], ry[3];
+  for (int i = 0; i < 3; i++) {
+    tft.fillScreen(COL_BG);
+    tft.setTextSize(1); tft.setTextColor(COL_TEXT, COL_BG);
+    tft.setCursor(84, 108); tft.print("Tap the target");
+    tft.setTextColor(COL_MUTED, COL_BG);
+    tft.setCursor(140, 128); tft.printf("%d / 3", i + 1);
+    tft.drawCircle(tx[i], ty[i], 9, COL_ACCENT);
+    tft.drawFastHLine(tx[i] - 13, ty[i], 27, COL_ACCENT);
+    tft.drawFastVLine(tx[i], ty[i] - 13, 27, COL_ACCENT);
+    while (touch.touched()) delay(10);        // release the selecting/previous touch first
+    delay(60);
+    for (;;) {                                // wait for a firm tap
+      if (touch.touched()) { TS_Point p = touch.getPoint();
+        if (p.z >= TOUCH_Z_MIN) { rx[i] = p.x; ry[i] = p.y; break; } }
+      delay(5);
+    }
+    tft.fillCircle(tx[i], ty[i], 6, COL_GREEN);
+    while (touch.touched()) delay(10);        // wait for release before the next target
+    delay(150);
+  }
+  // Axis map: screen X <- raw Y, screen Y <- raw X. Extrapolate the inset to the edges.
+  long rawY_L = (ry[0] + ry[2]) / 2, rawY_R = ry[1];   // left (TL,BL) / right (TR)
+  long rawX_T = (rx[0] + rx[1]) / 2, rawX_B = rx[2];   // top (TL,TR) / bottom (BL)
+  int spanX = (319 - M) - M, spanY = (239 - M) - M;
+  tcXL = rawY_L - (rawY_R - rawY_L) * M / spanX;
+  tcXR = rawY_R + (rawY_R - rawY_L) * M / spanX;
+  tcYT = rawX_T - (rawX_B - rawX_T) * M / spanY;
+  tcYB = rawX_B + (rawX_B - rawX_T) * M / spanY;
+  prefs.putInt("tcXL", tcXL); prefs.putInt("tcXR", tcXR);
+  prefs.putInt("tcYT", tcYT); prefs.putInt("tcYB", tcYB);
+  tft.fillScreen(COL_BG); tft.setTextColor(COL_GREEN, COL_BG); tft.setTextSize(2);
+  tft.setCursor(96, 108); tft.print("Saved"); delay(700);
+}
+
+// The tapped target for the current screen. Cursor screens map a tap to the item
+// under the finger; the rest ignore the index (tap = their primary action).
+int touchHitIndex(UiState s, int sx, int sy) {
+  switch (s) {
+    case LAUNCHER: {                       // 2x2 tiles: split at the mid-gaps (see drawLauncher)
+      int col = (sx >= 160) ? 1 : 0;
+      int row = (sy >= 134) ? 1 : 0;
+      return row * 2 + col;
+    }
+    case TOOLS: {                          // vertical list, rows at y+34*i (see drawTools)
+      int i = (sy - (HEADER_H + 6)) / 34;
+      return constrain(i, 0, toolCount - 1);
+    }
+    case SETTINGS: {                       // vertical list, rows at y+40*i (see drawSettings)
+      int i = (sy - (HEADER_H + 12)) / 40;
+      return constrain(i, 0, settingsCount - 1);
+    }
+    default: return 0;                     // other screens: tap = their single primary action
+  }
+}
+
+// Poll the touch panel and dispatch one tap on touch-down. Tapping the title bar
+// acts as Back (the CYD has no physical back button); everywhere else a tap goes
+// straight to activate(), the same nav core the encoder uses.
+void serviceTouch() {
+  bool now = touch.touched();
+  if (now && !touchDown && millis() - lastTouchMs > 200) {
+    TS_Point p = touch.getPoint();
+    if (p.z < TOUCH_Z_MIN) return;                 // ghost / too-light touch: ignore, stay un-latched
+    touchDown = true;
+    lastTouchMs = millis();
+    int sx, sy;
+    mapTouch(p.x, p.y, &sx, &sy);
+#if TOUCH_DEBUG
+    // Calibration aid: show where the tap lands, print raw+mapped, do NOT navigate.
+    tft.fillCircle(sx, sy, 4, COL_RED);
+    tft.fillRect(0, 224, 320, 16, COL_BG);
+    tft.setTextSize(1); tft.setTextColor(COL_TEXT, COL_BG); tft.setCursor(2, 228);
+    tft.printf("raw %4d,%4d  map %3d,%3d", p.x, p.y, sx, sy);
+    Serial.printf("raw %d,%d  map %d,%d\n", p.x, p.y, sx, sy);
+    return;
+#endif
+    touchFeedback(sx, sy);                                             // acknowledge the tap
+    lastRenderedState = -1;                                            // force a full redraw so the feedback ring is erased
+    if (sy < HEADER_H && state != LAUNCHER) { handleBack(); return; }  // tap header = back
+    if (state == BATTERY) {                        // page nav: side edges = prev/next, centre = refresh
+      if (sx < 64)       { handleRotate(-1); return; }
+      else if (sx > 255) { handleRotate(+1); return; }
+    }
+    if (state == PC_BRIDGE) { handleRotate(1); return; }   // tap body = toggle bridge active
+    if (state == ABOUT) {                                  // easter egg
+      if (aboutEgg > ABOUT_EGG_N) { activate(ABOUT, 0); render(); }  // in the guru crash: tap dismisses to About
+      else handleRotate(1);                                          // otherwise: tap advances the egg
+      return;
+    }
+    activate(state, touchHitIndex(state, sx, sy));
+    render();
+  } else if (!now) {
+    touchDown = false;
+  }
+}
+#endif // BOARD_HAS_TOUCH
+
 // ---------- Setup / loop ----------
 void setup() {
   Serial.begin(115200);
@@ -2348,6 +2519,7 @@ void setup() {
   pinMode(ENABLE_PIN, OUTPUT);
   digitalWrite(ENABLE_PIN, LOW);
 
+#if BOARD_HAS_ENCODER
   pinMode(ENC_BTN, INPUT_PULLUP);
   pinMode(BACK_BTN, INPUT_PULLUP);
 
@@ -2355,8 +2527,22 @@ void setup() {
   // (tick() called in the loop): simple and free of interrupt concerns.
   // A/B swapped on purpose so the rotation direction matches the display.
   encoder = new RotaryEncoder(ENC_B, ENC_A, RotaryEncoder::LatchMode::FOUR3);
+#endif
 
-  // Hardware SPI on our pins (SCLK=GPIO0, MOSI=GPIO1). Must be called before
+#if BOARD_HAS_TOUCH
+  // XPT2046 on its own SPI bus; we read raw points and map them ourselves.
+  touchSPI.begin(TOUCH_CLK, TOUCH_MISO, TOUCH_MOSI, TOUCH_CS);
+  touch.begin(touchSPI);
+  touch.setRotation(0);
+#endif
+
+#ifdef TFT_BL
+  // CYD: the backlight is GPIO-controlled — without this the panel stays black.
+  pinMode(TFT_BL, OUTPUT);
+  digitalWrite(TFT_BL, HIGH);
+#endif
+
+  // Hardware SPI on the board's pins (see BOARD HEADER). Must be called before
   // tft.init(): this "claims" the bus with the correct pins.
   SPI.begin(TFT_SCLK, -1, TFT_MOSI, TFT_CS);
 
@@ -2366,9 +2552,15 @@ void setup() {
   cfgBridgeBoot = prefs.getBool("bridge", false);
   lang          = prefs.getInt("lang", LANG_EN);
   if (lang < 0 || lang >= LANG_COUNT) lang = LANG_EN;
+#if BOARD_HAS_TOUCH
+  tcXL = prefs.getInt("tcXL", TCAL_DEF_X_LEFT);
+  tcXR = prefs.getInt("tcXR", TCAL_DEF_X_RIGHT);
+  tcYT = prefs.getInt("tcYT", TCAL_DEF_Y_TOP);
+  tcYB = prefs.getInt("tcYB", TCAL_DEF_Y_BOTTOM);
+#endif
 
-  tft.init(240, 320);        // 2.4" resolution
-  tft.invertDisplay(false);  // correct colors for this ST7789 panel
+  tft.init(240, 320);        // 240x320 ST7789 panel (both boards)
+  tft.invertDisplay(false);  // correct colors on both boards' ST7789 panels
   tft.setRotation(cfgFlip ? 3 : 1);
 
   // Boot splash, then straight to the launcher (or the PC bridge if configured). We deliberately
@@ -2382,12 +2574,15 @@ void setup() {
 }
 
 void loop() {
+#if BOARD_HAS_ENCODER
   // Encoder polling: to be called as often as possible.
   encoder->tick();
+#endif
 
   // PC bridge mode: act as a USB<->OneWire bridge for the PC app (only while active).
   if (state == PC_BRIDGE && bridgeActive) serviceBridge();
 
+#if BOARD_HAS_ENCODER
 #if ENC_DEBUG
   // Trace raw pin transitions + the library position over serial.
   static int lastRawA = -1, lastRawB = -1;
@@ -2432,6 +2627,11 @@ void loop() {
     backDown = false;
     if (!backLongFired) handleBack();  // released before the long threshold
   }
+#endif // BOARD_HAS_ENCODER
+
+#if BOARD_HAS_TOUCH
+  serviceTouch();   // read the XPT2046, hit-test the screen, drive the nav core
+#endif
 
   delay(1);
 }
