@@ -11,7 +11,9 @@ wiring/pinout, which lives in [`../HARDWARE.md`](../HARDWARE.md) and the main
 ## Revision
 
 First fabricated and **bench-validated** revision — Gerbers dated **2026-08-05**
-(`gerber/PocketOBI-HW-gerbers-2026-08-05.zip`). This is the exact set that was ordered and
+(`gerber/PocketOBI-HW-gerbers-2026-08-05.zip`). This is the exact set that was ordered.
+
+> **Schematic PDF updated 2026-09-30; PCB and Gerbers unchanged.**
 
 ## What's here
 
