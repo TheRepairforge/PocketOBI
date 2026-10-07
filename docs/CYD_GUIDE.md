@@ -43,7 +43,7 @@ Allow about **45 minutes** the first time (most of it is installing software onc
 
 The back of the board, with the three things this guide refers to:
 
-[<img src="cyd_board.jpg" alt="Back of the CYD ESP32-2432S028R: BOOT button top left, CN1 connector on the right, USB-C and micro-USB sockets at the bottom" width="480">](cyd_board.jpg)
+[<img src="cyd_board.jpg" alt="Back of the CYD ESP32-2432S028R: BOOT button top left, CN1 connector on the right, USB-C and micro-USB sockets at the bottom" width="600">](cyd_board.jpg)
 
 - **BOOT button**: top left, just below RST. Only needed if flashing fails (step 11).
 - **CN1 connector**: right edge, pins marked GND · IO22 · IO27 · 3V3. The battery goes here.
