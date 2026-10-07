@@ -35,7 +35,7 @@ Allow about **45 minutes** the first time (most of it is installing software onc
 | **CYD board** "ESP32-2432S028R", **dual-USB revision** (USB-C + micro-USB) | see step 2 |
 | USB cable | **data** cable (some charge-only cables have no data wires) |
 | Makita **BL1830 LXT adapter** | the plastic shoe that clips onto the 18 V pack |
-| **2 × 4.7 kΩ resistors** | pull-ups for DATA and ENABLE |
+| **2 × 470 Ω resistors** | pull-ups for DATA and ENABLE (the value the CYD was validated with) |
 | A **4-pin JST 1.25 mm cable** for CN1 | usually supplied with the CYD |
 | Some wire, a soldering iron (or a small breadboard) | |
 | A Windows, macOS or Linux computer | for the one-time flash |
@@ -203,8 +203,8 @@ it unconnected.
 
 | CYD (CN1) | Goes to | Notes |
 |---|---|---|
-| **IO22** | battery **pin 2 — DATA** | + a **4.7 kΩ** resistor from IO22 to 3V3 |
-| **IO27** | battery **pin 6 — ENABLE** | + a **4.7 kΩ** resistor from IO27 to 3V3 |
+| **IO22** | battery **pin 2 — DATA** | + a **470 Ω** resistor from IO22 to 3V3 |
+| **IO27** | battery **pin 6 — ENABLE** | + a **470 Ω** resistor from IO27 to 3V3 |
 | **GND** | the main **B-** terminal | |
 | **3V3** | only the two resistors | nothing else |
 | — | battery **pin 1 — B+ (18 V)** | **NEVER CONNECTED** |
@@ -212,12 +212,17 @@ it unconnected.
 The two resistors are the part people forget. Without them the board powers up fine but
 never sees the pack. Each one simply bridges a signal wire (IO22, IO27) to the 3V3 wire.
 
+> **Why 470 Ω and not the 4.7 kΩ you may see elsewhere?** 4.7 kΩ is the original
+> Open Battery Information value. On the 3.3 V ESP32 the pack pulls the DATA line close
+> to the switching threshold, and 4.7 kΩ turned out marginal with ordinary hookup wire;
+> 470 Ω reads reliably. ENABLE doesn't need it, it just keeps one resistor value.
+
 ```
  CYD  CN1                                   Makita LXT adapter
  ─────────                                  ──────────────────
   3V3 ───┬───────────┐
          │           │
-       [4.7k]      [4.7k]
+       [470]       [470]
          │           │
  IO22 ───┴───────────┼────────────────────► pin 2   DATA
  IO27 ───────────────┴────────────────────► pin 6   ENABLE
@@ -320,7 +325,7 @@ pressure, a fingernail works best.
 Almost always wiring, not the firmware — flashing again won't change it. In order:
 
 1. Is **B-** really connected to **GND**?
-2. Are both **4.7 kΩ pull-ups** fitted (IO22 → 3V3 and IO27 → 3V3)?
+2. Are both **470 Ω pull-ups** fitted (IO22 → 3V3 and IO27 → 3V3)?
 3. Are **DATA and ENABLE swapped**? Swap them and try again (see the warning in step 8.2).
 4. Is the adapter fully clipped on, contacts clean?
 
