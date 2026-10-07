@@ -189,6 +189,7 @@ The whole pack connection fits on the CYD's 4-pin **CN1** header:
 | 3V3 | — | feeds the two pull-ups |
 | — | Pin 1 — **B+ (18 V)** | **NEVER CONNECT** |
 
+Step-by-step guide (build, flash, wiring, first read): [docs/CYD_GUIDE.md](docs/CYD_GUIDE.md).
 Board selection and build notes: [CYD_NOTES.md](CYD_NOTES.md).
 
 ## Build & flash

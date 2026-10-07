@@ -1,5 +1,8 @@
 # PocketOBI on the CYD (alternative board)
 
+**New to this? Start with the step-by-step guide: [docs/CYD_GUIDE.md](docs/CYD_GUIDE.md)**
+(install, build, flash, wiring, first read, troubleshooting).
+
 The **CYD** (ESP32-2432S028R, dual-USB / ST7789 revision, XPT2046 resistive touch) is an
 **alternative** board, supported since v2.2.0. The reference product is the ESP32-C3 +
 ST7789 + EC11 encoder — see `HARDWARE.md`.
