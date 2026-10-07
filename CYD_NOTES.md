@@ -16,5 +16,5 @@ on the board id.
 
 **Status:** the CYD is **bench-validated end to end**: the touch UI and a real pack read
 over the CN1 connector both work on hardware. The CN1 wiring (DATA = IO22, ENABLE = IO27,
-4.7 kΩ pull-ups to 3V3, GND to B-, never B+) is in the README, section
+470 Ω pull-ups to 3V3, GND to B-, never B+) is in the README, section
 "Alternative board: CYD".

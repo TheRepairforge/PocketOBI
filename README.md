@@ -183,8 +183,8 @@ The whole pack connection fits on the CYD's 4-pin **CN1** header:
 
 | CN1 | Battery pin | Role |
 |---|---|---|
-| IO22 + 4.7 kΩ pull-up to 3V3 | Pin 2 — **DATA** | OneWire data |
-| IO27 + 4.7 kΩ pull-up to 3V3 | Pin 6 — **ENABLE** | enable (active high) |
+| IO22 + 470 Ω pull-up to 3V3 | Pin 2 — **DATA** | OneWire data |
+| IO27 + 470 Ω pull-up to 3V3 | Pin 6 — **ENABLE** | enable (active high) |
 | GND | main **B-** terminal | ground |
 | 3V3 | — | feeds the two pull-ups |
 | — | Pin 1 — **B+ (18 V)** | **NEVER CONNECT** |
