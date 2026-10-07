@@ -41,11 +41,19 @@ Allow about **45 minutes** the first time (most of it is installing software onc
 | A Windows, macOS or Linux computer | for the one-time flash |
 | A multimeter | only if something doesn't read (step 11) |
 
+The back of the board, with the three things this guide refers to:
+
+[<img src="cyd_board.jpg" alt="Back of the CYD ESP32-2432S028R: BOOT button top left, CN1 connector on the right, USB-C and micro-USB sockets at the bottom" width="480">](cyd_board.jpg)
+
+- **BOOT button**: top left, just below RST. Only needed if flashing fails (step 11).
+- **CN1 connector**: right edge, pins marked GND · IO22 · IO27 · 3V3. The battery goes here.
+- **USB-C + micro-USB**: bottom edge. Two sockets = the right revision (step 2). Either one works.
+
 ---
 
 ## 2. Check you have the right CYD
 
-Turn the board over and look at the edge connectors:
+Turn the board over and look at the bottom edge (compare with the photo in step 1):
 
 - ✅ **Two USB sockets (one USB-C, one micro-USB)** → this is the revision PocketOBI
   supports (ST7789 display).
@@ -294,7 +302,7 @@ The flasher can't put the board into download mode by itself.
 
 1. Start the upload again.
 2. As soon as `Connecting....` appears, **press and hold the BOOT button** on the CYD
-   (next to the USB socket), release it once the percentage starts climbing.
+   (back of the board, top left, just below RST, see the photo in step 1), release it once the percentage starts climbing.
 3. Still failing: try the other USB socket, another cable (a data cable), and close
    anything else that might be using the port (Arduino serial monitor, PackScope, Cura…).
 
