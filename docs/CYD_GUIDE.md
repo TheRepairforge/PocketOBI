@@ -321,6 +321,23 @@ The flasher can't put the board into download mode by itself.
 
 Single micro-USB CYD (older revision, different display chip) → see step 2.
 
+### The image is mirrored (text reads right to left)
+
+Some dual-USB CYDs are fitted with an **ILI9341** display chip instead of the ST7789.
+The firmware runs, but the picture is mirrored and the colours are off (the title bar
+looks brown/orange instead of teal). **Flip screen** won't fix it: it rotates, it
+doesn't un-mirror. Build for that panel instead:
+
+- **Arduino IDE:** add this line to your `board_local.h`, then upload again:
+
+  ```cpp
+  #define CYD_ILI9341 1
+  ```
+
+- **PlatformIO:** `pio run -e cyd-ili9341 -t upload`
+
+Then run **Tools → Settings → Calibrate touch** once, so taps land where you see them.
+
 ### Taps land in the wrong place
 
 Run **Tools → Settings → Calibrate touch**. If you can't hit those items at all, tap

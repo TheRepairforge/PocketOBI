@@ -81,6 +81,13 @@
 #define TFT_MOSI 13
 #define TFT_SCLK 14
 #define TFT_BL   21   // backlight: driven HIGH in setup(), else the panel stays black
+// Some dual-USB CYDs ship with an ILI9341 panel instead of the ST7789. The ST7789
+// init drives it fine, but its MADCTL reads differently: mirrored image, red/blue
+// swapped. Set CYD_ILI9341 1 (board_local.h, or -D from the cyd-ili9341 env) for
+// those boards; the sketch then writes the ILI9341 orientation (applyRotation()).
+#ifndef CYD_ILI9341
+#define CYD_ILI9341 0
+#endif
 
 #else
 #  error "POCKETOBI_BOARD must be BOARD_LXT_C3 or BOARD_CYD"

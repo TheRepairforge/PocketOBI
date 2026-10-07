@@ -2238,7 +2238,7 @@ void activate(UiState s, int idx) {
       }
       break;
     case SETTINGS:
-      if (idx == 0)      { cfgFlip = !cfgFlip; tft.setRotation(cfgFlip ? 3 : 1);
+      if (idx == 0)      { cfgFlip = !cfgFlip; applyRotation();
                            prefs.putBool("flip", cfgFlip); lastRenderedState = -1; }
       else if (idx == 1) { cfgBridgeBoot = !cfgBridgeBoot; prefs.putBool("bridge", cfgBridgeBoot); }
       else if (idx == 2) { lang = (lang + 1) % LANG_COUNT; prefs.putInt("lang", lang);
@@ -2513,6 +2513,17 @@ void serviceTouch() {
 #endif // BOARD_HAS_TOUCH
 
 // ---------- Setup / loop ----------
+// Screen orientation (landscape, or 180 deg with cfgFlip). setRotation() writes the
+// ST7789's MADCTL; a CYD fitted with an ILI9341 panel reads the MX bit the other way
+// and is BGR-wired, so it gets the ILI9341 values instead (see CYD_ILI9341).
+void applyRotation() {
+  tft.setRotation(cfgFlip ? 3 : 1);
+#if POCKETOBI_BOARD == BOARD_CYD && CYD_ILI9341
+  uint8_t madctl = cfgFlip ? 0xE8 : 0x28;   // MX|MY|MV|BGR flipped, MV|BGR normal
+  tft.sendCommand(ST77XX_MADCTL, &madctl, 1);
+#endif
+}
+
 void setup() {
   Serial.begin(115200);
 
@@ -2561,7 +2572,7 @@ void setup() {
 
   tft.init(240, 320);        // 240x320 ST7789 panel (both boards)
   tft.invertDisplay(false);  // correct colors on both boards' ST7789 panels
-  tft.setRotation(cfgFlip ? 3 : 1);
+  applyRotation();
 
   // Boot splash, then straight to the launcher (or the PC bridge if configured). We deliberately
   // do NOT auto-read the pack at boot: a full read is ~seconds (the ENABLE wake dominates), which

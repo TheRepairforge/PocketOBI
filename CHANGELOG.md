@@ -6,6 +6,15 @@ Versioning follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH
 The version is defined in `PocketOBI.ino` as `FW_VERSION` and shown
 on the on-device "Version / info" screen.
 
+## [Unreleased]
+
+### Fixed
+- **CYD fitted with an ILI9341 panel** (some dual-USB boards): the image was
+  mirrored and red/blue swapped, because the ST7789 orientation was written to
+  it. New build option `CYD_ILI9341` (in `board_local.h`, or the `cyd-ili9341`
+  PlatformIO env) writes the ILI9341 orientation instead. The plain CYD build
+  is unchanged.
+
 ## [2.2.0] - 2026-10-01
 
 Adds a second, alternative carrier board, the **CYD**, with a touch UI. The
