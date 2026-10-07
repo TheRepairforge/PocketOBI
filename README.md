@@ -122,7 +122,7 @@ PC bridge.
 | ESP32-C3 SuperMini | any ESP32-C3 board with native USB |
 | 2.4" SPI TFT, ST7789 (240×320) | + integrated EC11 rotary encoder module |
 | Makita BL1830 LXT adapter | clips onto the 18V pack |
-| 2 × 4.7 kΩ resistors | pull-ups for DATA and ENABLE (470 Ω also works) |
+| 2 × 470 Ω resistors | pull-ups for DATA and ENABLE (4.7 kΩ also works with short wiring) |
 | USB-C power (power bank/charger) | powers the tool — NOT the battery |
 
 ### Wiring
@@ -152,15 +152,16 @@ PC bridge.
 
 | ESP32-C3 | Battery pin | Role |
 |---|---|---|
-| GPIO3 + 4.7 kΩ pull-up to 3.3 V | Pin 2 — **DATA** | OneWire data |
-| GPIO4 + 4.7 kΩ pull-up to 3.3 V | Pin 6 — **ENABLE** | enable (active high) |
+| GPIO3 + 470 Ω pull-up to 3.3 V | Pin 2 — **DATA** | OneWire data |
+| GPIO4 + 470 Ω pull-up to 3.3 V | Pin 6 — **ENABLE** | enable (active high) |
 | GND | main **B-** terminal | ground (sturdier than signal pin 5; same ground) |
 | — | Pin 1 — **B+ (18 V)** | **NEVER CONNECT** |
 
 Notes:
-- **Pull-ups:** 4.7 kΩ is the reference value; **470 Ω** was used successfully on
-  a breadboard (on 3.3 V logic the pack loads the DATA line near the input
-  threshold, so a stronger pull-up can help with long/messy wiring).
+- **Pull-ups:** **470 Ω** is the bench-validated value: on 3.3 V logic the pack
+  loads the DATA line near the input threshold, and 4.7 kΩ was marginal with
+  breadboard wiring. 4.7 kΩ (the upstream OBI value) should be fine with short,
+  clean wiring. ENABLE is a driven output; 470 Ω there just keeps a single-value BOM.
 - ⚠️ **Identify DATA/ENABLE by the ESP32 silkscreen labels ("3" / "4"), not by
   the adapter's connector position.** Some AliExpress adapters number their orange
   connector from the opposite end, so DATA can land on what looks like "plot 6"
