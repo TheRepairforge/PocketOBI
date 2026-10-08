@@ -80,7 +80,7 @@ void activate(UiState s, int idx) {
       }
       break;
     case SETTINGS:
-      if (idx == 0)      { cfgFlip = !cfgFlip; tft.setRotation(cfgFlip ? 3 : 1);
+      if (idx == 0)      { cfgFlip = !cfgFlip; applyRotation();
                            prefs.putBool("flip", cfgFlip); lastRenderedState = -1; }
       else if (idx == 1) { cfgBridgeBoot = !cfgBridgeBoot; prefs.putBool("bridge", cfgBridgeBoot); }
       else if (idx == 2) { lang = (lang + 1) % LANG_NUM; prefs.putInt("lang", lang);

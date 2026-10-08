@@ -92,6 +92,17 @@ uint16_t cellColor(float v, float minV, float diff) {
 }
 // Colored title bar at the top of every screen, with a small per-screen glyph
 // (based on the current state) to the left of the title.
+// Screen orientation (landscape, or 180 deg with cfgFlip). setRotation() writes the
+// ST7789's MADCTL; a CYD fitted with an ILI9341 panel reads the MX bit the other way
+// and is BGR-wired, so it gets the ILI9341 values instead (see CYD_ILI9341).
+void applyRotation() {
+  tft.setRotation(cfgFlip ? 3 : 1);
+#if POCKETOBI_BOARD == BOARD_CYD && CYD_ILI9341
+  uint8_t madctl = cfgFlip ? 0xE8 : 0x28;   // MX|MY|MV|BGR flipped, MV|BGR normal
+  tft.sendCommand(ST77XX_MADCTL, &madctl, 1);
+#endif
+}
+
 void drawHeader(const char* title) {
   tft.fillRect(0, 0, tft.width(), HEADER_H, COL_ACCENT);
   int gx = 15, gy = HEADER_H / 2; uint16_t gc = COL_HEAD;

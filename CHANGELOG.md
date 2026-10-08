@@ -6,6 +6,18 @@ Versioning follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH
 The version is defined in `pocketobi.h` as `FW_VERSION` and shown
 on the on-device "Version / info" screen.
 
+## [2.3.1] - 2026-10-08
+
+### Fixed
+- **CYD fitted with an ILI9341 panel** (some dual-USB boards, issue
+  [#18](https://github.com/TheRepairforge/PocketOBI/issues/18)): the image was mirrored and
+  red/blue swapped, because the ST7789 orientation was written to it. New build option
+  `CYD_ILI9341` (in `board_local.h`, or the `cyd-ili9341` PlatformIO env) writes the ILI9341
+  orientation instead; the release carries a ready `cyd-ili9341` binary. The plain CYD build is
+  unchanged. After flashing, run Settings > Calibrate touch once. Thanks to stampeder for the
+  reports and the test.
+- Two harmless compiler warnings in `OneWire2.cpp` (`#undef` with trailing tokens).
+
 ## [2.3.0] - 2026-10-08
 
 Japanese on every screen, a new logo, and the first release with ready-to-flash binaries.

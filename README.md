@@ -223,6 +223,7 @@ merged image per board and language, flashed at address `0x0`:
 | `PocketOBI-vX.Y.Z-esp32-c3.bin` | ESP32-C3 (the reference product) |
 | `PocketOBI-vX.Y.Z-cyd.bin` | CYD (ESP32-2432S028R) |
 | `PocketOBI-vX.Y.Z-esp32-c3-ja.bin` / `-cyd-ja.bin` | Same boards, Japanese build |
+| `PocketOBI-vX.Y.Z-cyd-ili9341.bin` | CYD fitted with an ILI9341 panel (mirrored image on the plain CYD build, see the [CYD guide](docs/CYD_GUIDE.md)) |
 
 ```bash
 pip install esptool

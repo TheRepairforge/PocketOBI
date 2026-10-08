@@ -4,6 +4,7 @@
 #include "pocketobi.h"
 
 uint16_t cellColor(float v, float minV, float diff);
+void applyRotation();
 void drawHeader(const char* title);
 void iconBattery(int cx, int cy, uint16_t c);
 void iconList(int cx, int cy, uint16_t c);

@@ -33,7 +33,7 @@
 #define FW_VER_MAJOR 2
 #define FW_VER_MINOR 3
 #define FW_VER_PATCH 0
-#define FW_VERSION "2.3.0"
+#define FW_VERSION "2.3.1"
 
 // Companion-app compatibility-contract version. Distinct from FW_VERSION: it bumps
 // ONLY when the coupling with the companion app changes — a bridge command is

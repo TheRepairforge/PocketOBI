@@ -339,7 +339,7 @@ void setup() {
 
   tft.init(240, 320);        // 240x320 ST7789 panel (both boards)
   tft.invertDisplay(false);  // correct colors on both boards' ST7789 panels
-  tft.setRotation(cfgFlip ? 3 : 1);
+  applyRotation();
 
   // Boot splash, then straight to the launcher (or the PC bridge if configured). We deliberately
   // do NOT auto-read the pack at boot: a full read is ~seconds (the ENABLE wake dominates), which
