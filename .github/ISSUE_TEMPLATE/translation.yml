@@ -1,0 +1,52 @@
+name: Translation fix
+description: Suggest a better wording for a German, Spanish or Japanese string on the PocketOBI screen
+title: "[XX] S_KEY"
+labels: ["translation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping. The review pages on https://therepairforge.github.io/translate/ show every
+        screen and open this form already filled in. Two limits on the device screen:
+        **plain ASCII only** for German and Spanish (no accents; umlauts as ae, oe, ue, ss) and
+        **limited width** (keep close to the longest version shown today). Japanese keys and text
+        are in `strings_ja.h`, with the English next to each line. Every accepted fix is rendered
+        on the real screen before it ships.
+  - type: input
+    id: language
+    attributes:
+      label: Language
+      placeholder: German
+    validations:
+      required: true
+  - type: input
+    id: key
+    attributes:
+      label: String key
+      description: The S_... key from the review page or the spreadsheet. Leave empty for a full review.
+      placeholder: S_BATTERY
+  - type: textarea
+    id: english
+    attributes:
+      label: English
+  - type: textarea
+    id: current
+    attributes:
+      label: Current translation
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Your suggestion
+      description: For a full review, attach the filled spreadsheet (CSV) here instead.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Why (optional)
+      description: Wrong meaning, unnatural, wrong register, too long...
+  - type: input
+    id: credit
+    attributes:
+      label: Credit (optional)
+      description: The name to thank in the release notes. Leave empty to stay anonymous.

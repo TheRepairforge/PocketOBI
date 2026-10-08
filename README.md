@@ -55,13 +55,15 @@ Original build & protocol deep-dive — how it works, the reverse-engineering, a
 
 ## Project status
 
-Current release: **[v2.2.0](https://github.com/TheRepairforge/PocketOBI/releases)** — see [CHANGELOG.md](CHANGELOG.md) for details.
+Current release: **[v2.3.0](https://github.com/TheRepairforge/PocketOBI/releases/latest)** — see [CHANGELOG.md](CHANGELOG.md) for details.
 
 The **v2** interface: a 2×2 launcher, a paged Battery view, a
 traffic-light verdict and a staged Repair wizard, multilingual EN/FR/DE/ES, on a
 single-source build. Validated on real BL18xx packs. Since **v2.2** the same firmware
 also runs on the **CYD** (ESP32-2432S028R) with a touch UI, as an
-[alternative board](#alternative-board-cyd-esp32-2432s028r). Feedback and test reports
+[alternative board](#alternative-board-cyd-esp32-2432s028r). Since **v2.3** there is a
+[Japanese build](#日本語--japanese--help-wanted) and every release ships ready-to-flash
+binaries. Feedback and test reports
 (especially serial logs from real packs) are very welcome.
 
 > ⚠️ **Safety first.** These packs contain lithium cells and up to ~21 V on
@@ -95,12 +97,28 @@ also runs on the **CYD** (ESP32-2432S028R) with a touch UI, as an
   pack back into service. See below.
 - **Error reset** with before → after feedback (full test-mode + power-cycle sequence).
 - Automatic detection of standard vs older **F0513** BMS generations.
-- **Multilingual UI** — English, French, German, Spanish.
+- **Multilingual UI** — English, French, German, Spanish, and **Japanese** in the
+  Japanese build (see below).
 - **PC bridge mode** — acts as a USB↔OneWire adapter (drop-in ArduinoOBI), so a desktop
   app works through PocketOBI: the original *Open Battery Information* app, or our own
   companion **[PackScope](https://github.com/TheRepairforge/PackScope)** — saved history,
   a health estimate and a guided repair workflow. Dual use: standalone tester **and** PC adapter.
 - Tools: pack LED test, error reset, raw debug view (ROM ID + message frame).
+
+## 日本語 / Japanese — help wanted
+
+A **Japanese build** of the firmware shows the whole UI in Japanese (Settings → Language →
+JA). Its text is a **first draft that no native speaker has reviewed**: expect stiff phrasing
+and some wrong repair vocabulary. I do not read Japanese, so I cannot judge it myself.
+
+**If you read Japanese and work on power tools or batteries, I would love your help.**
+All the text is one file, [`strings_ja.h`](strings_ja.h): one line per message, with the English
+next to it. Open a pull request, or an [issue](../../issues/new?template=translation.yml)
+with corrections, no Git needed. You can see your text on every screen without a board with
+[`tools/hostsim`](tools/hostsim/README.md). Rules and details: [docs/TRANSLATING.md](docs/TRANSLATING.md).
+
+Build it with `pio run -e esp32-c3-ja` (or `cyd-ja`), or in the Arduino IDE by putting
+`#define ENABLE_CJK 1` in a local `board_local.h` next to the sketch.
 
 ## Architecture
 
@@ -194,6 +212,27 @@ Step-by-step guide (build, flash, wiring, first read): [docs/CYD_GUIDE.md](docs/
 Board selection and build notes: [CYD_NOTES.md](CYD_NOTES.md).
 
 ## Build & flash
+
+### Flash a prebuilt binary (no build)
+
+Each [release](https://github.com/TheRepairforge/PocketOBI/releases/latest) carries one
+merged image per board and language, flashed at address `0x0`:
+
+| File | Board |
+|---|---|
+| `PocketOBI-vX.Y.Z-esp32-c3.bin` | ESP32-C3 (the reference product) |
+| `PocketOBI-vX.Y.Z-cyd.bin` | CYD (ESP32-2432S028R) |
+| `PocketOBI-vX.Y.Z-esp32-c3-ja.bin` / `-cyd-ja.bin` | Same boards, Japanese build |
+
+```bash
+pip install esptool
+esptool --chip esp32c3 write_flash 0x0 PocketOBI-vX.Y.Z-esp32-c3.bin   # ESP32-C3
+esptool --chip esp32 write_flash 0x0 PocketOBI-vX.Y.Z-cyd.bin          # CYD
+```
+
+Older esptool versions are called `esptool.py`. Check a download against `SHA256SUMS.txt`
+from the same release. The `parts-*.zip` files hold the separate bootloader, partition
+table and application images for tools that want them.
 
 ### Arduino IDE
 
@@ -301,7 +340,7 @@ is unknown. PocketOBI just shows both values; do not assume which is which.
 ## Versioning
 
 See [CHANGELOG.md](CHANGELOG.md). The current version is shown on the
-Version / info screen and defined as `FW_VERSION` in the sketch.
+Version / info screen and defined as `FW_VERSION` in `pocketobi.h`.
 
 ## Credits
 

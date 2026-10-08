@@ -3,8 +3,38 @@
 All notable changes to the PocketOBI firmware are documented here.
 Versioning follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH.
 
-The version is defined in `PocketOBI.ino` as `FW_VERSION` and shown
+The version is defined in `pocketobi.h` as `FW_VERSION` and shown
 on the on-device "Version / info" screen.
+
+## [2.3.0] - 2026-10-08
+
+Japanese on every screen, a new logo, and the first release with ready-to-flash binaries.
+
+### Added
+- **Japanese build** (`ENABLE_CJK=1`; PlatformIO envs `esp32-c3-ja` and `cyd-ja`). Every
+  screen is translated except Debug, PC Bridge and About, which stay in English. The text
+  is a **first draft no native speaker has reviewed**: corrections are very welcome, see
+  `docs/TRANSLATING.md`. Glyphs come from Noto Sans JP Medium (16 px) and Fusion Pixel
+  12px ja (12 px), both under the SIL Open Font License (`THIRD-PARTY.md`).
+- **The CYD touch-calibration screen is translated** (FR/DE/ES/JA).
+- **Screen simulator, `tools/hostsim`**: compiles the real firmware for a PC and saves every
+  screen as an image, per language and board, so a translation can be checked without a board.
+- **Prebuilt binaries on every release**: one merged image per board (and per language
+  build), plus the separate parts and a `SHA256SUMS.txt`. See README, Build & flash.
+- **Translation issue form** and a translator guide (`docs/TRANSLATING.md`) covering German,
+  Spanish and Japanese.
+
+### Changed (internal, no behaviour change)
+- **Firmware source split into modules.** The single `PocketOBI.ino` (~2.6k lines)
+  is now a thin sketch (`setup`/`loop` + globals) plus a shared `pocketobi.h` and
+  `protocol` / `unlock` / `decode` / `display` / `ui_nav` / `bridge` `.h`/`.cpp`
+  modules. Both toolchains build the same root tree unchanged; the flashed firmware
+  is functionally identical (same RAM, same behaviour). Pure restructure for
+  readability and to give the next protocol family a clean seam.
+
+### Changed
+- **New PocketOBI logo** on the splash and About screens: a battery outline split by a
+  pulse line, in the Repair Forge orange (replaces the battery-and-bolt mark).
 
 ## [2.2.0] - 2026-10-01
 

@@ -7,7 +7,11 @@
 
 // ---------- i18n (string table; GFX fonts are ASCII-only, so no accents:
 // FR/ES accents dropped, German umlauts as ae/oe/ue/ss) ----------
-enum Lang { LANG_EN, LANG_FR, LANG_DE, LANG_ES, LANG_COUNT };
+// LANG_COUNT = the four columns of STRTAB below. Japanese (D19) is NOT a STRTAB column:
+// its strings live in strings_ja.h and only exist when ENABLE_CJK=1, so this table stays
+// four-wide for PackScope/tools/gen_locales.py. Use LANG_NUM (cjk_render.h) for "how many
+// languages can the user select".
+enum Lang { LANG_EN, LANG_FR, LANG_DE, LANG_ES, LANG_COUNT, LANG_JA = LANG_COUNT };
 const char* const LANG_CODE[LANG_COUNT] = { "EN", "FR", "DE", "ES" };
 
 enum StrId {
@@ -49,6 +53,7 @@ enum StrId {
   S_HINT_TAG,
   S_TEMP_CB,   // "Cell/Board" temp-row label (Temp1=cell, Temp2=board)
   S_CALIBRATE, // Settings > Calibrate touch (CYD touch board only)
+  S_CAL_TAP, S_CAL_SAVED,  // touch calibration screen (CYD only)
   S_COUNT
 };
 const char* const STRTAB[S_COUNT][LANG_COUNT] = {
@@ -180,4 +185,6 @@ const char* const STRTAB[S_COUNT][LANG_COUNT] = {
   /*S_HINT_TAG*/    { "HINT",            "INDICE",           "HINWEIS",           "PISTA" },
   /*S_TEMP_CB*/     { "Cell/Board",      "Cell/Carte",       "Zelle/Platine",     "Celda/Placa" },
   /*S_CALIBRATE*/   { "Calibrate touch", "Calibrer tactile", "Touch kalibrieren", "Calibrar tactil" },
+  /*S_CAL_TAP*/     { "Tap the target",  "Touchez la cible", "Ziel antippen",     "Toca el objetivo" },
+  /*S_CAL_SAVED*/   { "Saved",           "Enregistre",       "Gespeichert",       "Guardado" },
 };
