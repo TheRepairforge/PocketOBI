@@ -9,7 +9,7 @@
 [![Platform](https://img.shields.io/badge/platform-ESP32--C3%20%7C%20CYD-lightgrey)](#hardware)
 [![Build with](https://img.shields.io/badge/build-Arduino%20%7C%20PlatformIO-blue)](#build--flash)
 
-[Platform family](#platform-family) · [Watch it in action](#-watch-it-in-action) · [Status](#project-status) · [Features](#features) · [Hardware](#hardware) · [Build & flash](#build--flash) · [License](#license)
+[Website](https://therepairforge.github.io/pocketobi/) · [Platform family](#platform-family) · [Watch it in action](#-watch-it-in-action) · [Status](#project-status) · [Features](#features) · [Hardware](#hardware) · [Build & flash](#build--flash) · [License](#license)
 
 </div>
 
@@ -23,7 +23,7 @@ protocol documented by the [Open Battery Information](https://github.com/mnh-jan
 project, but as a self-contained handheld device with a TFT screen and a
 rotary encoder instead of a computer.
 
-Created by **The Repair Forge** — follow the build on YouTube:
+Created by **The Repair Forge** — website: https://therepairforge.github.io/ — follow the build on YouTube:
 https://www.youtube.com/channel/UCQL_-pcIEkrDPyljl3QPzcw
 
 ## Platform family
@@ -215,7 +215,10 @@ Board selection and build notes: [CYD_NOTES.md](CYD_NOTES.md).
 
 ### Flash a prebuilt binary (no build)
 
-Each [release](https://github.com/TheRepairforge/PocketOBI/releases/latest) carries one
+Easiest: the [web flasher](https://therepairforge.github.io/pocketobi/#flash) flashes the latest
+release over USB from Chrome or Edge on a computer, nothing to install.
+
+Or by hand: each [release](https://github.com/TheRepairforge/PocketOBI/releases/latest) carries one
 merged image per board and language, flashed at address `0x0`:
 
 | File | Board |
