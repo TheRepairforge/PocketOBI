@@ -66,6 +66,7 @@ def build(args, out):
         "-DPOCKETOBI_HOSTSIM", "-DARDUINO=10813", "-DARDUINO_ARCH_ESP32=1",
         f"-DPOCKETOBI_BOARD={BOARDS[args.board]}",
         f"-DENABLE_CJK={1 if args.ja else 0}",
+        f"-DENABLE_VI={1 if args.vi else 0}",
         "-I", os.path.join(HERE, "shim"), "-I", gfx,
         "-x", "c++", os.path.join(ROOT, "PocketOBI.ino"), "-x", "none",
         *fw,
@@ -119,6 +120,7 @@ def contact_sheet(frames, cols=4, pad=8, label_h=16):
 def main():
     ap = argparse.ArgumentParser(description="Render PocketOBI screens on the PC")
     ap.add_argument("--ja", action="store_true", help="Japanese build (ENABLE_CJK=1)")
+    ap.add_argument("--vi", action="store_true", help="adds Vietnamese (ENABLE_VI=1)")
     ap.add_argument("--board", choices=sorted(BOARDS), default="c3")
     ap.add_argument("--scale", type=int, default=1, help="integer zoom of the PNGs")
     ap.add_argument("--gfx", help="Adafruit GFX Library folder")
@@ -126,7 +128,7 @@ def main():
     ap.add_argument("--out", help="output folder (default tools/hostsim/out/<board>[-ja])")
     args = ap.parse_args()
 
-    out = args.out or os.path.join(HERE, "out", args.board + ("-ja" if args.ja else ""))
+    out = args.out or os.path.join(HERE, "out", args.board + ("-ja" if args.ja else "") + ("-vi" if args.vi else ""))
     shutil.rmtree(out, ignore_errors=True)       # best effort: a synced folder may hold a lock
     os.makedirs(out, exist_ok=True)
     # Build and raw frames go to a temp dir: a cloud-synced repo (Dropbox, OneDrive) locks

@@ -22,12 +22,21 @@
 extern int lang;
 
 // Languages the user can pick in Settings (STRTAB columns + Japanese in the JA build).
-constexpr int LANG_NUM = LANG_COUNT + (ENABLE_CJK ? 1 : 0);
+// Vietnamese (ENABLE_VI) comes after Japanese, so a saved JA index keeps its meaning.
+constexpr int LANG_VI  = ENABLE_VI ? LANG_COUNT + (ENABLE_CJK ? 1 : 0) : -1;
+constexpr int LANG_NUM = LANG_COUNT + (ENABLE_CJK ? 1 : 0) + (ENABLE_VI ? 1 : 0);
+
+// Vertical nudge for classic-font (size 1) lines in the Japanese UI only: a 12 px kanji cell spans
+// [y-2, y+10) where an ASCII row spans [y, y+8), so a caption squeezed under a 9 pt value needs a
+// couple of pixels (shared helper, lockstep D35). 0 in every other language and in
+// the default build.
+inline int jaDy(int px) { return (ENABLE_CJK && lang == LANG_JA) ? px : 0; }
 
 inline const char* langCode(int l) {
 #if ENABLE_CJK
   if (l == LANG_JA) return "JA";
 #endif
+  if (ENABLE_VI && l == LANG_VI) return "VI";
   return LANG_CODE[l];
 }
 
@@ -43,16 +52,20 @@ class PocketTFT : public Adafruit_ST7789 {
 public:
   using Adafruit_ST7789::Adafruit_ST7789;
   size_t write(uint8_t c) override;
-  using Print::write;
+  // Every print()/printf() of a whole string arrives here: the UTF-8 decoder starts clean
+  // for each one, so a string cut inside a character cannot leak into the next print.
+  size_t write(const uint8_t *buf, size_t n) override;
+  size_t write(const char *s) { return s ? write((const uint8_t *)s, strlen(s)) : 0; }
 private:
   void drawWide(uint32_t cp);
-  uint32_t cp_ = 0;      // UTF-8 decoder state across write() calls
+  uint32_t cp_ = 0;      // UTF-8 decoder state within ONE write(buf, n) call
   uint8_t need_ = 0;     // continuation bytes still expected
 };
 
 int  cjkWidth(const GFXfont* f, const char* s);   // GFX-font pixel width, JA included
 int  txtW(const char* s, int size);              // classic-font pixel width, JA included
 bool cjkHasWide(const char* s);                  // any non-ASCII byte in s
+int  cjkCharLen(const char* s);                  // byte length of the UTF-8 char at s (1 at a NUL)
 #else
 using PocketTFT = Adafruit_ST7789;
 inline int txtW(const char* s, int size) { return (int)strlen(s) * 6 * size; }

@@ -28,3 +28,10 @@
 #ifndef ENABLE_CJK
 #  define ENABLE_CJK 0
 #endif
+
+// Vietnamese (D50): one more ASCII column, strings_vi.h. No glyphs, no renderer: the
+// classic and GFX fonts draw it as they draw FR/DE/ES. 0 = not compiled in. Only the
+// es3c28p test env turns it on for now (-D ENABLE_VI=1).
+#ifndef ENABLE_VI
+#  define ENABLE_VI 0
+#endif

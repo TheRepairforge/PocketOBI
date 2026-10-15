@@ -50,13 +50,8 @@ void activate(UiState s, int idx) {
       uint8_t causes = (bat.valid && !isF0513) ? lockCauses(bat.msg) : 0;
       if (causes == 0) { state = BATTERY; break; }     // nothing to repair -> no write
       unlockCausesBefore = causes;
-      // step 3/4: working screen (unlockRepair blocks for a few seconds).
-      tft.fillScreen(COL_BG); { char h[16]; snprintf(h, sizeof(h), "%s 3/4", tr(S_REPAIR)); drawHeader(h); } drawPageDots(2, 4);
-      tft.setTextSize(2); tft.setTextColor(COL_TEXT, COL_BG);
-      tft.setCursor(90, 96); tft.print(tr(S_WORKING));
-      tft.setTextSize(1); tft.setTextColor(COL_MUTED, COL_BG);
-      tft.setCursor(28, 126); tft.print(tr(S_FRAME_STORE_PC));
-      unlockCausesAfter = unlockRepair();              // write + commit + reset + re-read
+      drawUnlockWorking();                             // step 3/4: working (unlockRepair blocks for a few seconds)
+      unlockCausesAfter = unlockRepair(drawUnlockProgress);   // write + commit + reset + re-read, step by step
       readExtended();
       state = UNLOCK_RESULT;
       lastRenderedState = -1;                          // force a clean redraw of the result
@@ -70,7 +65,7 @@ void activate(UiState s, int idx) {
       state = RESET_RESULT;
       break;
     case TOOLS:
-      switch (idx) {
+      switch (toolAt(idx)) {                           // position on screen -> tool (Tools has 2 pages)
         case 0: bridgeActive = true; state = PC_BRIDGE; break;   // enter active by default
         case 1: ledsOn();  toast(tr(S_LEDS_ON_MSG), COL_GREEN); break;
         case 2: ledsOff(); toast(tr(S_LEDS_OFF_MSG), COL_MUTED); break;
@@ -85,8 +80,8 @@ void activate(UiState s, int idx) {
       else if (idx == 1) { cfgBridgeBoot = !cfgBridgeBoot; prefs.putBool("bridge", cfgBridgeBoot); }
       else if (idx == 2) { lang = (lang + 1) % LANG_NUM; prefs.putInt("lang", lang);
                            lastRenderedState = -1; }   // full redraw so all text swaps
-#if BOARD_HAS_TOUCH
-      else if (idx == 3) { calibrateTouch(); lastRenderedState = -1; }  // Calibrate touch (CYD)
+#if BOARD_TOUCH_NEEDS_CAL
+      else if (idx == 3) { calibrateTouch(); lastRenderedState = -1; }  // Calibrate touch (CYD, ES3C28P)
 #endif
       break;
     case ABOUT:
@@ -120,10 +115,10 @@ void handleClick() {
   render();
 }
 void handleRotate(int dir) {
-  if (state == LAUNCHER)      { launcherIndex = (launcherIndex + dir + 4) % 4; render(); }
+  if (state == LAUNCHER)      { int p = launcherIndex; launcherIndex = (launcherIndex + dir + 4) % 4; redrawSelection(p, launcherIndex); }
   else if (state == BATTERY)  { batteryPage   = (batteryPage + dir + 3) % 3;   render(); }
-  else if (state == TOOLS)    { toolIndex     = (toolIndex + dir + toolCount) % toolCount; render(); }
-  else if (state == SETTINGS) { settingsIndex = (settingsIndex + dir + settingsCount) % settingsCount; render(); }
+  else if (state == TOOLS)    { int p = toolIndex; toolIndex = (toolIndex + dir + toolCount) % toolCount; redrawSelection(p, toolIndex); }
+  else if (state == SETTINGS) { int p = settingsIndex; settingsIndex = (settingsIndex + dir + settingsCount) % settingsCount; redrawSelection(p, settingsIndex); }
   else if (state == ABOUT)          { aboutEgg++; lastRenderedState = -1; render(); }  // turn = easter egg
   else if (state == PC_BRIDGE)      { bridgeActive = !bridgeActive; render(); }  // turn = toggle bridge
   else if (state == REPAIR_DIAG)    { state = LAUNCHER;     render(); }  // turn = cancel
@@ -150,9 +145,10 @@ void goHome() {
   if (state != LAUNCHER) { state = LAUNCHER; render(); }
 }
 #if BOARD_HAS_TOUCH
-// ---------- Touch input (CYD): tap-target, drives the shared nav core ----------
-// Map a raw XPT2046 reading (0..4095 per axis) to screen pixels, correcting axis
-// swap/flip and the 180-degree display flip (cfgFlip). Tunable via the TOUCH_* flags.
+// ---------- Touch input (CYD, ES3C28P): tap-target, drives the shared nav core ----------
+// Map a raw touch reading to screen pixels, correcting axis swap/flip and the 180-degree
+// display flip (cfgFlip). The raw range depends on the controller: XPT2046 0..4095 per axis,
+// FT6336 panel pixels (x 0..239, y 0..319). The TCAL_DEF_* defaults in board_config.h match each.
 void mapTouch(int rawX, int rawY, int *sx, int *sy) {
   long x = map(rawY, tcXL, tcXR, 0, 319);   // screen X <- raw Y axis (calibration in NVS)
   long y = map(rawX, tcYT, tcYB, 0, 239);   // screen Y <- raw X axis
@@ -187,11 +183,24 @@ void calibrateTouch() {
     tft.drawFastVLine(tx[i], ty[i] - 13, 27, COL_ACCENT);
     while (touch.touched()) delay(10);        // release the selecting/previous touch first
     delay(60);
+#if TOUCH_TEST_MENU
+    if (i == 0) {
+      tft.setTextColor(COL_MUTED, COL_BG);
+      tft.setCursor(72, 148); tft.print("Hold 2 s: touch test only");
+    }
+#endif
     for (;;) {                                // wait for a firm tap
       if (touch.touched()) { TS_Point p = touch.getPoint();
         if (p.z >= TOUCH_Z_MIN) { rx[i] = p.x; ry[i] = p.y; break; } }
       delay(5);
     }
+#if TOUCH_TEST_MENU
+    if (i == 0) {                             // still held after 2 s: test only, keep the calibration
+      const unsigned long t0 = millis();
+      while (touch.touched() && millis() - t0 < 2000) delay(10);
+      if (touch.touched()) { touchTest(); return; }
+    }
+#endif
     tft.fillCircle(tx[i], ty[i], 6, COL_GREEN);
     while (touch.touched()) delay(10);        // wait for release before the next target
     delay(150);
@@ -208,26 +217,58 @@ void calibrateTouch() {
   prefs.putInt("tcYT", tcYT); prefs.putInt("tcYB", tcYB);
   tft.fillScreen(COL_BG); tft.setTextColor(COL_GREEN, COL_BG); tft.setTextSize(2);
   tft.setCursor(96, 108); tft.print(tr(S_CAL_SAVED)); delay(700);
+#if TOUCH_TEST_MENU
+  touchTest();                                // check the new calibration straight away
+#endif
 }
+#if TOUCH_TEST_MENU
+// Touch test (ES3C28P test builds): five targets, a dot where each tap is mapped, the raw and
+// mapped coordinates on screen and on the serial log. Never navigates. A point the driver did
+// not trust (getPoint z = 0) is drawn grey and logged as REJECTED. Hold 2 s anywhere to leave.
+// English only, like the Debug screen (D33).
+void touchTest() {
+  const int M = 20;
+  const int tx[5] = { M, 319 - M, M, 319 - M, 160 };   // TL, TR, BL, BR, centre
+  const int ty[5] = { M, M, 239 - M, 239 - M, 120 };
+  tft.fillScreen(COL_BG);
+  tft.setTextSize(1); tft.setTextColor(COL_TEXT, COL_BG);
+  tft.setCursor(88, 96);  tft.print("Touch test: tap each target");
+  tft.setTextColor(COL_MUTED, COL_BG);
+  tft.setCursor(112, 140); tft.print("Hold 2 s to exit");
+  for (int i = 0; i < 5; i++) {
+    tft.drawCircle(tx[i], ty[i], 9, COL_ACCENT);
+    tft.drawFastHLine(tx[i] - 13, ty[i], 27, COL_ACCENT);
+    tft.drawFastVLine(tx[i], ty[i] - 13, 27, COL_ACCENT);
+  }
+  Serial.println("touch test: raw x,y (panel) -> map x,y (screen), ev 0=down 2=contact");
+  while (touch.touched()) delay(10);         // release the tap that opened the test
+  delay(100);
+  for (;;) {
+    if (!touch.touched()) { delay(5); continue; }
+    const TS_Point p = touch.getPoint();
+    int sx, sy;
+    mapTouch(p.x, p.y, &sx, &sy);
+    const bool ok = p.z >= TOUCH_Z_MIN;
+    const bool none = !ok && p.x == 0 && p.y == 0;   // no usable sample at all: no dot to draw
+    if (!none) tft.fillCircle(sx, sy, 4, ok ? COL_RED : COL_MUTED);
+    tft.fillRect(0, 224 - 32, 320, 12, COL_BG);   // the BL/BR targets sit lower, keep them
+    tft.setTextColor(COL_TEXT, COL_BG); tft.setCursor(40, 194);
+    tft.printf("raw %3d,%3d  map %3d,%3d  ev %u%s", p.x, p.y, sx, sy, touch.lastEvent, ok ? "" : " REJ");
+    Serial.printf("raw %d,%d  map %d,%d  ev %u%s\n", p.x, p.y, sx, sy, touch.lastEvent,
+                  ok ? "" : "  REJECTED");
+    const unsigned long t0 = millis();         // one dot per tap; a long hold leaves the test
+    while (touch.touched()) {
+      if (millis() - t0 > 2000) { while (touch.touched()) delay(10); return; }
+      delay(10);
+    }
+    delay(60);
+  }
+}
+#endif
 // The tapped target for the current screen. Cursor screens map a tap to the item
 // under the finger; the rest ignore the index (tap = their primary action).
 int touchHitIndex(UiState s, int sx, int sy) {
-  switch (s) {
-    case LAUNCHER: {                       // 2x2 tiles: split at the mid-gaps (see drawLauncher)
-      int col = (sx >= 160) ? 1 : 0;
-      int row = (sy >= 134) ? 1 : 0;
-      return row * 2 + col;
-    }
-    case TOOLS: {                          // vertical list, rows at y+34*i (see drawTools)
-      int i = (sy - (HEADER_H + 6)) / 34;
-      return constrain(i, 0, toolCount - 1);
-    }
-    case SETTINGS: {                       // vertical list, rows at y+40*i (see drawSettings)
-      int i = (sy - (HEADER_H + 12)) / 40;
-      return constrain(i, 0, settingsCount - 1);
-    }
-    default: return 0;                     // other screens: tap = their single primary action
-  }
+  return touchHit(s, sx, sy);              // geometry owned by display.cpp (the code that draws the items)
 }
 // Poll the touch panel and dispatch one tap on touch-down. Tapping the title bar
 // acts as Back (the CYD has no physical back button); everywhere else a tap goes
@@ -262,6 +303,16 @@ void serviceTouch() {
       if (aboutEgg > ABOUT_EGG_N) { activate(ABOUT, 0); render(); }  // in the guru crash: tap dismisses to About
       else handleRotate(1);                                          // otherwise: tap advances the egg
       return;
+    }
+    if (state == CONFIRM_UNLOCK || state == CONFIRM_RESET) {    // buttons only (never a stray write)
+      const int b = touchHitIndex(state, sx, sy);
+      if (b == 1)      { activate(state, 0); render(); }        // primary: unlock / reset
+      else if (b == 0) handleRotate(1);                          // Cancel: same as turning the encoder
+      else             render();                                 // elsewhere: nothing, erase the ring
+      return;
+    }
+    if (state == TOOLS && touchHitIndex(state, sx, sy) == TOUCH_NEXT_PAGE) {   // tap under the rows = other page
+      toolIndex = (toolIndex < 3) ? 3 : 0; render(); return;
     }
     activate(state, touchHitIndex(state, sx, sy));
     render();

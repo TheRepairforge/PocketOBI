@@ -50,6 +50,16 @@ size_t PocketTFT::write(uint8_t c) {
   return 1;                                       // stray continuation byte: ignored
 }
 
+// One buffer = one string: start the decoder clean, so a truncated multi-byte sequence at the
+// end of one print() cannot swallow the first bytes of the next one.
+size_t PocketTFT::write(const uint8_t *buf, size_t n) {
+  need_ = 0; cp_ = 0;
+  size_t i = 0;
+  for (; i < n; i++) write(buf[i]);
+  need_ = 0; cp_ = 0;
+  return n;
+}
+
 // Draw one non-ASCII code point at the cursor and advance it, matching the current font.
 // A code point missing from glyphs_ja.h draws a hollow box (a forgotten regeneration
 // is visible on the device).
@@ -72,6 +82,14 @@ void PocketTFT::drawWide(uint32_t cp) {
           fillRect(cursor_x + x * sc, top + y * sc, sc, sc, textcolor);
   }
   cursor_x += adv;
+}
+
+int cjkCharLen(const char* s) {
+  uint8_t c = (uint8_t)*s;
+  if (c < 0x80) return 1;
+  int n = 1;
+  while (((uint8_t)s[n] & 0xC0) == 0x80) n++;
+  return n;
 }
 
 bool cjkHasWide(const char* s) {

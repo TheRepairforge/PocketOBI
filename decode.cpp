@@ -124,16 +124,15 @@ bool readStaticInfo() {
   bat.valid = true;
   return true;
 }
-// Read the 5 cell voltages + temperature over the F0513 command set (CC 31..35, CC 52).
-// Used for genuine F0513 packs AND as a live fallback for old (2010-era) packs that answer the
-// standard AA static frame but are silent on the D7 live read: their cells live here.
-bool readF0513Cells() {
+// One pass of the F0513 burst. 1 = all cells answered, 0 = the pack answered VCELL1 but dropped a
+// later read (a cell came back 0xFFFF), -1 = silent on VCELL1 even after READ_RETRIES.
+static int readF0513Burst() {
   uint8_t tmp[8];
   sendCommand(CLEAR_CMD, tmp);
   sendCommand(CLEAR_CMD, tmp);
 
   uint8_t c1[2], c2[2], c3[2], c4[2], c5[2], t[2];
-  if (!sendCommandRetry(F0513_VCELL1_CMD, c1, nullptr, READ_RETRIES)) return false;
+  if (!sendCommandRetry(F0513_VCELL1_CMD, c1, nullptr, READ_RETRIES)) return -1;
   sendCommand(F0513_VCELL2_CMD, c2);
   sendCommand(F0513_VCELL3_CMD, c3);
   sendCommand(F0513_VCELL4_CMD, c4);
@@ -147,7 +146,12 @@ bool readF0513Cells() {
   bat.cell[4] = le16(c5, 0) / 1000.0;
   // Reject a partial / mid-dropout read: a Li-ion cell is < 4.3 V, and a dropped read comes back
   // 0xFFFF -> 65.5 V. Any cell above 5 V means the burst was not fully answered.
-  for (int i = 0; i < cellCount; i++) if (bat.cell[i] > 5.0f) return false;
+  for (int i = 0; i < cellCount; i++) if (bat.cell[i] > 5.0f) {
+#if COMM_DEBUG
+    Serial.printf("F0513 burst: cell %d dropped\n", i + 1);
+#endif
+    return 0;
+  }
 
   float sum = 0, mn = 99, mx = 0;
   for (int i = 0; i < cellCount; i++) {
@@ -163,7 +167,22 @@ bool readF0513Cells() {
   bat.tempCell = le16(t, 0) / 10.0 - 273.15;
   bat.tempMosfet = -1;
   bat.boardTempValid = false;   // single sensor on this path
-  return true;
+  return 1;
+}
+// Read the 5 cell voltages + temperature over the F0513 command set (CC 31..35, CC 52).
+// Used for genuine F0513 packs AND as a live fallback for old (2010-era) packs that answer the
+// standard AA static frame but are silent on the D7 live read: their cells live here.
+// Only VCELL1 is retried per command; the later reads of a burst drop together on old/hybrid packs
+// (BACKLOG #50), so a partial burst is retried ONCE as a whole. A silent pack is not retried again.
+bool readF0513Cells() {
+  const int r = readF0513Burst();
+  if (r == 0) {
+#if COMM_DEBUG
+    Serial.println("F0513 burst partial: one more pass");
+#endif
+    return readF0513Burst() == 1;
+  }
+  return r == 1;
 }
 // Read live data (voltages, temperatures) -> on_read_data_click().
 // F0513 packs use the F0513 cell set; standard packs use the D7 live read, with a fall back to

@@ -604,7 +604,7 @@ uint16_t OneWire::crc16(const uint8_t* input, uint16_t len, uint16_t crc)
 
 // undef defines for no particular reason
 #ifdef ARDUINO_ARCH_ESP32
-#  undef noInterrupts   // #undef takes the name only; the old trailing body warned
+#  undef noInterrupts   // (the trailing macro-body tokens that used to follow were ignored by the compiler: 2 warnings)
 #  undef interrupts
 #endif
 // for info on this, search "IRAM_ATTR" at https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/general-notes.html

@@ -82,6 +82,7 @@
 #include "ui_nav.h"
 #include "bridge.h"
 #include "strings_ja.h"   // STRTAB_JA, only when ENABLE_CJK=1
+#include "strings_vi.h"   // STRTAB_VI, only when ENABLE_VI=1
 
 
 OneWire makita(ONEWIRE_PIN);
@@ -89,18 +90,23 @@ OneWire makita(ONEWIRE_PIN);
 // SCLK/MOSI pins are assigned via SPI.begin() in setup().
 PocketTFT tft(&SPI, TFT_CS, TFT_DC, TFT_RST);   // = Adafruit_ST7789, UTF-8 aware in the JA build
 
-#if BOARD_HAS_TOUCH
+#if BOARD_TOUCH_DRIVER == TOUCH_XPT2046
 // The display drives the default SPI object (remapped to its HSPI pins in setup()),
 // so the XPT2046 touch controller gets its OWN bus on a second SPIClass.
 #include <XPT2046_Touchscreen.h>
 SPIClass touchSPI(HSPI);
 XPT2046_Touchscreen touch(TOUCH_CS, TOUCH_IRQ);
+#elif BOARD_TOUCH_DRIVER == TOUCH_FT6336
+// Capacitive touch on I2C (ES3C28P): no extra bus, the driver starts Wire in begin().
+FT6336_Touch touch;
+#endif
 
-// Resistive-touch calibration: raw XPT2046 -> screen pixels. On this CYD the axes
-// are crossed (screen X from the raw Y axis inverted, screen Y from the raw X axis);
+#if BOARD_HAS_TOUCH
+// Touch calibration: raw controller reading -> screen pixels (ui_nav.cpp, mapTouch()). On the CYD
+// the axes are crossed (screen X from the raw Y axis inverted, screen Y from the raw X axis);
 // map() handles the inverted ranges. The four corner values live in NVS and are
-// editable from Settings > Calibrate; these #defines are the factory fallback,
-// measured on the bench. Re-run Calibrate after a panel swap.
+// editable from Settings > Calibrate; the TCAL_DEF_* #defines (board_config.h) are the factory
+// fallback, measured on the bench. Re-run Calibrate after a panel swap.
 int tcXL = TCAL_DEF_X_LEFT, tcXR = TCAL_DEF_X_RIGHT,
     tcYT = TCAL_DEF_Y_TOP,  tcYB = TCAL_DEF_Y_BOTTOM;
 // Set to 1 to calibrate manually: each tap draws a dot where it maps + prints
@@ -134,11 +140,14 @@ const char* tr(StrId id) {   // prototype in pocketobi.h
 #if ENABLE_CJK
   if (lang == LANG_JA) return STRTAB_JA[id] ? STRTAB_JA[id] : STRTAB[id][LANG_EN];
 #endif
+#if ENABLE_VI
+  if (lang == LANG_VI) return STRTAB_VI[id] ? STRTAB_VI[id] : STRTAB[id][LANG_EN];
+#endif
   return STRTAB[id][lang];
 }
 
 const int   toolCount = 6;
-#if BOARD_HAS_TOUCH
+#if BOARD_TOUCH_NEEDS_CAL
 const int   settingsCount = 4;   // Flip screen, PC bridge at boot, Language, Calibrate touch
 #else
 const int   settingsCount = 3;   // Flip screen, PC bridge at boot, Language
@@ -291,6 +300,8 @@ int lastBatteryPage = -1;  // force a screen clear when the Battery page changes
 
 
 // ---------- Setup / loop ----------
+#include "demo.h"   // navRotate/navClick/...: the normal nav, or the screen demo in the *-demo envs
+
 void setup() {
   Serial.begin(115200);
 
@@ -307,15 +318,18 @@ void setup() {
   encoder = new RotaryEncoder(ENC_B, ENC_A, RotaryEncoder::LatchMode::FOUR3);
 #endif
 
-#if BOARD_HAS_TOUCH
+#if BOARD_TOUCH_DRIVER == TOUCH_XPT2046
   // XPT2046 on its own SPI bus; we read raw points and map them ourselves.
   touchSPI.begin(TOUCH_CLK, TOUCH_MISO, TOUCH_MOSI, TOUCH_CS);
   touch.begin(touchSPI);
   touch.setRotation(0);
+#elif BOARD_TOUCH_DRIVER == TOUCH_FT6336
+  // FT6336G on I2C; a missing controller is reported but does not halt the sketch.
+  if (!touch.begin()) Serial.println("FT6336G not found at 0x38: touch disabled");
 #endif
 
 #ifdef TFT_BL
-  // CYD: the backlight is GPIO-controlled — without this the panel stays black.
+  // CYD / ES3C28P: the backlight is GPIO-controlled — without this the panel stays black.
   pinMode(TFT_BL, OUTPUT);
   digitalWrite(TFT_BL, HIGH);
 #endif
@@ -338,7 +352,7 @@ void setup() {
 #endif
 
   tft.init(240, 320);        // 240x320 ST7789 panel (both boards)
-  tft.invertDisplay(false);  // correct colors on both boards' ST7789 panels
+  tft.invertDisplay(PANEL_INVERT);  // per board (board_config.h): OFF on the ST7789 / CYD panels, ON on the ES3C28P
   applyRotation();
 
   // Boot splash, then straight to the launcher (or the PC bridge if configured). We deliberately
@@ -347,8 +361,12 @@ void setup() {
   // it. Insert pack, boot lands on the launcher instantly, click to read.
   drawSplash();
   delay(1500);
+#if UI_DEMO
+  demoBegin();                                   // never the bridge, never a pack read
+#else
   state = cfgBridgeBoot ? PC_BRIDGE : LAUNCHER;
   render();
+#endif
 }
 
 void loop() {
@@ -358,7 +376,9 @@ void loop() {
 #endif
 
   // PC bridge mode: act as a USB<->OneWire bridge for the PC app (only while active).
+#if !UI_DEMO
   if (state == PC_BRIDGE && bridgeActive) serviceBridge();
+#endif
 
 #if BOARD_HAS_ENCODER
 #if ENC_DEBUG
@@ -378,7 +398,7 @@ void loop() {
   lastEncPos = pos;
   int steps = abs(diff);
   for (int i = 0; i < steps; i++) {
-    handleRotate(diff > 0 ? 1 : -1);
+    navRotate(diff > 0 ? 1 : -1);
   }
 
   // Encoder button (simple debounce, acts on press)
@@ -386,7 +406,7 @@ void loop() {
   if (pressed && !btnPressed && millis() - lastBtnTime > 250) {
     btnPressed = true;
     lastBtnTime = millis();
-    handleClick();
+    navClick();
   } else if (!pressed) {
     btnPressed = false;
   }
@@ -400,15 +420,15 @@ void loop() {
   } else if (backNow && backDown && !backLongFired &&
              millis() - backStart >= BACK_LONG_MS) {
     backLongFired = true;  // long press reached -> home immediately, fire once
-    goHome();
+    navHome();
   } else if (!backNow && backDown) {
     backDown = false;
-    if (!backLongFired) handleBack();  // released before the long threshold
+    if (!backLongFired) navBack();  // released before the long threshold
   }
 #endif // BOARD_HAS_ENCODER
 
 #if BOARD_HAS_TOUCH
-  serviceTouch();   // read the XPT2046, hit-test the screen, drive the nav core
+  navTouch();      // read the XPT2046, hit-test the screen, drive the nav core
 #endif
 
   delay(1);
