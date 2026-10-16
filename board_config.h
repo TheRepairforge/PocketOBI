@@ -52,7 +52,8 @@
 // sets the per-board capability selectors: BOARD_TOUCH_DRIVER (a TOUCH_* value),
 // BOARD_TOUCH_NEEDS_CAL (1 = Settings > Calibrate is offered), PANEL_ILI9341
 // (1 = write the ILI9341 MADCTL orientation in applyRotation()) and PANEL_INVERT
-// (1 = the panel needs display inversion ON for correct colours, setup()).
+// (1 = the panel needs display inversion ON for correct colours, setup()) and
+// PANEL_ILI9341_INIT (1 = send the ILI9341 power / VCOM / gamma registers after tft.init(), setup()).
 #if POCKETOBI_BOARD == BOARD_LXT_C3
 // --- PocketOBI-LXT (ESP32-C3 SuperMini) — the shipping product ---
 // --- Battery bus ---
@@ -74,6 +75,7 @@
 #define BOARD_TOUCH_NEEDS_CAL 0
 #define PANEL_ILI9341         0
 #define PANEL_INVERT          0
+#define PANEL_ILI9341_INIT    0
 
 #elif POCKETOBI_BOARD == BOARD_CYD
 // --- CYD ESP32-2432S028R, dual-USB (USB-C + micro) revision (dev/alt target) ---
@@ -109,6 +111,7 @@
 #define BOARD_TOUCH_NEEDS_CAL 1
 #define PANEL_ILI9341         CYD_ILI9341
 #define PANEL_INVERT          0
+#define PANEL_ILI9341_INIT    0
 // Factory touch calibration (raw XPT2046 -> screen pixels, see ui_nav.cpp). Measured on the
 // bench; Settings > Calibrate overwrites them in NVS.
 #define TCAL_DEF_X_LEFT   3765   // raw Y at screen x=0   (left edge)
@@ -143,6 +146,11 @@
 // The ES3C28P's ILI9341V shows every colour inverted with inversion OFF (tester photos, #22:
 // near-black background drawn cream, teal header salmon, green bars magenta).
 #define PANEL_INVERT          1
+// tft.init() is the ST7789 sequence: on this ILI9341V it leaves power, VCOM and gamma at their reset
+// values (tester: near-black drawn grey-blue). The generic Adafruit ILI9341 values were tried in test5
+// and broke the picture on this module (noise lines, then horizontal stripes on every redraw), so they
+// stay OFF here until the board vendor's own init values are known.
+#define PANEL_ILI9341_INIT    0
 // Factory touch calibration: UNVERIFIED (no board in our hands). The FT6336 reports pixels in the
 // panel's native portrait frame (x 0..239, y 0..319). With the ILI9341 landscape orientation
 // (MADCTL 0x28) the screen is that frame transposed without a mirror, so screen X follows raw Y

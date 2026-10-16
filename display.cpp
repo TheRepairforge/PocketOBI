@@ -105,6 +105,39 @@ void applyRotation() {
 #endif
 }
 
+#if PANEL_ILI9341_INIT
+// ILI9341 power, VCOM, frame-rate and gamma registers, sent after tft.init() (the ST7789 sequence,
+// which leaves them at the controller's reset values). Values from the Adafruit_ILI9341 library 1.6.1
+// init table (BSD, see THIRD-PARTY.md). MADCTL is left to applyRotation(); pixel format, sleep-out and
+// display-on were already sent by tft.init().
+void ili9341PanelInit() {
+  static const uint8_t seq[] = {
+    0xEF, 3, 0x03, 0x80, 0x02,
+    0xCF, 3, 0x00, 0xC1, 0x30,
+    0xED, 4, 0x64, 0x03, 0x12, 0x81,
+    0xE8, 3, 0x85, 0x00, 0x78,
+    0xCB, 5, 0x39, 0x2C, 0x00, 0x34, 0x02,
+    0xF7, 1, 0x20,
+    0xEA, 2, 0x00, 0x00,
+    0xC0, 1, 0x23,                   // power control 1
+    0xC1, 1, 0x10,                   // power control 2
+    0xC5, 2, 0x3E, 0x28,             // VCOM control 1
+    0xC7, 1, 0x86,                   // VCOM control 2
+    0xB1, 2, 0x00, 0x18,             // frame rate
+    0xB6, 3, 0x08, 0x82, 0x27,       // display function control
+    0xF2, 1, 0x00,                   // 3-gamma off
+    0x26, 1, 0x01,                   // gamma curve 1
+    0xE0, 15, 0x0F, 0x31, 0x2B, 0x0C, 0x0E, 0x08, 0x4E, 0xF1, 0x37, 0x07, 0x10, 0x03, 0x0E, 0x09, 0x00,
+    0xE1, 15, 0x00, 0x0E, 0x14, 0x03, 0x11, 0x07, 0x31, 0xC1, 0x48, 0x08, 0x0F, 0x0C, 0x31, 0x36, 0x0F,
+  };
+  for (size_t i = 0; i < sizeof(seq); ) {
+    const uint8_t cmd = seq[i], n = seq[i + 1];
+    tft.sendCommand(cmd, &seq[i + 2], n);
+    i += 2 + n;
+  }
+}
+#endif
+
 // ---------- Small helpers shared by the screens ----------
 // Header bar with the glyph of the current screen (the component takes the glyph, it does not know
 // the screens). LAUNCHER: no glyph.

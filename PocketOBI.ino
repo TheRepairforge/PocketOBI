@@ -304,6 +304,11 @@ int lastBatteryPage = -1;  // force a screen clear when the Battery page changes
 
 void setup() {
   Serial.begin(115200);
+#if COMM_DEBUG && ARDUINO_USB_MODE && ARDUINO_USB_CDC_ON_BOOT
+  // Debug builds on native USB-CDC: with no PC reading the port (phone charger), every trace line
+  // would wait for the TX timeout. Drop them instead, so the UI does not stall.
+  Serial.setTxTimeoutMs(0);
+#endif
 
   pinMode(ENABLE_PIN, OUTPUT);
   digitalWrite(ENABLE_PIN, LOW);
@@ -352,6 +357,9 @@ void setup() {
 #endif
 
   tft.init(240, 320);        // 240x320 ST7789 panel (both boards)
+#if PANEL_ILI9341_INIT
+  ili9341PanelInit();        // the ILI9341's own power / VCOM / gamma (board_config.h)
+#endif
   tft.invertDisplay(PANEL_INVERT);  // per board (board_config.h): OFF on the ST7789 / CYD panels, ON on the ES3C28P
   applyRotation();
 

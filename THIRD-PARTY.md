@@ -17,6 +17,16 @@ are retained in the source files.
   Maintained since 2010 by Paul Stoffregen (paul@pjrc.com)
   Bit-level timing modifications from the Open Battery Information project
 
+## Adafruit ILI9341 library (register values only)
+
+`ili9341PanelInit()` in `display.cpp` sends the ILI9341 power, VCOM, frame-rate and gamma register
+values of the Adafruit_ILI9341 library's init table (version 1.6.1). No other code is reused.
+Its notice:
+
+  Written by Limor "ladyada" Fried for Adafruit Industries.
+  BSD license, all text here must be included in any redistribution.
+  https://github.com/adafruit/Adafruit_ILI9341
+
 ## Open Battery Information (base project / protocol implementation)
 
 PocketOBI builds on the Open Battery Information project by Martin Jansson, from

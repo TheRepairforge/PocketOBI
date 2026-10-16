@@ -8,6 +8,9 @@
 // tokens (ui_theme.h).
 uint16_t cellColor(float v, float minV, float diff);
 void applyRotation();
+#if PANEL_ILI9341_INIT
+void ili9341PanelInit();   // ILI9341 power / VCOM / gamma after tft.init() (board_config.h)
+#endif
 void lockCausesText(uint8_t causes, char *out, size_t n);
 void fmtPackDate(char *out, size_t n, uint16_t year, uint8_t m, uint8_t d);
 void drawLauncher();
