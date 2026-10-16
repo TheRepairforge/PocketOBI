@@ -151,15 +151,14 @@
 // and broke the picture on this module (noise lines, then horizontal stripes on every redraw), so they
 // stay OFF here until the board vendor's own init values are known.
 #define PANEL_ILI9341_INIT    0
-// Factory touch calibration: UNVERIFIED (no board in our hands). The FT6336 reports pixels in the
-// panel's native portrait frame (x 0..239, y 0..319). With the ILI9341 landscape orientation
-// (MADCTL 0x28) the screen is that frame transposed without a mirror, so screen X follows raw Y
-// and screen Y follows raw X, and the identity map below is the expected one. If the touch
-// frame is mirrored or swapped on this module, the tester runs Settings > Calibrate.
-#define TCAL_DEF_X_LEFT   0      // raw Y at screen x=0   (left edge)
-#define TCAL_DEF_X_RIGHT  319    // raw Y at screen x=319 (right edge)
-#define TCAL_DEF_Y_TOP    0      // raw X at screen y=0   (top edge)
-#define TCAL_DEF_Y_BOTTOM 239    // raw X at screen y=239 (bottom edge)
+// Factory touch calibration, measured by the community tester (one board, Settings > Calibrate,
+// then the five-target touch test landed on every target). The FT6336 reports pixels in the
+// panel's native portrait frame (x 0..239, y 0..319): screen X follows raw Y, screen Y follows
+// raw X REVERSED on this module (the identity guess of the first builds was wrong).
+#define TCAL_DEF_X_LEFT     4    // raw Y at screen x=0   (left edge)
+#define TCAL_DEF_X_RIGHT  315    // raw Y at screen x=319 (right edge)
+#define TCAL_DEF_Y_TOP    206    // raw X at screen y=0   (top edge)
+#define TCAL_DEF_Y_BOTTOM  10    // raw X at screen y=239 (bottom edge)
 
 #else
 #  error "POCKETOBI_BOARD must be BOARD_LXT_C3, BOARD_CYD or BOARD_ES3C28P"

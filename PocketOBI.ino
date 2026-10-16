@@ -354,6 +354,10 @@ void setup() {
   tcXR = prefs.getInt("tcXR", TCAL_DEF_X_RIGHT);
   tcYT = prefs.getInt("tcYT", TCAL_DEF_Y_TOP);
   tcYB = prefs.getInt("tcYB", TCAL_DEF_Y_BOTTOM);
+#if TOUCH_TEST_MENU
+  Serial.printf("touch cal: XL %d XR %d YT %d YB %d%s\n", tcXL, tcXR, tcYT, tcYB,
+                prefs.isKey("tcXL") ? "" : " (defaults)");
+#endif
 #endif
 
   tft.init(240, 320);        // 240x320 ST7789 panel (both boards)

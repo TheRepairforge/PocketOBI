@@ -216,7 +216,16 @@ void calibrateTouch() {
   prefs.putInt("tcXL", tcXL); prefs.putInt("tcXR", tcXR);
   prefs.putInt("tcYT", tcYT); prefs.putInt("tcYB", tcYB);
   tft.fillScreen(COL_BG); tft.setTextColor(COL_GREEN, COL_BG); tft.setTextSize(2);
-  tft.setCursor(96, 108); tft.print(tr(S_CAL_SAVED)); delay(700);
+  tft.setCursor(96, 108); tft.print(tr(S_CAL_SAVED));
+#if TOUCH_TEST_MENU
+  // Test builds: show the four saved values, so a tester's photo gives this board its defaults.
+  tft.setTextSize(1); tft.setTextColor(COL_TEXT, COL_BG);
+  tft.setCursor(40, 140); tft.printf("XL %d  XR %d  YT %d  YB %d", tcXL, tcXR, tcYT, tcYB);
+  Serial.printf("touch cal saved: XL %d XR %d YT %d YB %d\n", tcXL, tcXR, tcYT, tcYB);
+  delay(5000);
+#else
+  delay(700);
+#endif
 #if TOUCH_TEST_MENU
   touchTest();                                // check the new calibration straight away
 #endif
@@ -235,6 +244,7 @@ void touchTest() {
   tft.setCursor(88, 96);  tft.print("Touch test: tap each target");
   tft.setTextColor(COL_MUTED, COL_BG);
   tft.setCursor(112, 140); tft.print("Hold 2 s to exit");
+  tft.setCursor(64, 152); tft.printf("cal XL %d XR %d YT %d YB %d", tcXL, tcXR, tcYT, tcYB);
   for (int i = 0; i < 5; i++) {
     tft.drawCircle(tx[i], ty[i], 9, COL_ACCENT);
     tft.drawFastHLine(tx[i] - 13, ty[i], 27, COL_ACCENT);
