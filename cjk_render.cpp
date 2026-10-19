@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Copyright (c) 2026 TheRepairForge
-// PocketOBI — Japanese (CJK) text engine, compiled only when ENABLE_CJK=1 (DECISIONS.md D19/D33).
-// PocketTFT::write() decodes UTF-8 as it is printed: ASCII goes to the normal Adafruit_GFX
-// path, a Japanese code point is blitted from the 16x16 or 12x12 bitmap table (glyphs_ja.h),
-// scaled up for large classic-font sizes (see cjkCell() in cjk_render.h).
+// PocketOBI — Japanese / Korean (CJK) text engine, compiled only when ENABLE_CJK=1 (DECISIONS.md
+// D19/D33/D58). PocketTFT::write() decodes UTF-8 as it is printed: ASCII goes to the normal
+// Adafruit_GFX path, a wide code point is blitted from the current language's 16x16 or 12x12
+// bitmap table (glyphs_ja.h, glyphs_ko.h), scaled up for large classic-font sizes (see cjkCell()
+// in cjk_render.h).
 // With ENABLE_CJK=0 this file compiles to nothing.
 #include "pocketobi.h"
 
 #if ENABLE_CJK
 #include "glyphs_ja.h"
+#include "glyphs_ko.h"
 
 // Vertical nudge of the 16 px cell below a GFX-font baseline, so kanji sit level with the
 // FreeSans labels (tuned on the bench with the 2026-09-10 spike).
@@ -50,16 +52,40 @@ size_t PocketTFT::write(uint8_t c) {
   return 1;                                       // stray continuation byte: ignored
 }
 
+// One buffer = one string: start the decoder clean, so a truncated multi-byte sequence at the
+// end of one print() cannot swallow the first bytes of the next one.
+size_t PocketTFT::write(const uint8_t *buf, size_t n) {
+  need_ = 0; cp_ = 0;
+  size_t i = 0;
+  for (; i < n; i++) write(buf[i]);
+  need_ = 0; cp_ = 0;
+  return n;
+}
+
+// The glyph of cp in a cell, from the current language's table first, then the other one
+// (each table only holds the characters its own strings use).
+static const uint8_t* wideGlyph(uint32_t cp, int cell) {
+  const bool ko = (lang == LANG_KO);
+  const uint8_t* b;
+  if (cell == 16) {
+    b = ko ? findGlyph(CJK_GLYPHS16_KO, CJK_GLYPH_COUNT_KO, cp) : findGlyph(CJK_GLYPHS16_JA, CJK_GLYPH_COUNT_JA, cp);
+    if (!b) b = ko ? findGlyph(CJK_GLYPHS16_JA, CJK_GLYPH_COUNT_JA, cp) : findGlyph(CJK_GLYPHS16_KO, CJK_GLYPH_COUNT_KO, cp);
+  } else {
+    b = ko ? findGlyph(CJK_GLYPHS12_KO, CJK_GLYPH_COUNT_KO, cp) : findGlyph(CJK_GLYPHS12_JA, CJK_GLYPH_COUNT_JA, cp);
+    if (!b) b = ko ? findGlyph(CJK_GLYPHS12_JA, CJK_GLYPH_COUNT_JA, cp) : findGlyph(CJK_GLYPHS12_KO, CJK_GLYPH_COUNT_KO, cp);
+  }
+  return b;
+}
+
 // Draw one non-ASCII code point at the cursor and advance it, matching the current font.
-// A code point missing from glyphs_ja.h draws a hollow box (a forgotten regeneration
+// A code point missing from the glyph tables draws a hollow box (a forgotten regeneration
 // is visible on the device).
 void PocketTFT::drawWide(uint32_t cp) {
   int n = gfxFont ? 2 : textsize_y;               // a GFX font uses the 16 px cell, unscaled
   int w = cjkCell(n), sc = gfxFont ? 1 : cjkScale(n), adv = (w + 1) * sc;
   int top = gfxFont ? cursor_y - w + CJK_BASELINE_DROP    // GFX: cursor = baseline
           : (n == 1 ? cursor_y - 2 : cursor_y);           // classic: cursor = top of the 8n line
-  const uint8_t* bmp = (w == 16) ? findGlyph(CJK_GLYPHS16, CJK_GLYPH_COUNT, cp)
-                                 : findGlyph(CJK_GLYPHS12, CJK_GLYPH_COUNT, cp);
+  const uint8_t* bmp = wideGlyph(cp, w);
   if (!gfxFont && textbgcolor != textcolor)       // classic font with a background: opaque
     fillRect(cursor_x, top, adv, w * sc, textbgcolor);
   if (!bmp)            drawRect(cursor_x, top, w * sc, w * sc, textcolor);
@@ -72,6 +98,14 @@ void PocketTFT::drawWide(uint32_t cp) {
           fillRect(cursor_x + x * sc, top + y * sc, sc, sc, textcolor);
   }
   cursor_x += adv;
+}
+
+int cjkCharLen(const char* s) {
+  uint8_t c = (uint8_t)*s;
+  if (c < 0x80) return 1;
+  int n = 1;
+  while (((uint8_t)s[n] & 0xC0) == 0x80) n++;
+  return n;
 }
 
 bool cjkHasWide(const char* s) {

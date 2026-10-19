@@ -15,14 +15,14 @@ Use it to:
 ```
 pip install pillow ziglang                 # once: image library + a C++ compiler
 python tools/hostsim/hostsim.py            # EN / FR / DE / ES
-python tools/hostsim/hostsim.py --ja       # same + Japanese (ENABLE_CJK=1 build)
-python tools/hostsim/hostsim.py --ja --board cyd --scale 2
+python tools/hostsim/hostsim.py --asia     # Asia build: EN / JA / KO
+python tools/hostsim/hostsim.py --asia --board cyd --scale 2
 ```
 
 Output, regenerated on each run and not committed:
 
 ```
-tools/hostsim/out/<board>[-ja]/sheet_<LANG>.png        all screens on one page
+tools/hostsim/out/<board>[-asia]/sheet_<LANG>.png        all screens on one page
 tools/hostsim/out/<board>[-ja]/<LANG>/<nn>_<screen>.png one image per screen
 ```
 

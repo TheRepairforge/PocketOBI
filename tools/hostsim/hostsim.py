@@ -16,8 +16,8 @@ or pass --gfx).
 
 Usage:
     python tools/hostsim/hostsim.py            # default build (EN/FR/DE/ES)
-    python tools/hostsim/hostsim.py --ja       # Japanese build (adds JA; ENABLE_CJK=1)
-    python tools/hostsim/hostsim.py --ja --board cyd
+    python tools/hostsim/hostsim.py --asia     # Asia build (EN/JA/KO/VI; DECISIONS.md D58, D60)
+    python tools/hostsim/hostsim.py --asia --board cyd
 """
 import argparse
 import glob
@@ -65,7 +65,8 @@ def build(args, out):
         "-std=gnu++17", "-O1", "-w",
         "-DPOCKETOBI_HOSTSIM", "-DARDUINO=10813", "-DARDUINO_ARCH_ESP32=1",
         f"-DPOCKETOBI_BOARD={BOARDS[args.board]}",
-        f"-DENABLE_CJK={1 if args.ja else 0}",
+        f"-DENABLE_CJK={1 if args.asia else 0}", f"-DENABLE_EU={0 if args.asia else 1}",
+        f"-DENABLE_VI={1 if args.asia else 0}",
         "-I", os.path.join(HERE, "shim"), "-I", gfx,
         "-x", "c++", os.path.join(ROOT, "PocketOBI.ino"), "-x", "none",
         *fw,
@@ -74,7 +75,7 @@ def build(args, out):
         os.path.join(HERE, "hostsim_main.cpp"),
         "-o", exe,
     ]
-    print("compiling", "(JA)" if args.ja else "", "for", args.board, "...")
+    print("compiling", "(Asia)" if args.asia else "", "for", args.board, "...")
     r = subprocess.run(cmd)
     if r.returncode:
         sys.exit("build failed")
@@ -118,15 +119,15 @@ def contact_sheet(frames, cols=4, pad=8, label_h=16):
 
 def main():
     ap = argparse.ArgumentParser(description="Render PocketOBI screens on the PC")
-    ap.add_argument("--ja", action="store_true", help="Japanese build (ENABLE_CJK=1)")
+    ap.add_argument("--asia", action="store_true", help="Asia build: EN + JA + KO + VI (ENABLE_CJK=1, ENABLE_EU=0, ENABLE_VI=1)")
     ap.add_argument("--board", choices=sorted(BOARDS), default="c3")
     ap.add_argument("--scale", type=int, default=1, help="integer zoom of the PNGs")
     ap.add_argument("--gfx", help="Adafruit GFX Library folder")
     ap.add_argument("--cxx", help='C++ compiler command, e.g. "g++" or "clang++"')
-    ap.add_argument("--out", help="output folder (default tools/hostsim/out/<board>[-ja])")
+    ap.add_argument("--out", help="output folder (default tools/hostsim/out/<board>[-asia])")
     args = ap.parse_args()
 
-    out = args.out or os.path.join(HERE, "out", args.board + ("-ja" if args.ja else ""))
+    out = args.out or os.path.join(HERE, "out", args.board + ("-asia" if args.asia else ""))
     shutil.rmtree(out, ignore_errors=True)       # best effort: a synced folder may hold a lock
     os.makedirs(out, exist_ok=True)
     # Build and raw frames go to a temp dir: a cloud-synced repo (Dropbox, OneDrive) locks

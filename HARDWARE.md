@@ -1,8 +1,9 @@
 # PocketOBI — Hardware / PCB notes
 
 This document describes the interconnect ("carrier") PCB for PocketOBI so it can
-be recreated in KiCad. **Status: PCB not manufactured yet, but the wiring below
-is VALIDATED** — it reads a real BL1860B correctly (2026-07).
+be recreated in KiCad. **Status: the carrier PCB has been fabricated and
+bench-validated** (fabrication files in [`hardware/`](hardware/)); the wiring below
+was first validated on a real BL1860B (2026-07).
 
 Validated battery wiring (adapter's orange 7-position connector): **GPIO3 = DATA <-
 orange plot 6** (470 ohm pull-up = R1), **GPIO4 = ENABLE <- orange plot 2** (470 ohm
@@ -61,15 +62,15 @@ NET ENC_A    : U1.GPIO5, M1.A
 NET ENC_B    : U1.GPIO6, M1.B
 NET ENC_PUSH : U1.GPIO7, M1.PUSH
 NET BACK_KO  : U1.GPIO2, M1.KO
-NET DATA     : U1.GPIO3, R1.p2, J3.p1          ; OneWire data (JST pin 1), pull-up via R1
-NET ENABLE   : U1.GPIO4, R2.p2, J3.p5          ; enable (JST pin 5), pull-up via R2
-No-Connect   : J3.p2, J3.p3, J3.p4, J3.p6      ; unused JST pins (incl. battery B-/signal GND)
+NET DATA     : U1.GPIO3, R1.p2, J3.p5          ; OneWire data (JST pin 5), pull-up via R1
+NET ENABLE   : U1.GPIO4, R2.p2, J3.p1          ; enable (JST pin 1), pull-up via R2
+No-Connect   : J3.p2, J3.p3, J3.p4, J3.p6      ; unused JST pins
 ```
 
-Battery JST-PH pin map (adapter omits B+, so JST pin N = battery pin N+1):
-- J3.p1 = battery pin 2 = **DATA** (used)
-- J3.p5 = battery pin 6 = **ENABLE** (used)
-- J3.p2/p3/p4/p6 = battery pins 3/4/5/7 = unused here (p4 = signal GND, p6 = B-)
+Battery JST-PH pin map, as routed on the fabricated board:
+- J3.p1 = **ENABLE** (battery pin 6) (used)
+- J3.p5 = **DATA** (battery pin 2) (used)
+- J3.p2/p3/p4/p6 = not connected on the board
 
 Notes:
 - Ground is brought in separately on **J4** from the main battery **B-** terminal

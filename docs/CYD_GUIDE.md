@@ -67,6 +67,12 @@ it: **GND · IO22 · IO27 · 3V3**. That one connector is all the battery needs.
 
 ## 3. Install the software (once)
 
+> **No build needed?** The [web flasher](https://therepairforge.github.io/pocketobi/#flash) puts the
+> latest release on the CYD from Chrome or Edge, and every
+> [release](https://github.com/TheRepairforge/PocketOBI/releases/latest) carries ready-made images
+> (`-cyd.bin`, `-cyd-asia.bin` for Japanese / Korean / Vietnamese, `-cyd-ili9341.bin`, see the README's
+> "Build & flash"). Then go straight to [step 7](#7-first-power-up). Steps 3 to 6 build from source.
+
 You only do this the first time. Pick **one** of the two toolchains:
 
 - **Option A — PlatformIO** (recommended): it downloads the right libraries and versions
@@ -187,7 +193,7 @@ Right after flashing, still on the PC's USB (no battery yet):
    - Tap each target firmly, with a fingernail or a stylus, as it appears.
    - "Saved" confirms. The calibration is kept across reboots.
 4. **Change the language** if you wish: **Tools → Settings → Language** (each tap moves
-   to the next one: EN, FR, DE, ES).
+   to the next one: EN, FR, DE, ES; in the Asia build `cyd-asia`: EN, JA, KO, VI).
 5. **Screen upside-down for your enclosure?** **Tools → Settings → Flip screen**.
 
 From now on the CYD does not need the PC: any **USB phone charger or power bank** powers
@@ -257,13 +263,14 @@ heat-shrink.
 4. Tap the **left or right edge** of the screen to move between the three Battery
    pages, the **middle** to read the pack again.
 
-If you get **"No battery found"** or **"Comm error"**, go to [step 11](#11-something-went-wrong).
+If you get **"Comm error"** (NO RESPONSE), go to [step 11](#11-something-went-wrong).
 
 ---
 
 ## 10. Using the touch screen
 
-The CYD has no knob and no buttons, so a few gestures replace them:
+The CYD has no knob and no buttons, so a few gestures replace them. The line at the bottom
+of each screen tells what a tap does there (for example "Tap: open   Title: back"):
 
 | To… | Tap… |
 |---|---|
@@ -272,12 +279,13 @@ The CYD has no knob and no buttons, so a few gestures replace them:
 | change page on **Battery** | the **left or right edge** of the screen (previous / next page) |
 | refresh the **Battery** reading | the **middle** of the screen |
 | continue on the Repair diagnosis | anywhere below the title bar |
-| confirm a write (Repair, Reset error) | anywhere below the title bar — see the warning below |
+| confirm a write (Unlock pack?, Reset error?) | the **Unlock** or **Reset** button |
+| cancel a write | the **Cancel** button, or the title bar |
+| change page on **Tools** | the area under the three rows |
 
-> ⚠️ **On the two confirmation screens (Repair and Reset error), any tap below the title
-> bar confirms and writes to the pack.** To cancel, tap the **title bar**. Keep your
-> fingers off the screen while it is showing, and don't rest the board face down on a
-> bench.
+> ⚠️ **On the two confirmation screens ("Unlock pack?" and "Reset error?") only the Unlock
+> or Reset button writes to the pack.** A tap anywhere else below the title bar does
+> nothing.
 
 **What's where:**
 
@@ -285,8 +293,9 @@ The CYD has no knob and no buttons, so a few gestures replace them:
 - **Repair** — clears a *false* charger lockout on a healthy pack. It writes to the
   battery, so it always asks for confirmation first, and it refuses packs with a real
   fault. Read [Unlock / repair](../README.md#unlock--repair) before using it.
-- **Tools** — PC bridge, pack LEDs on/off, reset error, raw debug view, and **Settings**
-  (flip screen, PC bridge at boot, language, calibrate touch).
+- **Tools** — two pages. Page 1: PC bridge, Debug / raw, **Settings** (flip screen, PC
+  bridge at boot, language, calibrate touch). Page 2: Pack LEDs on, Pack LEDs off, Reset
+  error, each marked "Write" because it sends a command to the pack.
 - **About** — version and credits.
 
 **PC bridge:** plug the CYD into a PC, open **Tools → PC bridge**, then connect from the
@@ -346,7 +355,7 @@ around the bottom-right area of a tile until one opens, then use the title bar t
 back and work your way to Settings. Tap firmly: the panel is resistive and needs a little
 pressure, a fingernail works best.
 
-### "No battery found" / "Comm error"
+### "Comm error" / NO RESPONSE
 
 Almost always wiring, not the firmware — flashing again won't change it. In order:
 

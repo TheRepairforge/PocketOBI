@@ -50,13 +50,8 @@ void activate(UiState s, int idx) {
       uint8_t causes = (bat.valid && !isF0513) ? lockCauses(bat.msg) : 0;
       if (causes == 0) { state = BATTERY; break; }     // nothing to repair -> no write
       unlockCausesBefore = causes;
-      // step 3/4: working screen (unlockRepair blocks for a few seconds).
-      tft.fillScreen(COL_BG); { char h[16]; snprintf(h, sizeof(h), "%s 3/4", tr(S_REPAIR)); drawHeader(h); } drawPageDots(2, 4);
-      tft.setTextSize(2); tft.setTextColor(COL_TEXT, COL_BG);
-      tft.setCursor(90, 96); tft.print(tr(S_WORKING));
-      tft.setTextSize(1); tft.setTextColor(COL_MUTED, COL_BG);
-      tft.setCursor(28, 126); tft.print(tr(S_FRAME_STORE_PC));
-      unlockCausesAfter = unlockRepair();              // write + commit + reset + re-read
+      drawUnlockWorking();                             // step 3/4: working (unlockRepair blocks for a few seconds)
+      unlockCausesAfter = unlockRepair(drawUnlockProgress);   // write + commit + reset + re-read, step by step
       readExtended();
       state = UNLOCK_RESULT;
       lastRenderedState = -1;                          // force a clean redraw of the result
@@ -65,12 +60,12 @@ void activate(UiState s, int idx) {
     case CONFIRM_RESET:
       resetLockedBefore = bat.locked;
       resetErrors();
-      readAllData();
+      resetReread = readAllData();                     // a silent re-read must not pass for "unchanged"
       resetLockedAfter = bat.locked;
       state = RESET_RESULT;
       break;
     case TOOLS:
-      switch (idx) {
+      switch (toolAt(idx)) {                           // position on screen -> tool (Tools has 2 pages)
         case 0: bridgeActive = true; state = PC_BRIDGE; break;   // enter active by default
         case 1: ledsOn();  toast(tr(S_LEDS_ON_MSG), COL_GREEN); break;
         case 2: ledsOff(); toast(tr(S_LEDS_OFF_MSG), COL_MUTED); break;
@@ -83,7 +78,7 @@ void activate(UiState s, int idx) {
       if (idx == 0)      { cfgFlip = !cfgFlip; applyRotation();
                            prefs.putBool("flip", cfgFlip); lastRenderedState = -1; }
       else if (idx == 1) { cfgBridgeBoot = !cfgBridgeBoot; prefs.putBool("bridge", cfgBridgeBoot); }
-      else if (idx == 2) { lang = (lang + 1) % LANG_NUM; prefs.putInt("lang", lang);
+      else if (idx == 2) { lang = langNext(lang); prefs.putInt("lang", lang);
                            lastRenderedState = -1; }   // full redraw so all text swaps
 #if BOARD_HAS_TOUCH
       else if (idx == 3) { calibrateTouch(); lastRenderedState = -1; }  // Calibrate touch (CYD)
@@ -120,10 +115,10 @@ void handleClick() {
   render();
 }
 void handleRotate(int dir) {
-  if (state == LAUNCHER)      { launcherIndex = (launcherIndex + dir + 4) % 4; render(); }
+  if (state == LAUNCHER)      { int p = launcherIndex; launcherIndex = (launcherIndex + dir + 4) % 4; redrawSelection(p, launcherIndex); }
   else if (state == BATTERY)  { batteryPage   = (batteryPage + dir + 3) % 3;   render(); }
-  else if (state == TOOLS)    { toolIndex     = (toolIndex + dir + toolCount) % toolCount; render(); }
-  else if (state == SETTINGS) { settingsIndex = (settingsIndex + dir + settingsCount) % settingsCount; render(); }
+  else if (state == TOOLS)    { int p = toolIndex; toolIndex = (toolIndex + dir + toolCount) % toolCount; redrawSelection(p, toolIndex); }
+  else if (state == SETTINGS) { int p = settingsIndex; settingsIndex = (settingsIndex + dir + settingsCount) % settingsCount; redrawSelection(p, settingsIndex); }
   else if (state == ABOUT)          { aboutEgg++; lastRenderedState = -1; render(); }  // turn = easter egg
   else if (state == PC_BRIDGE)      { bridgeActive = !bridgeActive; render(); }  // turn = toggle bridge
   else if (state == REPAIR_DIAG)    { state = LAUNCHER;     render(); }  // turn = cancel
@@ -212,22 +207,7 @@ void calibrateTouch() {
 // The tapped target for the current screen. Cursor screens map a tap to the item
 // under the finger; the rest ignore the index (tap = their primary action).
 int touchHitIndex(UiState s, int sx, int sy) {
-  switch (s) {
-    case LAUNCHER: {                       // 2x2 tiles: split at the mid-gaps (see drawLauncher)
-      int col = (sx >= 160) ? 1 : 0;
-      int row = (sy >= 134) ? 1 : 0;
-      return row * 2 + col;
-    }
-    case TOOLS: {                          // vertical list, rows at y+34*i (see drawTools)
-      int i = (sy - (HEADER_H + 6)) / 34;
-      return constrain(i, 0, toolCount - 1);
-    }
-    case SETTINGS: {                       // vertical list, rows at y+40*i (see drawSettings)
-      int i = (sy - (HEADER_H + 12)) / 40;
-      return constrain(i, 0, settingsCount - 1);
-    }
-    default: return 0;                     // other screens: tap = their single primary action
-  }
+  return touchHit(s, sx, sy);              // geometry owned by display.cpp (the code that draws the items)
 }
 // Poll the touch panel and dispatch one tap on touch-down. Tapping the title bar
 // acts as Back (the CYD has no physical back button); everywhere else a tap goes
@@ -262,6 +242,16 @@ void serviceTouch() {
       if (aboutEgg > ABOUT_EGG_N) { activate(ABOUT, 0); render(); }  // in the guru crash: tap dismisses to About
       else handleRotate(1);                                          // otherwise: tap advances the egg
       return;
+    }
+    if (state == CONFIRM_UNLOCK || state == CONFIRM_RESET) {    // buttons only (never a stray write)
+      const int b = touchHitIndex(state, sx, sy);
+      if (b == 1)      { activate(state, 0); render(); }        // primary: unlock / reset
+      else if (b == 0) handleRotate(1);                          // Cancel: same as turning the encoder
+      else             render();                                 // elsewhere: nothing, erase the ring
+      return;
+    }
+    if (state == TOOLS && touchHitIndex(state, sx, sy) == TOUCH_NEXT_PAGE) {   // tap under the rows = other page
+      toolIndex = (toolIndex < 3) ? 3 : 0; render(); return;
     }
     activate(state, touchHitIndex(state, sx, sy));
     render();

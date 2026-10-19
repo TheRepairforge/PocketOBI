@@ -24,6 +24,9 @@ which the OneWire2 library and the reference protocol implementation come.
 Licensed under the MIT license.
 
   https://github.com/mnh-jansson/open-battery-information
+  The reference Python app (makita_lxt.py, arduino_obi.py) was removed upstream after
+  tag v0.2.3; it is read at that tag:
+  https://github.com/mnh-jansson/open-battery-information/tree/v0.2.3
   Copyright (c) 2024 Martin Jansson
 
 --------------------------------------------------------------------------------
@@ -53,13 +56,14 @@ SOFTWARE.
 
 --------------------------------------------------------------------------------
 
-## Noto Sans CJK JP and Fusion Pixel (glyph bitmaps in `glyphs_ja.h`, Japanese build only)
+## Noto Sans CJK JP / KR and Fusion Pixel (glyph bitmaps in `glyphs_ja.h` and `glyphs_ko.h`, Asia build only)
 
-The Japanese characters of the `ENABLE_CJK` build are 1-bit bitmaps rasterised by
-`tools/gen_cjk_glyphs.py`: the 16 px cell from Noto Sans JP Medium (Noto Sans CJK,
-version 2.004), the 12 px cell from Fusion Pixel 12px monospaced, Japanese variant
-(release 2026.09.25). They are a modified form of the fonts and stay under the SIL Open
-Font License 1.1, reproduced below. The default (non-Japanese) build contains none of them.
+The Japanese and Korean characters of the `ENABLE_CJK` (Asia) build are 1-bit bitmaps
+rasterised by `tools/gen_cjk_glyphs.py`: the 16 px cell from Noto Sans JP Medium and Noto
+Sans KR Medium (Noto Sans CJK, version 2.004), the 12 px cell from Fusion Pixel 12px
+monospaced, Japanese and Korean variants (release 2026.09.25; its Hangul comes from Galmuri).
+They are a modified form of the fonts and stay under the SIL Open Font License 1.1, reproduced
+below. The standard build contains none of them.
 
   https://github.com/notofonts/noto-cjk
   Copyright 2014-2021 Adobe (http://www.adobe.com/). Noto is a trademark of Google Inc.
@@ -82,7 +86,7 @@ project ships without a license, none of its code is used here.
 
 --------------------------------------------------------------------------------
 
-## SIL Open Font License 1.1 (applies to the Noto Sans CJK JP and Fusion Pixel glyphs above)
+## SIL Open Font License 1.1 (applies to the Noto Sans CJK JP / KR and Fusion Pixel glyphs above)
 
 This Font Software is licensed under the SIL Open Font License,
 Version 1.1.

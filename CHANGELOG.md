@@ -4,7 +4,75 @@ All notable changes to the PocketOBI firmware are documented here.
 Versioning follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH.
 
 The version is defined in `pocketobi.h` as `FW_VERSION` and shown
-on the on-device "Version / info" screen.
+on the boot splash and the About screen.
+
+## [2.5.0] - 2026-10-19
+
+A redesigned interface on every screen, Korean and Vietnamese in a new Asia build, safer touch confirms on the
+CYD, and honest results when a read goes wrong. (There is no 2.4.0 release: its work ships here.)
+
+### Added
+- **Korean.** A first-draft Korean translation of every screen (not reviewed by a native
+  speaker yet: corrections welcome, see `docs/TRANSLATING.md`).
+- **Vietnamese**, translated by a Vietnamese user (thank you!), without accents since the
+  device fonts have none.
+
+### Changed
+- **The Japanese build becomes the Asia build:** EN + Japanese + Korean + Vietnamese, selectable in Settings >
+  Language. French, German and Spanish stay in the standard build. The release files are now
+  `-esp32-c3-asia.bin` / `-cyd-asia.bin` (they were `-ja`). A language saved on the device that a
+  build does not offer falls back to English.
+- **New interface on every screen**, built from one shared set of components (status card,
+  KPI tiles, check rows, before/after cards, list rows). Every screen has a footer that says
+  what the controls do, headers are in sentence case, and results use a clear status word
+  (UNLOCKED, STILL LOCKED, CLEARED, UNCHANGED, NOT RE-READ, NO RESPONSE...) with a one-line
+  explanation under it.
+- **Battery pages:** the pack status and the PACK / TEMP tiles sit above the cell group; the
+  five cell voltages show 2 decimals in a lighter font, the spread keeps 3. Without a pack the
+  pages keep their layout and show `--` instead of the last pack's values.
+- **Repair:** the diagnosis lists what was checked, the confirm screen says what the write will
+  do and names its buttons (Cancel / Unlock), a progress card follows the four unlock steps, and
+  the result shows the state before and after plus the verdict on the re-read.
+- **Tools** now has two pages (device tools, then the pack actions marked WRITE); **Settings**,
+  **Comm error** (a list of three checks to try), **PC bridge**, **Debug**, **About** and the
+  **splash** follow the same design.
+- Changing a page in Tools or moving the selection no longer redraws the whole screen (no flash).
+
+### Fixed
+- **CYD: a tap anywhere on "Unlock pack?" or "Reset error?" ran the write.** Only the primary
+  button confirms now; Cancel cancels and a tap elsewhere does nothing. The CYD footers now say
+  what a tap does instead of naming encoder moves.
+- **A corrupted read is no longer shown as a battery fault**
+  ([#16](https://github.com/TheRepairforge/PocketOBI/issues/16)): a cell above 5 V or a pack
+  above 22 V is a bad read (usually wiring or pull-ups), reported as a comm error instead of a
+  HARDWARE FIX verdict that blamed the pack.
+- **Reset error result:** when the re-read after the reset failed, the screen said UNCHANGED (a
+  false "real fault" diagnosis). It now says NOT RE-READ, with no verdict.
+- An older (F0513) pack read after a standard pack showed the previous pack's assembly date.
+- With no pack connected, the read gives up sooner (the live read is skipped when the pack did
+  not answer the first one).
+
+### Known issue
+- **Flashing a merged `.bin` by hand at `0x0` resets the saved settings** (language, screen
+  flip, touch calibration on the CYD): the image covers the settings area. The web flasher keeps
+  them unless you tick "Erase device". Set them again after a manual flash.
+- Japanese: long text wraps on character boundaries and is never cut mid-character.
+
+### Docs
+- README, TROUBLESHOOTING and the CYD guide describe the new screens.
+- `HARDWARE.md`: the J3 pin map matched the schematic, not the fabricated board (pad 1 = ENABLE,
+  pad 5 = DATA); the hardware README now gives 470 ohm for R1/R2.
+- `TRANSLATING.md` covers Korean and Vietnamese; the translation issue form accepts them.
+
+### For contributors
+- Screen-demo builds `esp32-c3-demo` / `cyd-demo` show every screen with fictional packs, so
+  the interface can be reviewed on a panel without packs in each state. Not a shipping firmware:
+  they never read or write a pack.
+- 43 strings no screen uses any more were removed from the translation table; translators
+  only see what is on screen.
+- `tools/gen_cjk_glyphs.py` takes `--lang ja|ko` and an optional `--tree` (another firmware tree),
+  and `--check` also tells whether the glyph table is current, without the fonts.
+- `tools/hostsim/hostsim.py --asia` replaces `--ja`.
 
 ## [2.3.1] - 2026-10-08
 

@@ -2,51 +2,39 @@
 // Copyright (c) 2026 TheRepairForge
 #pragma once
 #include "pocketobi.h"
+#include "ui_components.h"   // drawing vocabulary, so every module that includes display.h keeps its helpers
 
+// Screens (composition layer). The drawing vocabulary is ui_components.h; sizes are the generated
+// tokens (ui_theme.h).
 uint16_t cellColor(float v, float minV, float diff);
 void applyRotation();
-void drawHeader(const char* title);
-void iconBattery(int cx, int cy, uint16_t c);
-void iconList(int cx, int cy, uint16_t c);
-void iconRefresh(int cx, int cy, uint16_t c);
-void iconSun(int cx, int cy, uint16_t c);
-void iconSunOff(int cx, int cy, uint16_t c);
-void iconCode(int cx, int cy, uint16_t c);
-void iconKey(int cx, int cy, uint16_t c);
-void iconInfo(int cx, int cy, uint16_t c);
-void iconBridge(int cx, int cy, uint16_t c);
+void lockCausesText(uint8_t causes, char *out, size_t n);
+void fmtPackDate(char *out, size_t n, uint16_t year, uint8_t m, uint8_t d);
+void drawLauncher();
+void drawBatteryPage();
+void drawBatteryOverview();
+void drawBatteryHealth();
+void drawBatteryIdentity();
+void drawWizardDiag();
+void drawConfirmUnlock();
+void drawUnlockWorking();
+void drawUnlockProgress(int step, int total);   // UnlockProgress hook (unlock.h)
+void drawUnlockResult();
 void drawConfirmReset();
 void drawResetResult();
-void lockCausesText(uint8_t causes, char *out, size_t n);
-void drawConfirmUnlock();
-void drawUnlockResult();
-void drawDebugRaw();
-void drawCommError();
-void drawWrapCentered(const char* s, int y, uint16_t col, uint8_t size);
-void drawGuruCrash();
-void drawAbout();
-void drawPcBridge();
-void drawSplash();
-void toast(const char* msg, uint16_t col);
-int gfxText(const GFXfont* f, int x, int baseY, const char* s, uint16_t col);
-void gfxCenter(const GFXfont* f, int cx, int baseY, const char* s, uint16_t col);
-int gfxWidth(const GFXfont* f, const char* s);
-int rowLabel(int x, int topY, const char* s);
-void kvRow(const char* k, const char* val, uint16_t col);
-void degC(uint16_t col);
-void drawPageDots(int active, int count);
-void drawVerdictBanner(Verdict v);
-void drawTile(int x, int y, int w, int h, bool sel);
-void drawLauncher();
-void drawBatteryHealth();
-void fmtPackDate(char *out, size_t n, uint16_t year, uint8_t m, uint8_t d);
-void drawBatteryIdentity();
-void drawBatteryOverview();
-void drawBatteryPage();
-void drawDiagRowSt(const char* k, const char* val, int st);
-void drawDiagRow(const char* k, const char* val, bool ok);
-void drawPrognosisBanner(uint16_t bc, const char* bt, bool hint);
-void drawWizardDiag();
 void drawTools();
 void drawSettings();
+void drawDebugRaw();
+void drawPcBridge();
+void drawAbout();
+void drawGuruCrash();
+void drawWrapCentered(const char* s, int y, uint16_t col, uint8_t size);
+void drawCommError();
+void drawSplash();
 void render();
+// Cursor moved on a list screen (Launcher / Tools / Settings): repaint the two items involved.
+void redrawSelection(int prev, int cur);
+// Touch hit-testing for the cursor screens, from the same geometry that draws them.
+int touchHit(UiState s, int sx, int sy);
+#define TOUCH_NEXT_PAGE (-2)   // touchHit(TOOLS): tap under the rows = the other page
+int toolAt(int pos);    // Tools: position on screen -> tool id (activate() order)

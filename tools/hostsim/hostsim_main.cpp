@@ -117,9 +117,9 @@ int main(int argc, char** argv) {
   tft.init(240, 320);
   tft.setRotation(1);                       // landscape 320x240, as setup() does
   int n = (int)(sizeof(SCREENS) / sizeof(SCREENS[0]));
-  for (int l = 0; l < LANG_NUM; l++) {
-    lang = l;
-    snprintf(g_dir, sizeof(g_dir), "%s/%s", out, langCode(l));
+  for (int k = 0; k < LANG_NUM; k++) {
+    lang = LANG_AVAIL[k];
+    snprintf(g_dir, sizeof(g_dir), "%s/%s", out, langCode(lang));
     MKDIR(g_dir);
     for (int i = 0; i < n; i++) {
       g_index = i;

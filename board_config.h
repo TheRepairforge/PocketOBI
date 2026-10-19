@@ -64,10 +64,10 @@
 // Confirmed from this board's silkscreen: CN1 = {GND, IO22, IO27, 3V3}, and IO27
 // being broken out means the backlight is on GPIO21 (not 27) -> both 22 and 27 are
 // free. CN1 is therefore the whole pack connector on one 4-pin header:
-//   GND | DATA(22) | ENABLE(27) | 3V3 (for the two 4.7k pull-ups)
+//   GND | DATA(22) | ENABLE(27) | 3V3 (for the two 470 ohm pull-ups)
 // --- Battery bus (CN1) ---
-#define ONEWIRE_PIN 22   // CN1 IO22, + 4.7k pull-up to 3V3
-#define ENABLE_PIN  27   // CN1 IO27, + 4.7k pull-up to 3V3
+#define ONEWIRE_PIN 22   // CN1 IO22, + 470 ohm pull-up to 3V3
+#define ENABLE_PIN  27   // CN1 IO27, + 470 ohm pull-up to 3V3
 // --- Input: resistive touch (XPT2046, its OWN SPI bus). No encoder, no back button. ---
 #define TOUCH_CLK  25
 #define TOUCH_MOSI 32

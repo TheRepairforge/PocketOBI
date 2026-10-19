@@ -46,7 +46,8 @@
  *
  * PROTOCOL:
  * Commands taken verbatim from the official source file
- * OpenBatteryInformation/modules/makita_lxt.py (MIT project, Martin Jansson).
+ * OpenBatteryInformation/modules/makita_lxt.py (MIT project, Martin Jansson), at
+ * upstream tag v0.2.3: the Python app was removed from the repository after that tag.
  * Command layout [0x01, len, rsp_len, cmd, data...], identical to the
  * ArduinoOBI USB protocol:
  *  - cmd 0xCC: reset, write 0xCC, write `len` data bytes, read rsp_len
@@ -82,6 +83,8 @@
 #include "ui_nav.h"
 #include "bridge.h"
 #include "strings_ja.h"   // STRTAB_JA, only when ENABLE_CJK=1
+#include "strings_ko.h"   // STRTAB_KO, only when ENABLE_CJK=1
+#include "strings_vi.h"   // STRTAB_VI, only when ENABLE_VI=1
 
 
 OneWire makita(ONEWIRE_PIN);
@@ -133,6 +136,10 @@ int lang = LANG_EN;
 const char* tr(StrId id) {   // prototype in pocketobi.h
 #if ENABLE_CJK
   if (lang == LANG_JA) return STRTAB_JA[id] ? STRTAB_JA[id] : STRTAB[id][LANG_EN];
+  if (lang == LANG_KO) return STRTAB_KO[id] ? STRTAB_KO[id] : STRTAB[id][LANG_EN];
+#endif
+#if ENABLE_VI
+  if (lang == LANG_VI) return STRTAB_VI[id] ? STRTAB_VI[id] : STRTAB[id][LANG_EN];
 #endif
   return STRTAB[id][lang];
 }
@@ -159,6 +166,7 @@ int _ry = 0;             // shared vertical cursor for key/value rows
 // any known tool -> it is not a verdict input.
 bool resetLockedBefore = false;
 bool resetLockedAfter = false;
+bool resetReread = true;           // false: the re-read after the reset failed, After is unknown
 
 // Unlock/repair feedback: charger-lock causes before -> after (bitmask, see LF_*).
 uint8_t unlockCausesBefore = 0;
@@ -291,6 +299,8 @@ int lastBatteryPage = -1;  // force a screen clear when the Battery page changes
 
 
 // ---------- Setup / loop ----------
+#include "demo.h"   // navRotate/navClick/...: the normal nav, or the screen demo in the *-demo envs
+
 void setup() {
   Serial.begin(115200);
 
@@ -329,7 +339,7 @@ void setup() {
   cfgFlip       = prefs.getBool("flip", false);
   cfgBridgeBoot = prefs.getBool("bridge", false);
   lang          = prefs.getInt("lang", LANG_EN);
-  if (lang < 0 || lang >= LANG_NUM) lang = LANG_EN;   // e.g. JA saved, then a non-JA build flashed
+  if (!langAvailable(lang)) lang = LANG_EN;   // e.g. JA saved, then a standard build flashed (D58)
 #if BOARD_HAS_TOUCH
   tcXL = prefs.getInt("tcXL", TCAL_DEF_X_LEFT);
   tcXR = prefs.getInt("tcXR", TCAL_DEF_X_RIGHT);
@@ -347,8 +357,12 @@ void setup() {
   // it. Insert pack, boot lands on the launcher instantly, click to read.
   drawSplash();
   delay(1500);
+#if UI_DEMO
+  demoBegin();                                   // never the bridge, never a pack read
+#else
   state = cfgBridgeBoot ? PC_BRIDGE : LAUNCHER;
   render();
+#endif
 }
 
 void loop() {
@@ -358,7 +372,9 @@ void loop() {
 #endif
 
   // PC bridge mode: act as a USB<->OneWire bridge for the PC app (only while active).
+#if !UI_DEMO
   if (state == PC_BRIDGE && bridgeActive) serviceBridge();
+#endif
 
 #if BOARD_HAS_ENCODER
 #if ENC_DEBUG
@@ -378,7 +394,7 @@ void loop() {
   lastEncPos = pos;
   int steps = abs(diff);
   for (int i = 0; i < steps; i++) {
-    handleRotate(diff > 0 ? 1 : -1);
+    navRotate(diff > 0 ? 1 : -1);
   }
 
   // Encoder button (simple debounce, acts on press)
@@ -386,7 +402,7 @@ void loop() {
   if (pressed && !btnPressed && millis() - lastBtnTime > 250) {
     btnPressed = true;
     lastBtnTime = millis();
-    handleClick();
+    navClick();
   } else if (!pressed) {
     btnPressed = false;
   }
@@ -400,15 +416,15 @@ void loop() {
   } else if (backNow && backDown && !backLongFired &&
              millis() - backStart >= BACK_LONG_MS) {
     backLongFired = true;  // long press reached -> home immediately, fire once
-    goHome();
+    navHome();
   } else if (!backNow && backDown) {
     backDown = false;
-    if (!backLongFired) handleBack();  // released before the long threshold
+    if (!backLongFired) navBack();  // released before the long threshold
   }
 #endif // BOARD_HAS_ENCODER
 
 #if BOARD_HAS_TOUCH
-  serviceTouch();   // read the XPT2046, hit-test the screen, drive the nav core
+  navTouch();      // read the XPT2046, hit-test the screen, drive the nav core
 #endif
 
   delay(1);

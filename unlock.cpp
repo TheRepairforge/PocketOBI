@@ -121,12 +121,16 @@ void writeFrame(const uint8_t *frame) {
 // Full unlock/repair operation on the currently-read battery. Returns the lock
 // causes still present after the attempt (0 = fully unlocked). Assumes bat.msg
 // holds a fresh, standard-battery frame.
-uint8_t unlockRepair() {
+uint8_t unlockRepair(UnlockProgress progress) {
   uint8_t repaired[32];
   buildRepairedFrame(bat.msg, repaired);
+  if (progress) progress(1, 4);
   writeFrame(repaired);
+  if (progress) progress(2, 4);
   busPowerCycle();     // let the BMS commit to flash
+  if (progress) progress(3, 4);
   resetErrors();       // also clear the internal error register
+  if (progress) progress(4, 4);
   readAllData();       // re-read to verify
   return bat.valid ? lockCauses(bat.msg) : 0xFF;
 }

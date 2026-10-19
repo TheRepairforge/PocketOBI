@@ -3,10 +3,10 @@
 Two common situations, each with its own section below: a build that **won't read a
 pack**, and **bridge mode not connecting** to a PC.
 
-## Won't read a pack — "No battery found" / "Comm error"
+## Won't read a pack — "Comm error" / NO RESPONSE
 
 **Read this if PocketOBI powers up and shows the interface, but won't read a pack** —
-the home screen stays on "No battery found", or you get "Comm error" / all-`0xFF`.
+opening Battery or Repair gives "Comm error" (NO RESPONSE), or the reads are all-`0xFF`.
 
 That symptom means the ESP32 is getting no answer from the battery's BMS. It is almost
 always **wiring, a pull-up resistor, or a contact — not the firmware**, so re-flashing the
@@ -56,7 +56,7 @@ resistance **from each line to the 3V3 rail** → you should read the pull-up re
 
 Black on GND, red on the **DATA line** → expect **~3.3 V** at rest, held there by its
 pull-up. ~0 V or a wandering value → DATA is shorted to GND or its pull-up is dead, and it
-will always report "No battery found".
+will always report "Comm error".
 
 *(Don't voltage-test ENABLE this way — the ESP32 drives it, so it sits low at rest; its
 pull-up was already checked in Step 2.)*
@@ -70,7 +70,7 @@ Confirm each signal actually reaches the pack. Using the connection map in
 - ESP32 **ENABLE pin** ↔ the adapter's **ENABLE** contact
 - ESP32 **GND** ↔ pack **B−** (a common ground is mandatory)
 
-**The most common reason a perfect-looking build reads "No battery found" is DATA and
+**The most common reason a perfect-looking build gets "Comm error" is DATA and
 ENABLE swapped.** If the continuity above lands on the wrong contacts, **swap the two leads
 and re-test.** The adapter's connector can be numbered in a way that makes this easy to get
 wrong — always identify the ESP32 side by its **silkscreen label**, never by physical
@@ -90,7 +90,7 @@ What's left:
 
 - **Marginal pull-up** — if you haven't already, fit the value HARDWARE.md specifies for the
   DATA line.
-- **The serial log tells the rest.** Set **`COMM_DEBUG` to `1`** near the top of the sketch,
+- **The serial log tells the rest.** Set **`COMM_DEBUG` to `1`** in `pocketobi.h`,
   reflash, open the serial monitor at **115200**, and read a pack. It prints the presence
   flag and the raw bytes:
   - **no presence** → back to wiring / pull-up (Steps 2–5);
@@ -105,7 +105,7 @@ What's left:
 | Pull-up open or wrong value | Step 2 |
 | DATA not ~3.3 V at rest | Short to GND or dead pull-up (Step 3) |
 | Continuity lands on the wrong contacts | **DATA / ENABLE swapped** (Step 4) |
-| Reads once, then "No battery found" | Flaky ground (Step 5) |
+| Reads once, then "Comm error" | Flaky ground (Step 5) |
 | All checks pass, still nothing | Pull-up value, or read the serial log (Step 6) |
 
 ## Bridge mode won't connect (PC app / PackScope)
@@ -118,9 +118,9 @@ just hangs ("opening… / waiting for connect"). Work through these in order:
    forever even though a COM port shows up. Re-flash with it turned on — it is set in the
    Arduino IDE before uploading (see the Build & flash steps in the
    [README](README.md#build--flash)).
-2. **Is the device on the PC bridge screen, showing "Active / green"?** PocketOBI only answers
-   the PC while that screen is up. Turning the encoder there toggles it — make sure it is not
-   showing "Inactive".
+2. **Is the device on the PC bridge screen, showing ACTIVE in green?** PocketOBI only answers
+   the PC while that screen is up. Turning the encoder there toggles it (on the CYD: tap the
+   screen); make sure it is not showing OFF.
 3. **Does opening the port reboot the board out of bridge mode?** Most PC apps pulse the USB
    reset line when they open the port, which reboots the ESP32-C3 back to the menu, so the
    handshake never lands. Two fixes:

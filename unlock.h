@@ -10,4 +10,7 @@ uint8_t lockCauses(const uint8_t *frame);
 void buildRepairedFrame(const uint8_t *in, uint8_t *out);
 void ow33(const uint8_t *data, uint8_t dataLen, uint8_t *rsp, uint8_t rspLen);
 void writeFrame(const uint8_t *frame);
-uint8_t unlockRepair();
+// Progress hook for the Working screen: called before each step (1..total) and once at the end
+// (total/total). Optional; the protocol sequence is the same with or without it.
+typedef void (*UnlockProgress)(int step, int total);
+uint8_t unlockRepair(UnlockProgress progress = nullptr);

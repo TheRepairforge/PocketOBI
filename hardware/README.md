@@ -38,10 +38,10 @@ special stackup.
 | M1 | 1×12 pin socket, 2.54 mm | header for the 2-in-1 TFT + EC11 module |
 | Battery_Interface1 | JST-PH 6-pin, vertical | to the Makita LXT adapter |
 | Battery_GND1 | 2-pin screw terminal, 3.5 mm | battery B- |
-| R1, R2 | 4.7 kΩ resistor, THT | DATA and ENABLE pull-ups (470 Ω also works) |
+| R1, R2 | 470 Ω resistor, THT | DATA and ENABLE pull-ups (why 470 Ω: [`../HARDWARE.md`](../HARDWARE.md)) |
 
 Full list: [`PocketOBI-HW-BOM.csv`](PocketOBI-HW-BOM.csv). Everything is through-hole and
-hand-solderable. (R1/R2 export as a generic value `R` in the CSV — they are **4.7 kΩ**.)
+hand-solderable. (R1/R2 export as a generic value `R` in the CSV; they are **470 Ω**.)
 
 ## Assembly
 

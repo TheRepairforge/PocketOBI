@@ -9,7 +9,7 @@
 #include "ui_nav.h"
 #include "bridge.h"
 
-// ---------- Protocol commands (from makita_lxt.py) ----------
+// ---------- Protocol commands (from makita_lxt.py, upstream OBI tag v0.2.3) ----------
 const uint8_t MODEL_CMD[]       = {0x01, 0x02, 0x10, 0xCC, 0xDC, 0x0C};
 const uint8_t READ_DATA_CMD[]   = {0x01, 0x04, 0x1D, 0xCC, 0xD7, 0x00, 0x00, 0xFF};
 const uint8_t TESTMODE_CMD[]    = {0x01, 0x03, 0x09, 0x33, 0xD9, 0x96, 0xA5};

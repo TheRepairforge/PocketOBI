@@ -1,5 +1,5 @@
 name: Translation fix
-description: Suggest a better wording for a German, Spanish or Japanese string on the PocketOBI screen
+description: Suggest a better wording for a German, Spanish, Japanese, Korean or Vietnamese string on the PocketOBI screen
 title: "[XX] S_KEY"
 labels: ["translation"]
 body:
@@ -9,8 +9,8 @@ body:
         Thanks for helping. The review pages on https://therepairforge.github.io/translate/ show every
         screen and open this form already filled in. Two limits on the device screen:
         **plain ASCII only** for German and Spanish (no accents; umlauts as ae, oe, ue, ss) and
-        **limited width** (keep close to the longest version shown today). Japanese keys and text
-        are in `strings_ja.h`, with the English next to each line. Every accepted fix is rendered
+        **limited width** (keep close to the longest version shown today). Japanese and Korean keys
+        and text are in `strings_ja.h` and `strings_ko.h`, with the English next to each line. Every accepted fix is rendered
         on the real screen before it ships.
   - type: input
     id: language

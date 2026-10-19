@@ -31,9 +31,9 @@
 // of truth reported by the PC bridge (interface-version query); keep FW_VERSION
 // consistent with it.
 #define FW_VER_MAJOR 2
-#define FW_VER_MINOR 3
+#define FW_VER_MINOR 4
 #define FW_VER_PATCH 0
-#define FW_VERSION "2.3.1"
+#define FW_VERSION "2.5.0"
 
 // Companion-app compatibility-contract version. Distinct from FW_VERSION: it bumps
 // ONLY when the coupling with the companion app changes — a bridge command is
@@ -43,23 +43,12 @@
 // decoder from the device-reported family id and learns the cell count up front; rsp[0]
 // stays the version, so an older 1-byte reader still parses it.
 #define PROTOCOL_VERSION 2
-// ---------- Color palette (dark dashboard theme) ----------
-// Compile-time RGB888 -> RGB565 conversion.
-#define RGB565(r, g, b) ((uint16_t)((((r) & 0xF8) << 8) | (((g) & 0xFC) << 3) | ((b) >> 3)))
-
-#define COL_BG      RGB565(0x0C, 0x15, 0x24)  // page background (dark navy)
-#define COL_ACCENT  RGB565(0x0E, 0x7C, 0x86)  // header bars, highlight (teal)
-#define COL_CYAN    RGB565(0x17, 0xB3, 0xC4)  // bright cyan accent (flashy) - About icon
-#define COL_PANEL   RGB565(0x1A, 0x28, 0x3A)  // bar tracks, chips
-#define COL_TEXT    RGB565(0xE6, 0xED, 0xF5)  // primary text
-#define COL_MUTED   RGB565(0x82, 0x98, 0xB0)  // secondary text
-#define COL_HEAD    RGB565(0xEA, 0xFB, 0xFC)  // text on accent header
-#define COL_GREEN   RGB565(0x22, 0xC5, 0x5E)  // normal cell / OK
-#define COL_YELLOW  RGB565(0xEA, 0xB3, 0x08)  // warning
-#define COL_RED     RGB565(0xEF, 0x44, 0x44)  // critical / locked
-#define COL_ORANGE  RGB565(0xF2, 0x66, 0x22)  // RepairForge brand spark
-
-#define HEADER_H 28  // height of the colored title bar
+// ---------- Design tokens (generated, D43-D46) ----------
+// Colours (ui_palette.h: COL_*, RGB565) and structure (ui_theme.h: panel, header/footer, spacing,
+// radius, fonts, component metrics) come from design/tokens.json via tools/gen_ui_theme.py.
+// Never edit those two files by hand, and never put a layout number in display.cpp.
+#include "ui_palette.h"
+#include "ui_theme.h"
 // ---------- UI state ----------
 // V2 navigation: 2x2 launcher -> sections (Battery paged / Repair wizard / Tools / About).
 enum UiState { LAUNCHER, BATTERY, REPAIR_DIAG, CONFIRM_UNLOCK, UNLOCK_RESULT,
@@ -171,6 +160,11 @@ enum { LF_CS0 = 0x01, LF_CS2 = 0x02, LF_N34 = 0x04, LF_CS1 = 0x08 };
 // A cell reading near 0 V while the pack voltage is normal = a broken SENSE wire on
 // that group (the cell itself is almost never truly at 0 V in a live pack).
 #define CELL_V_SENSE 0.50f
+// Read plausibility (#54, #50). A Li-ion cell never reads above CELL_V_IMPLAUS and a pack never
+// above cellCount * PACK_V_IMPLAUS_PER_CELL (22 V for a 5S LXT). A value past either is a
+// marginal / partly unanswered read (bytes trending to 0xFF), reported as no read, never decoded.
+#define CELL_V_IMPLAUS          5.0f
+#define PACK_V_IMPLAUS_PER_CELL 4.4f
 
 // Plausible temperature window. A reading outside it is almost certainly a faulty
 // thermistor, not a real extreme temperature (a dead sensor pins near -30 C). The MIN is
@@ -209,7 +203,7 @@ extern const int settingsCount;
 extern Preferences prefs;
 extern bool cfgFlip, cfgBridgeBoot;
 extern int settingsIndex, _ry;
-extern bool resetLockedBefore, resetLockedAfter;
+extern bool resetLockedBefore, resetLockedAfter, resetReread;
 extern uint8_t unlockCausesBefore, unlockCausesAfter;
 
 // Encoder + secondary "back" button (PocketOBI.ino)

@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Copyright (c) 2026 TheRepairForge
-// PocketOBI — screens, icons, V2 UI rendering (split from PocketOBI.ino, DECISIONS.md D21).
+// PocketOBI — screens, V2 UI rendering (split from PocketOBI.ino, DECISIONS.md D21).
+// v2.4: rebuilt on the shared component layer (ui_components.h) and the generated design tokens
+// (ui_theme.h / ui_palette.h <- design/tokens.json), shared vocabulary (D35).
 #include "pocketobi.h"
 #include "protocol.h"
 #include "unlock.h"
 #include "decode.h"
 #include "display.h"
 #include "ui_nav.h"
+#include "ui_components.h"
 #include "bridge.h"
 #include "icons_bitmaps.h"
-#include <Fonts/FreeSansBold9pt7b.h>
-#include <Fonts/FreeSansBold18pt7b.h>
-#include <Fonts/FreeSansBold24pt7b.h>
 
 // PocketOBI logo, 48x48, 1-bit: battery outline split by a pulse line (house mark, D27).
 // Rasterized from the design source PO-logo.svg (2026-09-26, replaces the battery+bolt
@@ -82,6 +82,9 @@ const uint8_t QR_URL[] PROGMEM = {
   0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 };
 // ---------- Display ----------
+// v2.4 (D35): every screen is composed from ui_components.h (the shared vocabulary) and sized from
+// the generated tokens (ui_theme.h <- design/tokens.json). Layout literals do not live here.
+
 // Cell color based on its voltage and its position within the pack.
 uint16_t cellColor(float v, float minV, float diff) {
   if (v < CELL_V_CRIT) return COL_RED;
@@ -90,8 +93,7 @@ uint16_t cellColor(float v, float minV, float diff) {
   if (isLowest && diff > DIFF_WARN) return COL_YELLOW;
   return COL_GREEN;
 }
-// Colored title bar at the top of every screen, with a small per-screen glyph
-// (based on the current state) to the left of the title.
+
 // Screen orientation (landscape, or 180 deg with cfgFlip). setRotation() writes the
 // ST7789's MADCTL; a CYD fitted with an ILI9341 panel reads the MX bit the other way
 // and is BGR-wired, so it gets the ILI9341 values instead (see CYD_ILI9341).
@@ -103,130 +105,80 @@ void applyRotation() {
 #endif
 }
 
-void drawHeader(const char* title) {
-  tft.fillRect(0, 0, tft.width(), HEADER_H, COL_ACCENT);
-  int gx = 15, gy = HEADER_H / 2; uint16_t gc = COL_HEAD;
-  bool glyph = true;
+// ---------- Small helpers shared by the screens ----------
+// Header bar with the glyph of the current screen (the component takes the glyph, it does not know
+// the screens). LAUNCHER: no glyph.
+static void header(const char *title) {
+  IconFn g = nullptr;
   switch (state) {
-    case BATTERY:        iconBattery(gx, gy, gc); break;
+    case BATTERY:        g = iconBattery;  break;
     case REPAIR_DIAG:
     case CONFIRM_UNLOCK:
-    case UNLOCK_RESULT:  iconKey(gx, gy, gc);     break;
-    case TOOLS:          iconList(gx, gy, gc);    break;
-    case SETTINGS:                                          // sliders glyph
-      tft.drawFastHLine(gx - 8, gy - 4, 16, gc); tft.fillCircle(gx - 2, gy - 4, 2, gc);
-      tft.drawFastHLine(gx - 8, gy,     16, gc); tft.fillCircle(gx + 4, gy,     2, gc);
-      tft.drawFastHLine(gx - 8, gy + 4, 16, gc); tft.fillCircle(gx - 4, gy + 4, 2, gc);
-      break;
-    case PC_BRIDGE:      iconBridge(gx, gy, gc);  break;
-    case DEBUG_RAW:      iconCode(gx, gy, gc);    break;
-    case ABOUT:          iconInfo(gx, gy, gc);    break;
+    case UNLOCK_RESULT:  g = iconKey;      break;
+    case TOOLS:          g = iconList;     break;
+    case SETTINGS:       g = iconSettings; break;
+    case PC_BRIDGE:      g = iconBridge;   break;
+    case DEBUG_RAW:      g = iconCode;     break;
+    case ABOUT:          g = iconInfo;     break;
     case CONFIRM_RESET:
-    case RESET_RESULT:   iconRefresh(gx, gy, gc); break;
-    default:             glyph = false;           break;   // LAUNCHER / COMM_ERROR: no glyph
+    case RESET_RESULT:   g = iconRefresh;  break;
+    case COMM_ERROR:     g = iconWarning;  break;
+    default:             break;
   }
-  tft.setFont(&FreeSansBold9pt7b);      // smoother title
-  tft.setTextSize(1);
-  tft.setTextColor(COL_HEAD, COL_ACCENT);
-  tft.setCursor(glyph ? 30 : 8, 20);    // shift title right when a glyph is shown
-  tft.print(title);
-  tft.setFont(NULL);                    // restore the classic font for the rest of the screen
+  drawHeader(title, g);
 }
-// ---------- Menu icons (drawn with primitives, ~16px, centered on cx,cy) ----------
-void iconBattery(int cx, int cy, uint16_t c) {
-  tft.drawRect(cx - 8, cy - 5, 13, 10, c);
-  tft.fillRect(cx + 5, cy - 2, 2, 4, c);            // + terminal nub
-  for (int k = 0; k < 3; k++) tft.fillRect(cx - 6 + k * 3, cy - 3, 2, 6, c);
+// Repair wizard header (the shell, D35 lockstep): the title names the step, the page dots carry
+// its position (the step number is not repeated in the title).
+static void repairHeader(int step, StrId title) {
+  header(tr(title));
+  drawPageDots(step - 1, 4);
 }
-void iconList(int cx, int cy, uint16_t c) {
-  for (int k = 0; k < 3; k++) {
-    int yy = cy - 5 + k * 5;
-    tft.fillRect(cx - 8, yy, 2, 2, c);
-    tft.drawFastHLine(cx - 4, yy + 1, 11, c);
+// Footer hints. The encoder board says Turn / Click / Back; the CYD has no encoder and no Back key, so
+// its build says what a tap does and that the title bar is Back (D46 rule 1, touch variant). Every
+// screen names its encoder hints; hint() swaps them for the touch wording, or drops them (no
+// equivalent, e.g. "Turn: select" when the items are tapped directly).
+static int hint(StrId id) {
+#if BOARD_HAS_TOUCH
+  switch (id) {
+    case S_H_CLICK_OPEN:     return S_T_TAP_OPEN;
+    case S_H_CLICK_BACK:     return S_T_TAP_BACK;
+    case S_H_CLICK_CONTINUE: return S_T_TAP_CONTINUE;
+    case S_H_CLICK_TOGGLE:
+    case S_H_TURN_TOGGLE:    return S_T_TAP_TOGGLE;
+    case S_H_CLICK_REFRESH:  return S_T_CENTRE_REFRESH;
+    case S_H_CLICK_CONFIRM:  return S_T_TAP_BUTTON;
+    case S_H_TURN_PAGE:      return S_T_EDGES_PAGE;
+    case S_H_TURN_SELECT:    return -1;
+    case S_H_TURN_CANCEL:
+    case S_H_BACK_MENU:
+    case S_H_BACK_TOOLS:     return S_T_TITLE_BACK;
+    default:                 return id;
   }
+#else
+  return id;
+#endif
 }
-void iconRefresh(int cx, int cy, uint16_t c) {
-  tft.drawCircle(cx, cy, 6, c);
-  tft.fillTriangle(cx + 2, cy - 9, cx + 2, cy - 2, cx + 8, cy - 5, c); // arrowhead
+// Up to two hints on the left (joined by two spaces), one on the right. A hint the touch
+// build drops is skipped; the same hint twice (Turn: cancel and Back: menu both become "Title: back")
+// is shown once.
+static void footer(StrId a, StrId b = S_COUNT, StrId right = S_COUNT) {
+  int l1 = hint(a), l2 = (b == S_COUNT) ? -1 : hint(b), r = (right == S_COUNT) ? -1 : hint(right);
+  if (l1 < 0) { l1 = l2; l2 = -1; }
+  if (l2 == l1) l2 = -1;
+  if (r == l1 || r == l2) r = -1;
+  char h[64];
+  if (l1 < 0) h[0] = 0;
+  else if (l2 < 0) snprintf(h, sizeof(h), "%s", tr((StrId)l1));
+  else snprintf(h, sizeof(h), "%s  %s", tr((StrId)l1), tr((StrId)l2));
+  drawFooterHint(h, r < 0 ? nullptr : tr((StrId)r));
 }
-void iconSun(int cx, int cy, uint16_t c) {                            // LEDs on
-  tft.fillCircle(cx, cy, 3, c);
-  tft.drawFastVLine(cx, cy - 8, 3, c);   tft.drawFastVLine(cx, cy + 6, 3, c);
-  tft.drawFastHLine(cx - 8, cy, 3, c);   tft.drawFastHLine(cx + 6, cy, 3, c);
-  tft.drawLine(cx - 6, cy - 6, cx - 4, cy - 4, c);
-  tft.drawLine(cx + 4, cy + 4, cx + 6, cy + 6, c);
-  tft.drawLine(cx - 6, cy + 6, cx - 4, cy + 4, c);
-  tft.drawLine(cx + 4, cy - 4, cx + 6, cy - 6, c);
+// Verdict flavour of the status card: the verdict's own word and colour, one line under it.
+static void statusCard(int y, const char *line2) {
+  const Verdict v = computeVerdict();
+  statusCardText(y, verdictText(v), verdictColor(v), line2);
 }
-void iconSunOff(int cx, int cy, uint16_t c) {                         // LEDs off
-  tft.drawCircle(cx, cy, 4, c);
-}
-void iconCode(int cx, int cy, uint16_t c) {
-  tft.drawLine(cx - 2, cy - 5, cx - 7, cy, c); tft.drawLine(cx - 7, cy, cx - 2, cy + 5, c);
-  tft.drawLine(cx + 2, cy - 5, cx + 7, cy, c); tft.drawLine(cx + 7, cy, cx + 2, cy + 5, c);
-}
-void iconKey(int cx, int cy, uint16_t c) {                           // unlock / repair
-  tft.drawCircle(cx - 4, cy, 4, c);        // bow
-  tft.drawFastHLine(cx, cy, 9, c);         // shaft
-  tft.drawFastVLine(cx + 6, cy, 4, c);     // tooth
-  tft.drawFastVLine(cx + 8, cy, 3, c);     // tooth
-}
-void iconInfo(int cx, int cy, uint16_t c) {
-  tft.drawCircle(cx, cy, 7, c);
-  tft.fillRect(cx - 1, cy - 4, 2, 2, c);   // dot
-  tft.fillRect(cx - 1, cy - 1, 2, 5, c);   // stem
-}
-void iconBridge(int cx, int cy, uint16_t c) {                        // PC bridge = two arrows
-  tft.drawFastHLine(cx - 7, cy - 3, 12, c);
-  tft.drawLine(cx + 5, cy - 3, cx + 2, cy - 6, c);
-  tft.drawLine(cx + 5, cy - 3, cx + 2, cy, c);
-  tft.drawFastHLine(cx - 5, cy + 3, 12, c);
-  tft.drawLine(cx - 5, cy + 3, cx - 2, cy + 6, c);
-  tft.drawLine(cx - 5, cy + 3, cx - 2, cy, c);
-}
-void drawConfirmReset() {
-  drawHeader(tr(S_RESET_ERROR_Q));
-  int y = HEADER_H + 12;
-  tft.setTextSize(2);
-  tft.setTextColor(COL_TEXT, COL_BG);
-  tft.setCursor(6, y);          tft.print(tr(S_CMD_SENT));
-  tft.setTextColor(COL_MUTED, COL_BG);
-  tft.setCursor(6, y + 24);     tft.print("TESTMODE + RESET");
-  tft.setTextColor(COL_GREEN, COL_BG);
-  tft.setCursor(6, y + 66);     tft.print(tr(S_CLICK_CONFIRM));
-  tft.setTextColor(COL_RED, COL_BG);
-  tft.setCursor(6, y + 92);     tft.print(tr(S_TURN_CANCEL));
-}
-// Visual feedback after an error-reset: BMS fault-register state before -> after,
-// plus a verdict. Tracks bat.locked (the register the reset actually targets), not
-// the undecoded status byte 19 (see resetLockedBefore note).
-void drawResetResult() {
-  drawHeader(tr(S_RESET_DONE));
-  int y = HEADER_H + 10;
-  tft.setTextSize(2);
-  tft.setTextColor(COL_TEXT, COL_BG);
-  tft.setCursor(6, y);      tft.printf("%s: %s", tr(S_BEFORE), resetLockedBefore ? tr(S_LOCKEDV) : tr(S_OKSTATE));
-  tft.setCursor(6, y + 24); tft.printf("%s: %s", tr(S_AFTER),  resetLockedAfter  ? tr(S_LOCKEDV) : tr(S_OKSTATE));
+// Two half-width columns inside the content width.
 
-  tft.setCursor(6, y + 60);
-  if (!resetLockedBefore) {
-    // Nothing was flagged, so there was nothing to clear.
-    tft.setTextColor(COL_MUTED, COL_BG);
-    tft.print(tr(S_NO_ERROR));
-  } else if (!resetLockedAfter) {
-    // False positive: the fault register cleared and stayed clear.
-    tft.setTextColor(COL_GREEN, COL_BG);
-    tft.print(tr(S_ERR_CLEARED));
-  } else {
-    // Real fault: the BMS re-flagged it -> the reset did not hold.
-    tft.setTextColor(COL_YELLOW, COL_BG);
-    tft.print(tr(S_UNCHANGED));
-  }
-
-  tft.setTextColor(COL_MUTED, COL_BG);
-  tft.setCursor(6, 220);
-  tft.print(tr(S_HINT_CLICK_BACK_P));
-}
 // Compact text for a lock-cause bitmask, e.g. "CS0 CS2 N34" or "none".
 void lockCausesText(uint8_t causes, char *out, size_t n) {
   out[0] = 0;
@@ -236,145 +188,428 @@ void lockCausesText(uint8_t causes, char *out, size_t n) {
   if (causes & LF_CS1) strncat(out, "CS1 ", n - strlen(out) - 1);
   if (causes & LF_CS2) strncat(out, "CS2 ", n - strlen(out) - 1);
 }
-// Confirmation before writing to the BMS flash. Shows the detected charger-lock
-// causes and a clear "writes flash" safety warning. If nothing is
+// ---------- Launcher (2x2 big tiles) ----------
+// Selection is the ONLY border treatment. One tile is drawn on its own so a selection change
+// repaints just the two tiles involved (redrawSelection), never the whole screen.
+// 2x2 grid inside the content zone, so the footer hint fits under it (v2.5).
+static void drawLauncherTile(int i) {
+  const int tw = TILE_W, th = TILE_H, top = CONTENT_Y;
+  const int x = (i % 2) ? GUTTER + tw + TILE_GAP : GUTTER, y = (i / 2) ? top + th + TILE_GAP : top;
+  const bool sel = (launcherIndex == i);
+  drawTile(x, y, tw, th, sel);
+  const int cx = x + tw / 2;
+  const Verdict v = (i == 0) ? computeVerdict() : V_UNKNOWN;     // only the Battery tile shows it
+  const uint8_t *ic = (i == 0) ? ICON_BATTERY : (i == 1) ? ICON_REPAIR : (i == 2) ? ICON_TOOLS : ICON_INFO;
+  const uint16_t icc = (i == 0) ? (bat.valid ? verdictColor(v) : COL_MUTED)
+                     : (i == 1) ? COL_ORANGE : (i == 2) ? COL_ACCENT : COL_CYAN;
+  tft.drawBitmap(cx - ICON_W / 2, y + TILE_ICON_Y, ic, ICON_W, ICON_H, icc);
+  if (i == 0) {                                  // Battery: V + verdict under the icon (verdict colour)
+    char ms[48];
+    if (bat.valid) { snprintf(ms, sizeof(ms), "%.1fV %s", bat.packVoltage, verdictText(v));
+                     tft.setTextColor(verdictColor(v)); }
+    else           { snprintf(ms, sizeof(ms), "%s", tr(S_NO_PACK)); tft.setTextColor(COL_MUTED); }
+    tft.setFont(NULL); tft.setTextSize(1);
+    tft.setCursor(cx - txtW(ms, 1) / 2, y + TILE_INFO_Y); tft.print(ms);
+  }
+  gfxCenter(FONT_LEVEL3, cx, y + TILE_LABEL_Y, tr((StrId)(S_BATTERY + i)), sel ? COL_HEAD : COL_TEXT);
+}
+void drawLauncher() {
+  header("PocketOBI");
+  for (int i = 0; i < 4; i++) drawLauncherTile(i);
+  footer(S_H_TURN_SELECT, S_H_CLICK_OPEN);
+}
+
+// ---------- Battery : Overview page ----------
+// What the repair diagnosis concluded, in one place: the Overview status line and the Repair
+// wizard read the same finding (single source, never two parallel rules).
+struct Finding { const char *title; uint16_t color; char line2[64]; HwFault hw; int grp; uint8_t causes; };
+static void diagFinding(Finding &f) {
+  const bool isF0513 = strcmp(bat.commandVersion, "F0513") == 0;
+  char action[64];
+  f.grp = 0;
+  f.hw = findHardwareFault(&f.grp, action, sizeof(action));
+  f.causes = (bat.valid && !isF0513) ? lockCauses(bat.msg) : 0;
+  if (f.hw != HW_NONE) {
+    f.color = COL_RED;
+    switch (f.hw) {
+      case HW_SENSE_WIRE: f.title = tr(S_HW_SENSE);  break;
+      case HW_WEAK_CELL:  f.title = tr(S_HW_WEAK);   break;
+      case HW_IMBALANCE:  f.title = tr(S_HW_IMB);    break;
+      default:            f.title = tr(S_HW_THERM);  break;
+    }
+    strncpy(f.line2, action, sizeof(f.line2)); f.line2[sizeof(f.line2) - 1] = 0;
+  } else if (bat.latchedFault) {
+    // Checked BEFORE "not locked": a latched marker means the BMS memorised a fault even if the
+    // pack isn't charger-locked right now (matches computeVerdict -> V_SUSPECT).
+    f.title = tr(S_BMS_MEMORISED); f.color = COL_ORANGE;
+    if (bat.odEventCount)            strcpy(f.line2, tr(S_WHY_OD));
+    else if (bat.olEventCount)       strcpy(f.line2, tr(S_WHY_OL));
+    else if (bat.healthEstPct < 50)  strcpy(f.line2, tr(S_WHY_WEAR));   // <50% => >~448 cycles
+    else                             strcpy(f.line2, tr(S_WHY_UNCLEAR));
+  } else if (!f.causes && !bat.locked) {
+    f.title = tr(S_NO_LOCK_NO_FAULT); f.color = COL_GREEN;
+    strcpy(f.line2, tr(S_PACK_HEALTHY));
+  } else {
+    // Charger-locked, no fault marker -> a false lockout our unlock should clear.
+    f.title = tr(S_FALSE_LOCKOUT); f.color = COL_GREEN;
+    strcpy(f.line2, tr(S_UNLOCK_SHOULD_HOLD));
+  }
+  // Recoverable over-discharge (cells below the healthy minimum, no imbalance): computeVerdict says
+  // SUSPECT, so the line must not claim "no fault".
+  if (f.hw == HW_NONE && f.color == COL_GREEN && computeVerdict() == V_SUSPECT && !thermistorSuspect()) {
+    f.title = tr(S_WHY_OD); strcpy(f.line2, tr(S_WHY_OD)); f.color = COL_ORANGE;
+  }
+  // Spread-only thermistor suspicion: add a check note on an otherwise-clean finding (the verdict
+  // already reflects it via computeVerdict -> V_SUSPECT when not charger-locked).
+  if (f.hw == HW_NONE && f.color == COL_GREEN && thermistorSuspect()) {
+    strcpy(f.line2, tr(S_WHY_THERM_CHECK));
+    f.color = COL_ORANGE;
+  }
+}
+// Temperature value as the pack reports it: "cell/board C", or a single sensor.
+static void fmtTemp(char *out, size_t n) {
+  if (bat.boardTempValid) snprintf(out, n, "%.0f/%.0f C", bat.tempCell, bat.tempMosfet);
+  else                    snprintf(out, n, "%.0f C", bat.tempCell);   // single sensor
+}
+void drawBatteryOverview() {
+  header(bat.valid ? bat.model : tr(S_BATTERY));
+  drawPageDots(0, 3);
+  Finding f; f.title = ""; f.color = COL_MUTED; f.line2[0] = 0;
+  if (bat.valid) diagFinding(f);
+  // A warning/fault shows its reason, not the title; no pack says what to do.
+  statusCard(CONTENT_Y, !bat.valid ? tr(S_SUB_INSERT_PACK) : (f.color == COL_GREEN) ? f.title : f.line2);
+  // Left column: PACK and TEMP KPIs; right column: the cells (D46: same frame with or without a pack,
+  // so nothing jumps when one is inserted, and nothing stale is shown when it is gone).
+  const int y = CONTENT_Y + STATUS_H + CARD_GAP, rx = GUTTER + COL2_W + CARD_GAP;
+  char buf[32], cap[32];
+  if (bat.valid) {
+    const bool tPinned = tempImplausible(bat.tempCell) || (bat.boardTempValid && tempImplausible(bat.tempMosfet));
+    // Pinned sensor = confirmed fault (red); spread-only = empirical suspicion (orange, explained on Health).
+    const uint16_t tcol = tPinned ? COL_RED : (thermistorSuspect() ? COL_ORANGE : COL_TEXT);
+    snprintf(buf, sizeof(buf), "%.2f V", bat.packVoltage);
+    snprintf(cap, sizeof(cap), "%u %s", bat.chargeCount, tr(S_CHARGES));
+    kpiCard(GUTTER, y, COL2_W, KPI_H, iconBattery, tr(S_PACK), buf, COL_TEXT, cap);
+    fmtTemp(buf, sizeof(buf));
+    kpiCard(GUTTER, y + KPI_H + CARD_GAP, COL2_W, KPI_H, iconThermo, tr(S_TEMP), buf, tcol,
+            bat.boardTempValid ? tr(S_TEMP_CB) : nullptr);
+  } else {
+    kpiCard(GUTTER, y, COL2_W, KPI_H, iconBattery, tr(S_PACK), "--", COL_MUTED2);
+    kpiCard(GUTTER, y + KPI_H + CARD_GAP, COL2_W, KPI_H, iconThermo, tr(S_TEMP), "--", COL_MUTED2);
+  }
+  const int ch = 2 * KPI_H + CARD_GAP;
+  float cv[sizeof(bat.cell) / sizeof(bat.cell[0])];
+  uint16_t cc[sizeof(bat.cell) / sizeof(bat.cell[0])];
+  float cmn = 9.0f;
+  for (int i = 0; i < cellCount; i++) if (bat.cell[i] > 0.1f && bat.cell[i] < cmn) cmn = bat.cell[i];
+  for (int i = 0; i < cellCount; i++) {
+    cv[i] = bat.valid ? bat.cell[i] : NAN;
+    cc[i] = bat.valid ? cellColor(bat.cell[i], cmn, bat.cellDiff) : COL_MUTED2;
+  }
+  if (bat.valid) snprintf(cap, sizeof(cap), "%s %.3f V", tr(S_SUB_CELL_DIFF), bat.cellDiff); else cap[0] = 0;
+  cellBarGroup(rx, y, COL2_W, ch, tr(S_CELLS), cap, cv, cc, cellCount, CELL_V_MIN, CELL_V_MAX);
+}
+
+// ---------- Battery : Health page ----------
+void drawBatteryHealth() {
+  header(tr(S_HDR_HEALTH));
+  drawPageDots(1, 3);
+  char buf[40];
+  if (!bat.valid) {                                   // no pack: same frame, no stale value
+    const int y1 = CONTENT_Y + STATUS_H + CARD_GAP, x2 = GUTTER + COL2_W + CARD_GAP, y2 = y1 + KPI_H + CARD_GAP;
+    conditionCard(CONTENT_Y, tr(S_CONDITION), -1, COL_MUTED2, "");
+    kpiCard(GUTTER, y1, COL2_W, KPI_H, iconBattery, tr(S_OVERDISCHARGE), "--", COL_MUTED2);
+    kpiCard(x2,     y1, COL2_W, KPI_H, iconBanks,   tr(S_OVERLOAD),      "--", COL_MUTED2);
+    kpiCard(GUTTER, y2, COL2_W, KPI_H, iconDoc,     tr(S_CELLS),         "--", COL_MUTED2);
+    kpiCard(x2,     y2, COL2_W, KPI_H, iconThermo,  tr(S_TEMP_CB),       "--", COL_MUTED2);
+    return;
+  }
+  const uint8_t soh = bat.healthEstPct;
+  const uint16_t cc = soh >= 80 ? COL_GREEN : (soh >= 50 ? COL_YELLOW : COL_RED);
+  // Condition card: OUR OWN cycle-based estimate (not the BMS's SOH gauge); the raw charge level
+  // (D4 0x150 / SOC) is exposed next to it as a diagnostic value.
+  const int cx = GUTTER, y0 = CONTENT_Y;
+  if (bat.extValid) snprintf(buf, sizeof(buf), "est. from cycles - SOC raw %u", bat.socRaw);
+  else              snprintf(buf, sizeof(buf), "est. from cycles");
+  conditionCard(y0, tr(S_CONDITION), soh, cc, buf);
+  // 2x2 grid: wear counters (D4) with the raw count as the primary figure and the "% of cycles"
+  // only as a soft hint in parentheses. When the extended data is unavailable show "-", not "none".
+  const int y1 = y0 + STATUS_H + CARD_GAP, kw = COL2_W, kx2 = cx + kw + CARD_GAP;
+  uint16_t col;
+  if (!bat.extValid) strcpy(buf, "-");
+  else if (bat.odEventCount == 0) strcpy(buf, tr(S_NONE));
+  else snprintf(buf, sizeof(buf), "%u (%u%%)", bat.odEventCount, bat.odWearPct);
+  col = !bat.extValid ? COL_MUTED : (bat.odEventCount ? COL_TEXT : COL_GREEN);
+  kpiCard(cx, y1, kw, KPI_H, iconBattery, tr(S_OVERDISCHARGE), buf, col);
+  if (!bat.extValid) strcpy(buf, "-");
+  else if (bat.olEventCount == 0) strcpy(buf, tr(S_NONE));
+  else snprintf(buf, sizeof(buf), "%u (%u%%)", bat.olEventCount, bat.olWearPct);
+  col = !bat.extValid ? COL_MUTED : (bat.olEventCount ? COL_TEXT : COL_GREEN);
+  kpiCard(kx2, y1, kw, KPI_H, iconBanks, tr(S_OVERLOAD), buf, col);
+  float mn = 9, mx = 0;
+  for (int i = 0; i < cellCount; i++) { if (bat.cell[i] > 0.1f && bat.cell[i] < mn) mn = bat.cell[i];
+                                        if (bat.cell[i] > mx) mx = bat.cell[i]; }
+  snprintf(buf, sizeof(buf), "%.2f-%.2f V", mn, mx);
+  kpiCard(cx, y1 + KPI_H + CARD_GAP, kw, KPI_H, iconDoc, tr(S_CELLS), buf, bat.cellDiff > DIFF_BAD ? COL_RED : COL_GREEN);
+  const uint16_t tc = thermistorFault() ? COL_RED : (thermistorSuspect() ? COL_ORANGE : COL_GREEN);
+  fmtTemp(buf, sizeof(buf));
+  // The cell/board spread lives here (D46 Q3): it is what makes the thermistor "suspect".
+  char cap[24]; cap[0] = 0;
+  if (bat.boardTempValid) {
+    const float td = bat.tempMosfet > bat.tempCell ? bat.tempMosfet - bat.tempCell : bat.tempCell - bat.tempMosfet;
+    snprintf(cap, sizeof(cap), "%s %.1f C", tr(S_SPREAD), td);
+  }
+  kpiCard(kx2, y1 + KPI_H + CARD_GAP, kw, KPI_H, iconThermo, tr(S_TEMP_CB), buf, tc, cap);
+}
+
+// ---------- Battery : Identity page ----------
+// Format a pack date (produced / assembled). Valid only if month 1..12, day 1..31 and a plausible
+// year: this generation can read the ROM/assembly-date bytes back as all-FF (-> 2255-255-255) or
+// leave them unwritten (0). Anything else shows "?".
+void fmtPackDate(char *out, size_t n, uint16_t year, uint8_t m, uint8_t d) {
+  if (m >= 1 && m <= 12 && d >= 1 && d <= 31 && year >= 2005 && year <= 2099)
+    snprintf(out, n, "%04u-%02u-%02u", year, m, d);
+  else { strncpy(out, "?", n); out[n - 1] = 0; }
+}
+void drawBatteryIdentity() {
+  header(tr(S_HDR_IDENTITY));
+  drawPageDots(2, 3);
+  char sn[20], buf[24];
+  formatSerial(sn);
+  const bool ok = bat.valid;                          // no pack: dashes, never the last pack's identity
+  const int x = GUTTER, w = CONTENT_W;
+  const int wa = COL2_W, xb = x + COL2_W + CARD_GAP, wb = COL2_W;   // the 2-column grid (D46)
+  const int pitch = FIELD_H + FIELD_GAP;
+  int y = CONTENT_Y;
+  drawField(x, y, wa, FIELD_H, iconBattery, tr(S_MODEL), ok ? bat.model : "--");
+  fmtPackDate(buf, sizeof(buf), bat.mfgYear, bat.mfgMonth, bat.mfgDay);
+  drawField(xb, y, wb, FIELD_H, iconCalendar, tr(S_PRODUCED), ok ? buf : "--");
+  y += pitch;
+  drawField(x, y, wa, FIELD_H, iconDoc, tr(S_TYPE), ok ? "LXT 18V" : "--");
+  fmtPackDate(buf, sizeof(buf), 2000 + bat.asmY, bat.asmM, bat.asmD);
+  drawField(xb, y, wb, FIELD_H, iconCalendar, tr(S_ASSEMBLED), ok ? buf : "--");
+  y += pitch;
+  snprintf(buf, sizeof(buf), "%.1f Ah", bat.capacityAh);
+  drawField(x, y, wa, FIELD_H, iconBanks, tr(S_CAPACITY), ok ? buf : "--");
+  snprintf(buf, sizeof(buf), "%u", bat.chargeCount);
+  drawField(xb, y, wb, FIELD_H, iconRefresh, tr(S_CHARGES), ok ? buf : "--");
+  y += pitch;
+  drawField(x, y, w, FIELD_H, iconBarcode, tr(S_SN), ok ? sn : "--");
+}
+
+// ---------- Battery : paged ----------
+void drawBatteryPage() {
+  if (batteryPage == 0)      drawBatteryOverview();
+  else if (batteryPage == 1) drawBatteryHealth();
+  else                       drawBatteryIdentity();
+  footer(S_H_TURN_PAGE, S_H_CLICK_REFRESH, S_H_BACK_MENU);   // click re-reads the pack
+}
+
+// ---------- Repair wizard, step 1/4: staged, feasibility-FIRST diagnosis ----------
+//  Stage 0 comms -> Stage 1 hardware faults (before lock, they invalidate an unlock)
+//  -> Stage 2 lock + prognosis -> Stage 3 the WHY (from the wear counters).
+// The status card is computeVerdict() (the exact verdict of the Battery tile and pages, single
+// source of truth); its second line is the wizard's detailed prediction (why / what to do).
+void drawWizardDiag() {
+  repairHeader(1, S_REPAIR);
+  if (!bat.valid) {                                                   // Stage 0: comms
+    statusCardText(CONTENT_Y, tr(S_NO_DIAGNOSIS), COL_MUTED, tr(S_SUB_NO_REPLY));
+    const char *steps[3] = { tr(S_STEP_ADAPTER), tr(S_STEP_DATA_EN), tr(S_STEP_DEAD_BMS) };
+    stepListCard(CONTENT_Y + STATUS_H + CARD_GAP, CONTENT_H - STATUS_H - CARD_GAP, tr(S_LBL_TRY), steps, 3);
+    footer(S_H_TURN_CANCEL, S_COUNT, S_H_BACK_MENU);
+    return;
+  }
+  Finding f; diagFinding(f);
+  statusCard(CONTENT_Y, f.line2);
+  // Checklist: the raw signals behind the verdict.
+  const int y = CONTENT_Y + STATUS_H + CARD_GAP, ch = CONTENT_H - STATUS_H - CARD_GAP;
+  drawCard(GUTTER, y, CONTENT_W, ch, false, RADIUS_MD);
+  char cb[24]; lockCausesText(f.causes, cb, sizeof(cb));
+  const int ry = y + (ch - 4 * CHECK_ROW_H) / 2;
+  // A charger lock is the repairable case (yellow triangle), not a fault (D46 CHECK_WARN).
+  drawCheckRow(GUTTER, ry, CONTENT_W, tr(S_CHARGER_LOCK), f.causes ? cb : tr(S_NONE), f.causes ? CHECK_WARN : CHECK_OK);
+  // Latched marker is a HINT (orange warning), not a red fault, in the checklist too.
+  drawCheckRow(GUTTER, ry + CHECK_ROW_H, CONTENT_W, tr(S_LATCHED_FAULT), bat.latchedFault ? tr(S_YES) : tr(S_NONE),
+               bat.latchedFault ? CHECK_SUSPECT : CHECK_OK);
+  // Thermistor row is 3-state: confirmed fault (pinned) red, suspect (spread) orange "?", else ok.
+  const CheckState th = thermistorFault() ? CHECK_FAULT : (thermistorSuspect() ? CHECK_SUSPECT : CHECK_OK);
+  drawCheckRow(GUTTER, ry + 2 * CHECK_ROW_H, CONTENT_W, tr(S_THERMISTOR),
+               th == CHECK_FAULT ? tr(S_FAULTV) : (th == CHECK_SUSPECT ? "?" : tr(S_OKV)), th);
+  char cv[12]; const bool cbad = (f.hw == HW_SENSE_WIRE || f.hw == HW_WEAK_CELL || f.hw == HW_IMBALANCE);
+  if (cbad) snprintf(cv, sizeof(cv), "G%d", f.grp); else strcpy(cv, tr(S_OKV));
+  drawCheckRow(GUTTER, ry + 3 * CHECK_ROW_H, CONTENT_W, tr(S_CELLS), cv, cbad ? CHECK_FAULT : CHECK_OK);
+  // Only a lock with no hardware fault continues; otherwise the status card already says why (fix
+  // the hardware first / nothing to repair) and a click just repeats it as a toast.
+  if (f.causes && f.hw == HW_NONE) footer(S_H_CLICK_CONTINUE, S_COUNT, S_H_TURN_CANCEL);
+  else                             footer(S_H_TURN_CANCEL, S_COUNT, S_H_BACK_MENU);
+}
+
+// ---------- Repair wizard, step 2/4: confirmation before writing to the BMS flash ----------
+// Shows the detected charger-lock causes and a clear "writes flash" safety warning. If nothing is
 // locked (or F0513), clicking just returns to the menu (no write is performed).
 void drawConfirmUnlock() {
-  { char h[16]; snprintf(h, sizeof(h), "%s 2/4", tr(S_REPAIR)); drawHeader(h); }
-  drawPageDots(1, 4);
-  int y = HEADER_H + 8;
-  bool isF0513 = strcmp(bat.commandVersion, "F0513") == 0;
-
-  tft.setTextSize(2);
+  const bool isF0513 = strcmp(bat.commandVersion, "F0513") == 0;
+  const uint8_t causes = bat.valid ? lockCauses(bat.msg) : 0;
+  // Nothing will be written in the first two branches, so the header does not ask a question.
+  repairHeader(2, (isF0513 || causes == 0) ? S_REPAIR : S_HDR_UNLOCK_Q);
   if (isF0513) {
-    tft.setTextColor(COL_YELLOW, COL_BG);
-    tft.setCursor(6, y);      tft.print(tr(S_NOT_SUPPORTED));
-    tft.setTextColor(COL_MUTED, COL_BG);
-    tft.setCursor(6, 220);    tft.print(tr(S_HINT_CLICK_TURN_BACK));
+    statusCardText(CONTENT_Y, tr(S_W_NOT_SUPPORTED), COL_YELLOW, tr(S_SUB_F0513));
+    footer(S_H_CLICK_BACK);
     return;
   }
-
-  uint8_t causes = bat.valid ? lockCauses(bat.msg) : 0;
-  char cbuf[24];
-  lockCausesText(causes, cbuf, sizeof(cbuf));
-
-  tft.setTextColor(COL_TEXT, COL_BG);
-  tft.setCursor(6, y);        tft.print(tr(S_CHARGER_LOCK)); tft.print(":");
-  tft.setTextColor(causes ? COL_RED : COL_GREEN, COL_BG);
-  tft.setCursor(6, y + 22);   tft.print(cbuf);
-
   if (causes == 0) {
-    tft.setTextColor(COL_GREEN, COL_BG);
-    tft.setCursor(6, y + 56);  tft.print(tr(S_FRAME_ALREADY_VALID));
-    tft.setTextColor(COL_MUTED, COL_BG);
-    tft.setTextSize(1);
-    tft.setCursor(6, y + 82);  tft.print(tr(S_NOTHING_NO_WRITE));
-    tft.setTextSize(2);
-    tft.setTextColor(COL_MUTED, COL_BG);
-    tft.setCursor(6, 220);     tft.print(tr(S_HINT_CLICK_TURN_BACK));
+    statusCardText(CONTENT_Y, tr(S_W_NOTHING_TO_DO), COL_GREEN, tr(S_SUB_FRAME_OK));   // honest: nothing was written
+    footer(S_H_CLICK_BACK);
     return;
   }
-
-  // Warning block (writes flash, untested)
-  tft.setTextSize(1);
-  tft.setTextColor(COL_RED, COL_BG);
-  tft.setCursor(6, y + 52);   tft.print(tr(S_WARN_WRITES_FLASH));
-  tft.setCursor(6, y + 64);   tft.print("Sets nybble34=0, recomputes CS0/1/2.");
-  tft.setCursor(6, y + 76);   tft.print(tr(S_REPAIRS_FALSE_ONLY));
-
-  tft.setTextSize(2);
-  tft.setTextColor(COL_GREEN, COL_BG);
-  tft.setCursor(6, y + 100);  tft.print(tr(S_CLICK_WRITE));
-  tft.setTextColor(COL_RED, COL_BG);
-  tft.setCursor(6, y + 124);  tft.print(tr(S_TURN_CANCEL));
+  // What happens (the shared confirm card): the write, what it changes, the honest limit. The
+  // red border keeps the "this writes the BMS flash" warning visible without red small text.
+  const int x = GUTTER, w = CONTENT_W;
+  int y = CONTENT_Y;
+  drawCard(x, y, w, 72, CARD_ERROR, RADIUS_MD);                       // 38..110
+  cardLabel(x + SP_3, y + 9, tr(S_LBL_WHAT));
+  gfxText(FONT_LEVEL3, x + SP_3, y + 32, tr(S_WHAT_FLASH), COL_TEXT);
+  drawCaption(x + SP_3, y + 40, "Sets nybble34=0, recomputes CS0/1/2.");
+  drawCaption(x + SP_3, y + 56, tr(S_REPAIRS_FALSE_ONLY), COL_MUTED);
+  y += 72 + CARD_GAP;
+  char cb[24], line[48];
+  lockCausesText(causes, cb, sizeof(cb));
+  snprintf(line, sizeof(line), "%s: %s", tr(S_CHARGER_LOCK), cb);
+  lineCard(y, 36, nullptr, line, COL_YELLOW, COL_YELLOW);             // 116..152, the lock found
+  y += 36 + SP_2;
+  drawButtonPair(y, tr(S_BTN_CANCEL), tr(S_BTN_UNLOCK));              // 160..208
+  footer(S_H_CLICK_CONFIRM, S_COUNT, S_H_TURN_CANCEL);
 }
-// Result after an unlock attempt: lock causes before -> after, plus a verdict.
+
+// ---------- Repair wizard, step 3/4: working (unlockRepair() blocks for a few seconds) ----------
+// The shared busy card (card 54..164). The step line and the bar are repainted by
+// drawUnlockProgress(), which unlockRepair() calls before each of its 4 steps.
+static const int WORK_Y = HEADER_H + 22;
+void drawUnlockWorking() {
+  tft.fillScreen(COL_BG);
+  repairHeader(3, S_HDR_UNLOCKING);
+  busyCard(WORK_Y, 110, tr(S_WORKING), tr(S_KEEP_PACK));
+  // The sequence is a fact about the work, so it sits in the card; the footer only says the input is ignored.
+  const char *seq = tr(S_FRAME_STORE_PC);
+  drawCaption((SCREEN_W - txtW(seq, 1)) / 2, WORK_Y + 94, seq);
+  busyProgress(WORK_Y, "", 0, 4);
+  footer(S_H_PLEASE_WAIT);
+}
+void drawUnlockProgress(int step, int total) {
+  char buf[24]; snprintf(buf, sizeof(buf), tr(S_STEP_FMT), step, total);
+  busyProgress(WORK_Y, buf, step, total);
+}
+
+// ---------- Repair wizard, step 4/4: lock causes before -> after, plus a verdict ----------
 void drawUnlockResult() {
-  { char h[16]; snprintf(h, sizeof(h), "%s 4/4", tr(S_REPAIR)); drawHeader(h); }
-  drawPageDots(3, 4);
-  int y = HEADER_H + 10;
+  repairHeader(4, S_HDR_UNLOCK_RESULT);
+  const char *word; uint16_t col;
+  if (unlockCausesAfter == 0xFF)    { word = tr(S_W_NOT_REREAD);    col = COL_YELLOW; }
+  else if (unlockCausesAfter == 0)  { word = tr(S_W_UNLOCKED);      col = COL_GREEN; }
+  else                              { word = tr(S_W_STILL_LOCKED);  col = COL_RED; }
+  statusCardText(CONTENT_Y, word, col, tr(S_RETRY_REINSERT));
   char b[24], a[24];
   lockCausesText(unlockCausesBefore, b, sizeof(b));
-  lockCausesText(unlockCausesAfter, a, sizeof(a));
-
-  tft.setTextSize(2);
-  tft.setTextColor(COL_TEXT, COL_BG);
-  tft.setCursor(6, y);        tft.printf("%s: %s", tr(S_BEFORE), b);
-  tft.setCursor(6, y + 24);   tft.printf("%s: %s", tr(S_AFTER), a);
-
-  tft.setCursor(6, y + 60);
-  if (unlockCausesAfter == 0xFF) {
-    tft.setTextColor(COL_YELLOW, COL_BG);
-    tft.print(tr(S_NO_READ_AFTER));
-  } else if (unlockCausesAfter == 0) {
-    tft.setTextColor(COL_GREEN, COL_BG);
-    tft.print(tr(S_UNLOCKED_RES));
-  } else {
-    tft.setTextColor(COL_RED, COL_BG);
-    tft.print(tr(S_STILL_LOCKED));
+  if (unlockCausesAfter == 0xFF) strcpy(a, "?"); else lockCausesText(unlockCausesAfter, a, sizeof(a));
+  const int y = CONTENT_Y + STATUS_H + CARD_GAP;
+  beforeAfterCard(y, b, unlockCausesBefore ? COL_YELLOW : COL_GREEN,
+                  a, unlockCausesAfter == 0 ? COL_GREEN : COL_YELLOW, tr(S_CHARGER_LOCK), tr(S_CAP_REREAD));
+  // Verdict now = computeVerdict() on the re-read unlockRepair() just did (single source); no re-read, no verdict.
+  if (unlockCausesAfter != 0xFF) {
+    const Verdict v = computeVerdict();
+    lineCard(y + STATUS_H + CARD_GAP, 46, tr(S_LBL_VERDICT_NOW), verdictText(v), verdictColor(v), COL_BORDER);
   }
-
-  tft.setTextColor(COL_MUTED, COL_BG);
-  tft.setTextSize(1);
-  tft.setCursor(6, y + 92);   tft.print(tr(S_RETRY_REINSERT));
-
-  tft.setTextColor(COL_MUTED, COL_BG);
-  tft.setTextSize(2);
-  tft.setCursor(6, 220);      tft.print(tr(S_HINT_CLICK_BACK_P));
+  footer(S_H_CLICK_BACK);
 }
+
+// ---------- Tools > Reset error ----------
+void drawConfirmReset() {
+  header(tr(S_HDR_RESET_Q));
+  // Same pieces as the unlock confirm: what happens, the state now, the buttons.
+  const int x = GUTTER, w = CONTENT_W;
+  int y = CONTENT_Y;
+  drawCard(x, y, w, 72, false, RADIUS_MD);                            // 38..110
+  cardLabel(x + SP_3, y + 9, tr(S_LBL_WHAT));
+  gfxText(FONT_LEVEL3, x + SP_3, y + 32, tr(S_WHAT_RESET), COL_TEXT);
+  drawCaption(x + SP_3, y + 40, "TESTMODE + RESET");                 // the command itself, untranslated
+  drawCaption(x + SP_3, y + 56, tr(S_SUB_RELOCKS), COL_MUTED);       // the honest limit
+  y += 72 + CARD_GAP;
+  char line[48];
+  snprintf(line, sizeof(line), tr(S_ERR_NOW_FMT), bat.locked ? tr(S_LOCKEDV) : tr(S_OKSTATE));
+  const uint16_t nc = bat.locked ? COL_YELLOW : COL_GREEN;
+  lineCard(y, 36, nullptr, line, nc, nc);                              // 116..152
+  y += 36 + SP_2;
+  drawButtonPair(y, tr(S_BTN_CANCEL), tr(S_BTN_RESET));               // 160..208
+  footer(S_H_CLICK_CONFIRM, S_COUNT, S_H_TURN_CANCEL);
+}
+// Visual feedback after an error-reset: BMS fault-register state before -> after, plus a verdict.
+// Tracks bat.locked (the register the reset actually targets), not the undecoded status byte 19
+// (see resetLockedBefore note).
+void drawResetResult() {
+  header(tr(S_HDR_RESET_RESULT));
+  StrId word, line; uint16_t col;
+  if (!resetReread)            { word = S_W_NOT_REREAD; line = S_RETRY_REINSERT; col = COL_YELLOW; } // re-read silent: After unknown
+  else if (!resetLockedBefore) { word = S_W_NO_ERROR;  line = S_SUB_ALREADY_OK; col = COL_MUTED;  }   // nothing to clear
+  else if (!resetLockedAfter)  { word = S_W_CLEARED;   line = S_SUB_REREAD_OK;  col = COL_GREEN;  }   // false positive, stayed clear
+  else                         { word = S_W_UNCHANGED; line = S_SUB_RELOCKS;    col = COL_YELLOW; }   // BMS re-flagged it: real fault
+  statusCardText(CONTENT_Y, tr(word), col, tr(line));
+  beforeAfterCard(CONTENT_Y + STATUS_H + CARD_GAP,
+                  resetLockedBefore ? tr(S_LOCKEDV) : tr(S_OKSTATE), resetLockedBefore ? COL_YELLOW : COL_GREEN,
+                  !resetReread ? "?" : resetLockedAfter ? tr(S_LOCKEDV) : tr(S_OKSTATE),
+                  (!resetReread || resetLockedAfter) ? COL_YELLOW : COL_GREEN,
+                  tr(S_CAP_ERRFLAG), tr(S_CAP_REREAD));
+  // Verdict now: computeVerdict() on the readAllData() that follows the reset (single source);
+  // no re-read, no verdict (same rule as the unlock result).
+  if (resetReread) {
+    const Verdict v = computeVerdict();
+    lineCard(CONTENT_Y + 2 * (STATUS_H + CARD_GAP), 46, tr(S_LBL_VERDICT_NOW), verdictText(v), verdictColor(v), COL_BORDER);
+  }
+  footer(S_H_CLICK_BACK);
+}
+
+// ---------- Debug / raw: the bench view, English on purpose (D33) ----------
 void drawDebugRaw() {
-  drawHeader("DEBUG / RAW");
-  int y = HEADER_H + 6;
-  tft.setTextSize(1);
-  tft.setTextColor(COL_MUTED, COL_BG);
+  header("Debug / raw");
+  const int x = GUTTER, w = CONTENT_W;
+  drawCard(x, CONTENT_Y, w, CONTENT_H, false, RADIUS_MD);
   if (!bat.valid) {
-    tft.setTextSize(2);
-    tft.setCursor(6, y);
-    tft.print("No data");
+    gfxText(FONT_LEVEL3, x + SP_3, CONTENT_Y + SP_6, "No data", COL_MUTED);
+    footer(S_H_CLICK_BACK);
     return;
   }
-  tft.setCursor(6, y);
-  tft.print("ROM ID");
-  tft.setTextColor(COL_GREEN, COL_BG);
-  tft.setCursor(6, y + 12);
-  for (int i = 0; i < 8; i++) tft.printf("%02X ", bat.romId[i]);
-  tft.setTextColor(COL_MUTED, COL_BG);
-  tft.setCursor(6, y + 32);
-  tft.print("Message (32B)");
-  tft.setTextColor(COL_GREEN, COL_BG);
-  for (int i = 0; i < 32; i++) {
-    if (i % 8 == 0) tft.setCursor(6, y + 44 + (i / 8) * 12);
-    tft.printf("%02X ", bat.msg[i]);
+  // One key column, one value column (the shared Debug rows); raw values never take a status colour.
+  const int kx = GUTTER + SP_3, vx = GUTTER + 84, dy = FONT_LEVEL4_LINE_H + SP_1;
+  int y = CONTENT_Y + SP_3;
+  char b[48], k[8];
+  b[0] = 0; for (int i = 0; i < 8; i++) { char o[4]; snprintf(o, sizeof(o), "%02X ", bat.romId[i]); strcat(b, o); }
+  monoKv(kx, y, vx, "ROM ID", b); y += dy;
+  for (int r = 0; r < 4; r++) {
+    b[0] = 0; for (int i = 0; i < 8; i++) { char o[4]; snprintf(o, sizeof(o), "%02X ", bat.msg[r * 8 + i]); strcat(b, o); }
+    snprintf(k, sizeof(k), "MSG %02X", r * 8);
+    monoKv(kx, y, vx, k, b); y += dy;
   }
-  int ly = y + 98;
-  tft.setTextColor(COL_MUTED, COL_BG); tft.setCursor(6, ly); tft.print("Live");
-  tft.setTextColor(COL_TEXT, COL_BG);  tft.setCursor(6, ly + 12);
-  tft.printf("Pk %.2fV C %.2f/%.2f/%.2f/%.2f/%.2f", bat.packVoltage,
-             bat.cell[0], bat.cell[1], bat.cell[2], bat.cell[3], bat.cell[4]);
-  tft.setCursor(6, ly + 24);
-  // Raw D6 fault markers (0x58D/0x309), shown for research only - not interpreted as a fault
-  // (D24: 0x0B/0x4x is the healthy BL1850B constant, not a latch).
-  tft.printf("T %.0f/%.0f  faultMk %02X/%02X", bat.tempCell, bat.tempMosfet, bat.faultMkA, bat.faultMkB);
-  uint8_t causes = lockCauses(bat.msg);
-  char cb[24]; lockCausesText(causes, cb, sizeof(cb));
-  tft.setTextColor(COL_MUTED, COL_BG); tft.setCursor(6, ly + 40); tft.print("Lock/CS: ");
-  tft.setTextColor(causes ? COL_RED : COL_GREEN, COL_BG); tft.print(cb);
-  // Raw status byte 19: checksum-covered but not interpreted by any known tool.
-  // Shown here for the curious only; never used as a verdict.
-  tft.setTextColor(COL_MUTED, COL_BG); tft.setCursor(6, ly + 52);
-  tft.printf("b19 raw: 0x%02X (undecoded)", bat.errorCode);
+  snprintf(b, sizeof(b), "%.2f V", bat.packVoltage);                                   monoKv(kx, y, vx, "PACK", b); y += dy;
+  snprintf(b, sizeof(b), "%.2f %.2f %.2f %.2f %.2f", bat.cell[0], bat.cell[1], bat.cell[2], bat.cell[3], bat.cell[4]);
+  monoKv(kx, y, vx, "CELLS", b); y += dy;
+  snprintf(b, sizeof(b), "%.0f / %.0f C", bat.tempCell, bat.tempMosfet);              monoKv(kx, y, vx, "TEMP", b); y += dy;
+  // Raw D6 fault markers (0x58D/0x309), research only, not interpreted (D24).
+  snprintf(b, sizeof(b), "%02X/%02X", bat.faultMkA, bat.faultMkB);                      monoKv(kx, y, vx, "FAULTMK", b); y += dy;
+  lockCausesText(lockCauses(bat.msg), b, sizeof(b));                                   monoKv(kx, y, vx, "LOCK/CS", b); y += dy;
+  // Raw status byte 19: checksum-covered but not interpreted by any known tool; never a verdict.
+  snprintf(b, sizeof(b), "0x%02X (undecoded)", bat.errorCode);                          monoKv(kx, y, vx, "B19 RAW", b);
+  footer(S_H_CLICK_BACK);
 }
+
+// ---------- Comm error ----------
+// The pack did not answer: attention (yellow), not a fault (red is reserved for a real pack fault),
+// then what actually fixes it on the bench.
 void drawCommError() {
-  drawHeader(tr(S_COMM_ERROR_HDR));
-  int y = HEADER_H + 12;
-  tft.setTextSize(2);
-  tft.setTextColor(COL_TEXT, COL_BG);
-  tft.setCursor(6, y);          tft.print(tr(S_NO_RESPONSE));
-  tft.setTextColor(COL_MUTED, COL_BG);
-  tft.setCursor(6, y + 30);     tft.print(tr(S_CHECK_DATA));
-  tft.setCursor(6, y + 52);     tft.print(tr(S_CHECK_PULLUPS));
-  tft.setCursor(6, 220);        tft.print(tr(S_HINT_CLICK_BACK_P));
+  header(tr(S_HDR_COMM_ERROR));
+  statusCardText(CONTENT_Y, tr(S_W_NO_RESPONSE), COL_YELLOW, tr(S_SUB_NO_ANSWER));
+  const char *steps[3] = { tr(S_STEP_DATA), tr(S_STEP_PULLUPS), tr(S_STEP_RESEAT) };   // one complete check each
+  stepListCard(CONTENT_Y + STATUS_H + CARD_GAP, CONTENT_H - STATUS_H - CARD_GAP, tr(S_LBL_TRY), steps, 3);
+  footer(S_H_CLICK_BACK);
 }
+
 // ---- About easter egg ----
 const char* const ABOUT_EGG[] = {
   "Kickstart detected. Childhood memories loading...",
@@ -403,634 +638,246 @@ const char* const ABOUT_EGG[] = {
 };
 const int ABOUT_EGG_N = sizeof(ABOUT_EGG) / sizeof(ABOUT_EGG[0]);
 // Draw a string word-wrapped and horizontally centered, classic font, from row y down.
+// Classic font, word-wrapped and centred from row y. UTF-8 safe (shared helper,
+// D41): the line grows one character at a time, measured with txtW(), and breaks at the last space
+// that fits or, for text with no space (Japanese), at the last whole character. Never cuts one.
 void drawWrapCentered(const char* s, int y, uint16_t col, uint8_t size) {
-  tft.setTextSize(size); tft.setTextColor(col, COL_BG);
-  const int cw = 6 * size, ch = 8 * size, maxc = 320 / cw - 1;
+  tft.setFont(NULL); tft.setTextSize(size); tft.setTextColor(col, COL_BG);
+  const int maxPx = SCREEN_W - 6 * size, ch = 8 * size;   // = the old "SCREEN_W / cw - 1" characters
+  char line[60];
   int n = strlen(s), i = 0;
-  char line[52];
   while (i < n) {
-    int take = (n - i > maxc) ? maxc : (n - i);
-    if (i + take < n) {                       // break at the last space that fits
-      int br = take; while (br > 0 && s[i + br] != ' ') br--;
-      if (br > 0) take = br;
+    int take = 0, lastSpace = -1, w = 0;
+    while (i + take < n) {                       // grow the line one character at a time
+      int cl = 1;
+#if ENABLE_CJK
+      cl = cjkCharLen(s + i + take);
+#endif
+      char one[5]; memcpy(one, s + i + take, cl); one[cl] = 0;
+      int cw = txtW(one, size);
+      if (w + cw > maxPx || take + cl > (int)sizeof(line) - 1) break;
+      if (cl == 1 && s[i + take] == ' ') lastSpace = take;
+      w += cw; take += cl;
     }
-    int len = take < 51 ? take : 51;
-    memcpy(line, s + i, len); line[len] = 0;
-    int px = (320 - (int)strlen(line) * cw) / 2; if (px < 0) px = 0;
+    if (take == 0) take = 1;                     // pathological: always make progress
+    if (i + take < n && s[i + take] != ' ' && lastSpace > 0) take = lastSpace;   // break at the last space that fits (a full line followed by a space breaks there)
+    memcpy(line, s + i, take); line[take] = 0;
+    int px = (SCREEN_W - txtW(line, size)) / 2; if (px < 0) px = 0;
     tft.setCursor(px, y); tft.print(line);
-    y += ch + 4; i += take;
+    y += ch + SP_1; i += take;
     while (i < n && s[i] == ' ') i++;          // eat the break space
   }
 }
-// Mock Amiga "Guru Meditation": black screen, blinking red border, red text.
+// Mock Amiga "Guru Meditation": black screen, blinking red border, red text. Deliberately outside the
+// design system (a joke screen): its own black and red, centred on the panel.
 void drawGuruCrash() {
   const uint16_t BLACK = 0x0000;
+  const int bx = SP_4, by = (SCREEN_H - 118) / 2 - SP_4, bw = SCREEN_W - 2 * SP_4, bh = 118;
   if (!aboutCrashDrawn) {                       // blink only on entry, not on every extra turn
     for (int k = 0; k < 4; k++) {
       tft.fillScreen(BLACK);
       uint16_t bc = (k & 1) ? BLACK : COL_RED;
-      for (int t = 0; t < 4; t++) tft.drawRect(16 + t, 60 + t, 288 - 2 * t, 118 - 2 * t, bc);
+      for (int t = 0; t < 4; t++) tft.drawRect(bx + t, by + t, bw - 2 * t, bh - 2 * t, bc);
       delay(220);
     }
     aboutCrashDrawn = true;
   }
   tft.fillScreen(BLACK);
-  for (int t = 0; t < 4; t++) tft.drawRect(16 + t, 60 + t, 288 - 2 * t, 118 - 2 * t, COL_RED);
-  tft.setTextSize(2); tft.setTextColor(COL_RED, BLACK);
+  for (int t = 0; t < 4; t++) tft.drawRect(bx + t, by + t, bw - 2 * t, bh - 2 * t, COL_RED);
+  tft.setFont(NULL); tft.setTextSize(2); tft.setTextColor(COL_RED, BLACK);
   const char* l1 = "Software Failure.";
   const char* l2 = "Click to continue.";
-  tft.setCursor((320 - (int)strlen(l1) * 12) / 2, 80);  tft.print(l1);
-  tft.setCursor((320 - (int)strlen(l2) * 12) / 2, 104); tft.print(l2);
+  tft.setCursor((SCREEN_W - (int)strlen(l1) * 12) / 2, by + 20);  tft.print(l1);
+  tft.setCursor((SCREEN_W - (int)strlen(l2) * 12) / 2, by + 44); tft.print(l2);
   tft.setTextSize(1);
   const char* l3 = "Guru Meditation #00000003.00C0FFEE";
-  tft.setCursor((320 - (int)strlen(l3) * 6) / 2, 134); tft.print(l3);
+  tft.setCursor((SCREEN_W - (int)strlen(l3) * 6) / 2, by + 74); tft.print(l3);
 }
+// About: logo box + wordmark + gamme line, version / maker line, tagline, divider, then the credits and
+// the QR code (shared About composition and coordinates; the Makita gammes carry the
+// Open Battery Information credit, D27). English on purpose (D33).
 void drawAbout() {
   if (aboutEgg > ABOUT_EGG_N) { drawGuruCrash(); return; }   // one turn past the last line
-  drawHeader(tr(S_ABOUT));
-  // Logo mark on the LEFT, name to its RIGHT (side by side). The old stacked layout
-  // (centered box above a centered name) clipped the top of "PocketOBI"; keeping the
-  // logo hard-left and the name in the space to its right removes the overlap.
-  tft.fillRoundRect(10, 33, 56, 56, 10, RGB565(0x12, 0x30, 0x39));
-  tft.drawRoundRect(10, 33, 56, 56, 10, COL_ACCENT);
-  tft.drawBitmap(14, 37, LOGO_PO, LOGO_W, LOGO_H, COL_ORANGE);
-  // Name: Pocket (teal) + OBI (orange), smooth GFX, centered in the space right of the logo.
-  tft.setFont(&FreeSansBold18pt7b); tft.setTextSize(1);
-  int16_t bx, by; uint16_t w1, w2, hh;
-  tft.getTextBounds("Pocket", 0, 0, &bx, &by, &w1, &hh);
-  tft.getTextBounds("OBI", 0, 0, &bx, &by, &w2, &hh);
-  int nameW = (int)(w1 + w2 + 8);
-  int sx = 76 + ((320 - 76) - nameW) / 2;   // centered in the region to the right of the logo
-  int ny = 30 + (56 + (int)hh) / 2;         // baseline vertically centers the name on the logo box
-  tft.setTextColor(COL_ACCENT); tft.setCursor(sx, ny); tft.print("Pocket");
-  tft.setTextColor(COL_ORANGE); tft.setCursor(sx + w1 + 8, ny); tft.print("OBI");
-  tft.setFont(NULL);
-  tft.setTextSize(1);
-  const char* vl  = "v" FW_VERSION "   -   The Repair Forge";
-  tft.setTextColor(COL_MUTED, COL_BG); tft.setCursor((320 - (int)strlen(vl) * 6) / 2, 112); tft.print(vl);
-
+  header(tr(S_ABOUT));
+  const int bx0 = 10, by0 = CONTENT_Y;
+  drawLogoBox(bx0, by0, LOGO_PO, LOGO_W, LOGO_H);
+  const int rx0 = bx0 + LOGO_BOX + 10, rcx = rx0 + (SCREEN_W - rx0) / 2;
+  drawWordmark(rcx, by0 + 30);
+  gfxCenter(FONT_LEVEL3, rcx, by0 + 50, "Makita LXT", COL_TEXT);
+  const char *vl = "v" FW_VERSION "   -   The Repair Forge";
+  drawCaption((SCREEN_W - (int)strlen(vl) * 6) / 2, 106, vl, COL_MUTED);
+  const char *tag = ". No Guru Meditation required .";
+  drawCaption((SCREEN_W - (int)strlen(tag) * 6) / 2, 120, tag, COL_ACCENT);
+  const int dy = 136;                                                   // divider
+  tft.drawFastHLine(bx0, dy, SCREEN_W - 2 * bx0, COL_BORDER);
   if (aboutEgg == 0) {
-    const char* tag = ". No Guru Meditation required .";
-    tft.setTextColor(COL_ACCENT, COL_BG); tft.setCursor((320 - (int)strlen(tag) * 6) / 2, 126); tft.print(tag);
-    tft.drawFastHLine(10, 142, 300, COL_PANEL);
-    // Credits (left column) + QR code (right).
-    tft.setTextColor(COL_MUTED, COL_BG);
-    tft.setCursor(8, 154); tft.print("Based on Open Battery Info (MIT)");
-    tft.setCursor(8, 168); tft.print("Facts: rosvall, drakosha");
-    tft.setCursor(8, 182); tft.print("PolyForm Noncommercial 1.0.0");
-    tft.setTextColor(COL_ACCENT, COL_BG);
-    tft.setCursor(8, 200); tft.print("github.com/TheRepairforge");
-    tft.setCursor(8, 212); tft.print("/PocketOBI");
-    int qx = 244, qy = 150;
-    tft.fillRect(qx - 3, qy - 3, QR_PX + 6, QR_PX + 6, 0xFFFF);   // white quiet zone
-    tft.drawBitmap(qx, qy, QR_URL, QR_PX, QR_PX, 0x0000);         // black modules
-    tft.setTextColor(COL_MUTED, COL_BG);
-    tft.setCursor(qx + 18, qy + QR_PX + 6); tft.print(tr(S_SCAN));
-    tft.setCursor(8, 228); tft.print(tr(S_HINT_CLICK_BACK));
+    // Credits (left column, 12 px pitch) + QR code (right). The link is muted: no accent on small text.
+    const int line = FONT_LEVEL4_LINE_H + SP_1;
+    int cy = dy + SP_2;
+    cardLabel(SP_2, cy, "Based on");                                       cy += line;
+    drawCaption(SP_2, cy, "Open Battery Information (MIT)", COL_TEXT);     cy += line;
+    drawCaption(SP_2, cy, "Facts: rosvall, drakosha", COL_MUTED);          cy += line;
+    drawCaption(SP_2, cy, "PolyForm Noncommercial 1.0.0", COL_MUTED);      cy += line;
+    drawCaption(SP_2, cy, "github.com/TheRepairforge", COL_MUTED);         cy += line;
+    drawCaption(SP_2, cy, "/PocketOBI", COL_MUTED);
+    qrBlock(SCREEN_W - QR_PX - SP_6 - SP_2, dy + SP_2, QR_URL, QR_PX, tr(S_SCAN));
+#if BOARD_HAS_TOUCH
+    footer(S_H_BACK_MENU);
+#else
+    footer(S_H_CLICK_BACK);
+#endif
   } else {
     // Easter egg engaged: a big retro one-liner where the credits usually sit.
-    drawWrapCentered(ABOUT_EGG[aboutEgg - 1], 148, COL_CYAN, 2);
-    tft.setTextSize(1); tft.setTextColor(COL_MUTED, COL_BG);
+    drawWrapCentered(ABOUT_EGG[aboutEgg - 1], dy + SP_3, COL_CYAN, 2);
 #if BOARD_HAS_TOUCH
-    const char* h = "keep tapping...";
+    drawFooterHint("keep tapping...");
 #else
-    const char* h = "keep turning...";
+    drawFooterHint("keep turning...");
 #endif
-    tft.setCursor((320 - (int)strlen(h) * 6) / 2, 226); tft.print(h);
   }
 }
+
+// ---------- PC bridge ----------
 void drawPcBridge() {
-  drawHeader("PC BRIDGE");
-  tft.setTextSize(3);
-  tft.setTextColor(COL_ACCENT, COL_BG);
-  tft.setCursor(30, 60);
-  tft.print(tr(S_PC_MODE));
-  // Live status line (cleared each redraw so ACTIVE <-> INACTIVE swaps cleanly).
-  tft.fillRect(0, 100, 320, 26, COL_BG);
-  uint16_t sc = bridgeActive ? COL_GREEN : COL_MUTED;
-  tft.fillCircle(14, 114, 6, sc);
-  tft.setTextSize(2); tft.setTextColor(sc, COL_BG);
-  tft.setCursor(28, 108);  tft.print(bridgeActive ? tr(S_BRIDGE_ACTIVE) : tr(S_BRIDGE_INACTIVE));
-  tft.setTextColor(COL_MUTED, COL_BG);
-  tft.setTextSize(1);
-  tft.setCursor(6, 138);  tft.print(tr(S_PC_HELP1));
-  tft.setCursor(6, 150);  tft.print(tr(S_PC_HELP2));
-  tft.setCursor(6, 162);  tft.print(tr(S_PC_HELP3));
-  tft.setCursor(6, 220);  tft.print(tr(S_HINT_TURN_TOGGLE_EXIT));
+  header(tr(S_PC_BRIDGE));
+  statusCardText(CONTENT_Y, bridgeActive ? tr(S_W_ACTIVE) : tr(S_W_OFF), bridgeActive ? COL_GREEN : COL_MUTED,
+                 bridgeActive ? tr(S_SUB_BRIDGE_ON) : tr(S_SUB_BRIDGE_OFF));
+  // How to (the shared card), then the boot setting it depends on.
+  int y = CONTENT_Y + STATUS_H + CARD_GAP;
+  drawInfoCard(y, 50, iconBridge, tr(S_LBL_HOWTO), "Open Battery Information", tr(S_HOWTO_CAP));   // 100..150
+  y += 50 + CARD_GAP;
+  drawField(GUTTER, y, CONTENT_W, FIELD_H, iconSettings, tr(S_BRIDGE_BOOT), cfgBridgeBoot ? "ON" : "OFF");
+  footer(S_H_TURN_TOGGLE, S_COUNT, S_H_BACK_TOOLS);
 }
-// Boot splash: name in big two-tone letters, "Pocket" (teal) + "OBI" (orange).
+
+// Boot splash: logo, wordmark, gamme line, version, maker (shared splash composition).
 void drawSplash() {
   tft.fillScreen(COL_BG);
-  tft.drawBitmap((320 - LOGO_W) / 2, 26, LOGO_PO, LOGO_W, LOGO_H, COL_ORANGE);
-  tft.setFont(&FreeSansBold18pt7b); tft.setTextSize(1);
-  int16_t bx, by; uint16_t w1, w2, hh;
-  tft.getTextBounds("Pocket", 0, 0, &bx, &by, &w1, &hh);
-  tft.getTextBounds("OBI", 0, 0, &bx, &by, &w2, &hh);
-  int sx = (320 - (int)(w1 + w2 + 8)) / 2;
-  tft.setTextColor(COL_ACCENT); tft.setCursor(sx, 128); tft.print("Pocket");
-  tft.setTextColor(COL_ORANGE); tft.setCursor(sx + w1 + 8, 128); tft.print("OBI");
-  tft.setFont(NULL);
-  gfxCenter(&FreeSansBold9pt7b, 160, 162, "standalone OBI client", COL_MUTED);
+  tft.drawBitmap((SCREEN_W - LOGO_W) / 2, 20, LOGO_PO, LOGO_W, LOGO_H, COL_ORANGE);
+  drawWordmark(SCREEN_W / 2, 116);
+  gfxCenter(FONT_LEVEL3, SCREEN_W / 2, 146, "Makita LXT", COL_TEXT);
   char v[24]; snprintf(v, sizeof(v), "v%s", FW_VERSION);
-  gfxCenter(&FreeSansBold9pt7b, 160, 192, v, COL_MUTED);
+  gfxCenter(FONT_LEVEL3, SCREEN_W / 2, 168, v, COL_MUTED);
+  gfxCenter(FONT_LEVEL3, SCREEN_W / 2, 190, "The Repair Forge", COL_ORANGE);
 }
-// Brief centered confirmation banner (blocking ~0.9s), then forces a redraw.
-void toast(const char* msg, uint16_t col) {
-  int w = txtW(msg, 2);
-  tft.fillRect(30, 96, 260, 48, col);
-  tft.drawRect(30, 96, 260, 48, COL_BG);
-  tft.setTextSize(2); tft.setTextColor(COL_BG, col);
-  tft.setCursor((320 - w) / 2, 112); tft.print(msg);
-  delay(900);
-  lastRenderedState = -1;  // force a full redraw on the next render()
+
+// ---------- Tools / Settings lists ----------
+// Rows are drawn one at a time (same reason as the launcher tiles): a cursor move repaints two rows.
+// The shared row (icon at +22, label at +44, value pill on the right), LIST_ROW_H tall so
+// every row is a CYD tap target (D46 rule 4).
+static void listRowChrome(int y, bool sel, IconFn icon, const char *label) {
+  drawListRow(GUTTER, y, CONTENT_W, LIST_ROW_H, sel);
+  icon(GUTTER + 22, y + LIST_ROW_H / 2, sel ? COL_TEXT : COL_ACCENT, ICON_SCALE_HEADER);
+  gfxText(FONT_LEVEL3, GUTTER + 44, y + 26, label, sel ? COL_HEAD : COL_TEXT);
 }
-// key/value row (size 2, value right-aligned) using the shared _ry cursor.
-// smooth-font helpers (labels/chrome). Classic font stays for data/values.
-// NOTE: GFX custom fonts are scaled by textSize in Adafruit_GFX. Callers often
-// leave textSize at 2 (for classic values), which would DOUBLE the smooth font.
-// Always force textSize(1) so a GFX label renders at its true point size.
-// In the JA build the print draws Japanese itself (PocketTFT); only the width differs,
-// because getTextBounds() does not know the bitmap glyphs.
-int gfxText(const GFXfont* f, int x, int baseY, const char* s, uint16_t col) {
-#if ENABLE_CJK
-  if (cjkHasWide(s)) {
-    tft.setFont(f); tft.setTextSize(1); tft.setTextColor(col);
-    tft.setCursor(x, baseY); tft.print(s); tft.setFont(NULL);
-    return cjkWidth(f, s);
-  }
-#endif
-  tft.setFont(f); tft.setTextSize(1); tft.setTextColor(col);
-  int16_t x1, y1; uint16_t w, h; tft.getTextBounds(s, 0, baseY, &x1, &y1, &w, &h);
-  tft.setCursor(x, baseY); tft.print(s); tft.setFont(NULL);
-  return w;
+static void rowBadge(int y, const char *v, uint16_t fill, uint16_t text) {
+  drawBadge(SCREEN_W - 2 * SP_3 - badgeWidth(v), y + (LIST_ROW_H - BADGE_H) / 2, v, fill, text);
 }
-void gfxCenter(const GFXfont* f, int cx, int baseY, const char* s, uint16_t col) {
-#if ENABLE_CJK
-  if (cjkHasWide(s)) { gfxText(f, cx - cjkWidth(f, s) / 2, baseY, s, col); return; }
-#endif
-  tft.setFont(f); tft.setTextSize(1); tft.setTextColor(col);
-  int16_t x1, y1; uint16_t w, h; tft.getTextBounds(s, 0, baseY, &x1, &y1, &w, &h);
-  tft.setCursor(cx - w / 2, baseY); tft.print(s); tft.setFont(NULL);
+// Tools: two pages of three (D46 Q2). Page 1 = the device tools, the shared Tools rows;
+// page 2 = the actions that send a command to the pack, each with a WRITE pill. toolIndex is the
+// position on screen; toolAt() maps it to the tool (activate() order, S_PC_BRIDGE + id).
+static const int TOOL_ORDER[6] = { 0, 4, 5, 1, 2, 3 };   // bridge, debug, settings | LEDs on, LEDs off, reset
+static const int TOOLS_PER_PAGE = 3;
+int toolAt(int pos) { return TOOL_ORDER[pos]; }
+static int toolPage() { return toolIndex / TOOLS_PER_PAGE; }
+static void drawToolRow(int pos) {
+  static const IconFn icons[6] = { iconBridge, iconSun, iconSunOff, iconRefresh, iconCode, iconSettings };
+  const int id = TOOL_ORDER[pos], y = CONTENT_Y + (pos % TOOLS_PER_PAGE) * LIST_ROW_PITCH;
+  listRowChrome(y, toolIndex == pos, icons[id], tr((StrId)(S_PC_BRIDGE + id)));
+  if (id >= 1 && id <= 3) rowBadge(y, tr(S_BADGE_WRITE), COL_ORANGE, COL_BG);   // test mode + LED/reset command
 }
-// Pixel width gfxText() would draw s at (for centering a label next to an icon).
-int gfxWidth(const GFXfont* f, const char* s) {
-#if ENABLE_CJK
-  if (cjkHasWide(s)) return cjkWidth(f, s);
-#endif
-  tft.setFont(f); tft.setTextSize(1);
-  int16_t x1, y1; uint16_t w, h; tft.getTextBounds(s, 0, 0, &x1, &y1, &w, &h);
-  tft.setFont(NULL);
-  return w;
-}
-// Dense-row label (topY = value top of the row).
-// Returns the label pixel width so inline layouts can place the value after it.
-int rowLabel(int x, int topY, const char* s) {
-  // baseline at topY+13 aligns the label's bottom with the classic size-2 value's bottom
-  return gfxText(&FreeSansBold9pt7b, x, topY + 13, s, COL_MUTED);
-}
-// key/value row: label (A/B font) + value in the classic font, right-aligned.
-void kvRow(const char* k, const char* val, uint16_t col) {
-  rowLabel(6, _ry, k);
-  tft.setTextSize(2);
-  int vw = txtW(val, 2);
-  tft.setTextColor(col, COL_BG); tft.setCursor(314 - vw, _ry); tft.print(val);
-  _ry += 24;
-}
-// Draw a proper "degree + C" at the current text cursor (avoids the broken font glyph).
-void degC(uint16_t col) {
-  int x = tft.getCursorX(), y = tft.getCursorY();
-  tft.drawCircle(x + 3, y + 2, 2, col);
-  tft.setTextColor(col, COL_BG); tft.setCursor(x + 8, y); tft.print("C");
-}
-// Small page-position dots at the top-right of the header (e.g. Battery 3 pages).
-void drawPageDots(int active, int count) {
-  int dw = 8, gap = 5, tot = count * dw + (count - 1) * gap;
-  int x0 = 320 - tot - 8, y = (HEADER_H - dw) / 2;
-  for (int i = 0; i < count; i++)
-    tft.fillRoundRect(x0 + i * (dw + gap), y, dw, dw, 2,
-                      i == active ? COL_BG : RGB565(0x0A, 0x4A, 0x52));
-}
-// Colored verdict banner across the bottom, with a status icon (dark on the color):
-// HEALTHY = check in a circle, REPAIRABLE = warning triangle "!", REAL FAULT = X in a circle.
-void drawVerdictBanner(Verdict v) {
-  uint16_t c = verdictColor(v);
-  tft.fillRect(0, 208, 320, 32, c);
-  const char* t = verdictText(v);
-  int bw = gfxWidth(&FreeSansBold9pt7b, t);
-  bool hasIcon = (v == V_HEALTHY || v == V_REPAIRABLE || v == V_SUSPECT || v == V_FAULT);
-  int iconW = hasIcon ? 24 : 0, gap = hasIcon ? 10 : 0;
-  int sx = (320 - (iconW + gap + bw)) / 2;
-  int yc = 224, r = 10, cx = sx + 11;
-  uint16_t fg = COL_BG;
-  if (v == V_HEALTHY) {                                  // check in a circle
-    tft.drawCircle(cx, yc, r, fg); tft.drawCircle(cx, yc, r - 1, fg);
-    tft.drawLine(cx - 5, yc,     cx - 1, yc + 5, fg); tft.drawLine(cx - 1, yc + 5, cx + 6, yc - 5, fg);
-    tft.drawLine(cx - 5, yc + 1, cx - 1, yc + 6, fg); tft.drawLine(cx - 1, yc + 6, cx + 6, yc - 4, fg);
-  } else if (v == V_FAULT) {                             // X in a circle
-    tft.drawCircle(cx, yc, r, fg); tft.drawCircle(cx, yc, r - 1, fg);
-    tft.drawLine(cx - 4, yc - 4, cx + 4, yc + 4, fg); tft.drawLine(cx - 4, yc + 4, cx + 4, yc - 4, fg);
-    tft.drawLine(cx - 5, yc - 4, cx + 3, yc + 4, fg); tft.drawLine(cx - 5, yc + 4, cx + 3, yc - 4, fg);
-  } else if (v == V_REPAIRABLE || v == V_SUSPECT) {      // warning triangle with "!"
-    tft.drawTriangle(cx, yc - 9, cx - 10, yc + 8, cx + 10, yc + 8, fg);
-    tft.drawTriangle(cx, yc - 8, cx - 9,  yc + 7, cx + 9,  yc + 7, fg);
-    tft.fillRect(cx - 1, yc - 3, 3, 6, fg); tft.fillRect(cx - 1, yc + 4, 3, 3, fg);
-  }
-  gfxText(&FreeSansBold9pt7b, sx + iconW + gap, 228, t, COL_BG);
-}
-// ---- Launcher (2x2 big tiles) ----
-// Selection is the ONLY border treatment (thick cyan + lit bg) so it's unambiguous;
-// the Battery tile's verdict is shown by its icon + info-text color, not a border ring.
-void drawTile(int x, int y, int w, int h, bool sel) {
-  tft.fillRoundRect(x, y, w, h, 8, sel ? RGB565(0x12, 0x30, 0x39) : COL_PANEL);
-  tft.drawRoundRect(x, y, w, h, 8, sel ? COL_ACCENT : RGB565(0x26, 0x30, 0x40));
-  if (sel)  tft.drawRoundRect(x + 1, y + 1, w - 2, h - 2, 7, COL_ACCENT); // 2px cyan
-}
-void drawLauncher() {
-  drawHeader("PocketOBI");
-  Verdict v = computeVerdict();
-  const int gap = 8, top = HEADER_H + 8;
-  int tw = (320 - gap * 3) / 2;
-  int th = (240 - top - gap * 2) / 2;
-  int xs[2] = { gap, gap * 2 + tw };
-  int ys[2] = { top, top + th + gap };
-  for (int i = 0; i < 4; i++) {
-    int x = xs[i % 2], y = ys[i / 2];
-    bool sel = (launcherIndex == i);
-    drawTile(x, y, tw, th, sel);
-    int cx = x + tw / 2;
-    const uint8_t* ic = (i == 0) ? ICON_BATTERY : (i == 1) ? ICON_REPAIR
-                       : (i == 2) ? ICON_TOOLS  : ICON_INFO;
-    uint16_t icc = (i == 0) ? (bat.valid ? verdictColor(v) : COL_MUTED)
-                 : (i == 1) ? COL_ORANGE : (i == 2) ? COL_ACCENT : COL_CYAN;
-    // Icons and labels align across all tiles; the Battery tile adds a V+verdict line between them.
-    tft.drawBitmap(cx - ICON_W / 2, y + 14, ic, ICON_W, ICON_H, icc);
-    if (i == 0) {                               // Battery: V + verdict under the icon (verdict color)
-      char ms[48];
-      if (bat.valid) { snprintf(ms, sizeof(ms), "%.1fV %s", bat.packVoltage, verdictText(v));
-                       tft.setTextColor(verdictColor(v)); }
-      else           { strcpy(ms, "no pack"); tft.setTextColor(COL_MUTED); }
-      tft.setTextSize(1);
-      // centered in the gap between the icon's visible bottom (~y+48) and the label (~y+70)
-      tft.setCursor(cx - txtW(ms, 1) / 2, y + 55); tft.print(ms);
-    }
-    gfxCenter(&FreeSansBold9pt7b, cx, y + 82, tr((StrId)(S_BATTERY + i)), sel ? COL_HEAD : COL_TEXT);
+// The page body: 3 rows (each erases its own rectangle), the legend band, the page dots. Used by
+// drawTools() and by a page change, which repaints only this (never the whole screen: no flash).
+static void drawToolsPage() {
+  drawPageDots(toolPage(), 2);
+  const int first = toolPage() * TOOLS_PER_PAGE, ly = CONTENT_Y + TOOLS_PER_PAGE * LIST_ROW_PITCH;
+  tft.fillRect(0, ly, SCREEN_W, SCREEN_H - FOOTER_H - ly, COL_BG);       // legend band (empty on page 1)
+  for (int p = first; p < first + TOOLS_PER_PAGE && p < toolCount; p++) drawToolRow(p);
+  if (toolPage() == 1) {                                  // legend for the pill
+    const char *w = tr(S_BADGE_WRITE);
+    drawBadge(GUTTER, ly + SP_2, w, COL_ORANGE, COL_BG);
+    drawCaption(GUTTER + badgeWidth(w) + SP_2, ly + SP_2 + 3 - wideDy(2), tr(S_WRITE_LEGEND), COL_MUTED);
   }
 }
-// ---- Battery : Health page ----
-void drawBatteryHealth() {
-  drawHeader(tr(S_HDR_HEALTH));
-  drawPageDots(1, 3);
-  int y = HEADER_H + 8;
-  char buf[24];
-  uint8_t soh = bat.healthEstPct;
-  uint16_t cc = soh >= 80 ? COL_GREEN : (soh >= 50 ? COL_YELLOW : COL_RED);
-  tft.setTextSize(2);
-  tft.setTextColor(COL_TEXT, COL_BG); tft.setCursor(6, y); tft.print(tr(S_CONDITION));
-  snprintf(buf, sizeof(buf), "%u%%", soh);
-  int vw = strlen(buf) * 12;
-  tft.setTextColor(cc, COL_BG); tft.setCursor(314 - vw, y); tft.print(buf);
-  tft.drawRect(6, y + 22, 308, 14, COL_PANEL);
-  int fw = (304 * (soh > 100 ? 100 : soh)) / 100;
-  tft.fillRect(8, y + 24, fw, 10, cc);
-
-  // "Condition" is OUR OWN cycle-based estimate, not the BMS's SOH gauge. The raw
-  // charge level (D4 0x150 / SOC) is exposed alongside it as a diagnostic value.
-  tft.setTextSize(1); tft.setTextColor(COL_MUTED, COL_BG);
-  tft.setCursor(6, y + 38);
-  if (bat.extValid) tft.printf("est. from cycles  -  SOC raw %u", bat.socRaw);
-  else              tft.print("est. from cycles");
-
-  float mn = 9, mx = 0;
-  for (int i = 0; i < cellCount; i++) { if (bat.cell[i] > 0.1f && bat.cell[i] < mn) mn = bat.cell[i];
-                                if (bat.cell[i] > mx) mx = bat.cell[i]; }
-  _ry = y + 54;
-  // Wear counters (D4): RAW count is the primary figure; the "% of cycles" is SECONDARY
-  // (unproven) so it is shown only in parentheses. Never presented as a saturated fact.
-  // Extended wear data lives on the CC-addressed D4 path; when that is unavailable (old
-  // packs readable only via the AA frame + F0513 cells) show "-" rather than a false "none".
-  if (!bat.extValid) strcpy(buf, "-");
-  else if (bat.odEventCount == 0) strcpy(buf, tr(S_NONE));
-  else snprintf(buf, sizeof(buf), "%u (%u%%)", bat.odEventCount, bat.odWearPct);
-  kvRow(tr(S_OVERDISCHARGE), buf, !bat.extValid ? COL_MUTED : (bat.odEventCount ? COL_TEXT : COL_GREEN));
-  if (!bat.extValid) strcpy(buf, "-");
-  else if (bat.olEventCount == 0) strcpy(buf, tr(S_NONE));
-  else snprintf(buf, sizeof(buf), "%u (%u%%)", bat.olEventCount, bat.olWearPct);
-  kvRow(tr(S_OVERLOAD), buf, !bat.extValid ? COL_MUTED : (bat.olEventCount ? COL_TEXT : COL_GREEN));
-  snprintf(buf, sizeof(buf), "%.2f-%.2fV", mn, mx);
-  kvRow(tr(S_CELLS), buf, bat.cellDiff > DIFF_BAD ? COL_RED : COL_GREEN);
-  { uint16_t tc = thermistorFault() ? COL_RED : (thermistorSuspect() ? COL_ORANGE : COL_GREEN);
-    rowLabel(6, _ry, tr(S_TEMP_CB));                       // "Cell/Board": value order = cell then board
-    char tb[16];
-    if (bat.boardTempValid) snprintf(tb, sizeof(tb), "%.0f/%.0f", bat.tempCell, bat.tempMosfet);
-    else                    snprintf(tb, sizeof(tb), "%.0f", bat.tempCell);   // single sensor
-    tft.setTextSize(2);
-    int vw = strlen(tb) * 12 + 18;
-    tft.setTextColor(tc, COL_BG); tft.setCursor(300 - vw, _ry); tft.print(tb); degC(tc);
-    _ry += 24; }
-  if (!bat.extValid) kvRow(tr(S_LATCHED), "-", COL_MUTED);   // markers on the D4/D6 path
-  else kvRow(tr(S_LATCHED), bat.latchedFault ? tr(S_YES) : tr(S_NONE), bat.latchedFault ? COL_ORANGE : COL_GREEN);
-  drawVerdictBanner(computeVerdict());
-}
-// Format a pack date (produced / assembled). Valid only if month 1..12, day 1..31 and a
-// plausible year: this generation can read the ROM/assembly-date bytes back as all-FF
-// (-> 2255-255-255) or leave them unwritten (0). Anything else shows "?".
-void fmtPackDate(char *out, size_t n, uint16_t year, uint8_t m, uint8_t d) {
-  if (m >= 1 && m <= 12 && d >= 1 && d <= 31 && year >= 2005 && year <= 2099)
-    snprintf(out, n, "%04u-%02u-%02u", year, m, d);
-  else { strncpy(out, "?", n); out[n - 1] = 0; }
-}
-// ---- Battery : Identity page ----
-void drawBatteryIdentity() {
-  drawHeader(tr(S_HDR_IDENTITY));
-  drawPageDots(2, 3);
-  char sn[20], buf[24];
-  formatSerial(sn);
-  _ry = HEADER_H + 8;
-  kvRow(tr(S_MODEL), bat.model, COL_TEXT);
-  kvRow(tr(S_SN), sn, COL_TEXT);
-  snprintf(buf, sizeof(buf), "%.1f Ah", bat.capacityAh); kvRow(tr(S_CAPACITY), buf, COL_TEXT);
-  kvRow(tr(S_TYPE), "LXT 18V", COL_TEXT);
-  fmtPackDate(buf, sizeof(buf), bat.mfgYear, bat.mfgMonth, bat.mfgDay);
-  kvRow(tr(S_PRODUCED), buf, COL_TEXT);
-  fmtPackDate(buf, sizeof(buf), 2000 + bat.asmY, bat.asmM, bat.asmD);
-  kvRow(tr(S_ASSEMBLED), buf, COL_TEXT);
-  snprintf(buf, sizeof(buf), "%u", bat.chargeCount); kvRow(tr(S_NUM_CHARGES), buf, COL_TEXT);
-  tft.setTextSize(1); tft.setTextColor(COL_MUTED, COL_BG);
-  tft.setCursor(6, 228); tft.print(tr(S_DATES_NOTE));
-}
-// ---- Battery : Overview page ----
-void drawBatteryOverview() {
-  drawHeader(bat.valid ? bat.model : tr(S_BATTERY));
-  drawPageDots(0, 3);
-  Verdict v = computeVerdict();
-  int y = HEADER_H + 8;
-  char l[28];
-  float td = bat.tempMosfet > bat.tempCell ? bat.tempMosfet - bat.tempCell : bat.tempCell - bat.tempMosfet;
-  // Board sensor only present on the D7 path (boardTempValid); ignore it otherwise.
-  bool spreadBad = bat.boardTempValid && td > TEMP_SPREAD_BAD;
-  bool tPinned = tempImplausible(bat.tempCell) || (bat.boardTempValid && tempImplausible(bat.tempMosfet));
-  // Pinned sensor = confirmed fault (red); spread-only = empirical suspicion (orange).
-  uint16_t tcol = tPinned ? COL_RED : (spreadBad ? COL_ORANGE : COL_TEXT);
-  int lw2;
-  // "PACK" label + hero voltage (smooth GFX) + classic "V".
-  gfxText(&FreeSansBold9pt7b, 8, y + 12, tr(S_PACK), COL_MUTED);
-  tft.setFont(&FreeSansBold24pt7b); tft.setTextSize(1); tft.setTextColor(COL_TEXT);
-  snprintf(l, sizeof(l), "%.2f", bat.packVoltage);
-  tft.setCursor(6, y + 52); tft.print(l);
-  int vx = tft.getCursorX(); tft.setFont(NULL);
-  tft.setTextSize(2); tft.setTextColor(COL_TEXT, COL_BG); tft.setCursor(vx + 3, y + 36); tft.print("V");
-  // Measures: smooth label + classic value + proper degree.
-  lw2 = rowLabel(6, y + 66, tr(S_TEMP));
-  tft.setTextSize(2); tft.setTextColor(tcol, COL_BG); tft.setCursor(6 + lw2 + 8, y + 66);
-  if (bat.boardTempValid) tft.printf("%.0f/%.0f", bat.tempCell, bat.tempMosfet);
-  else                    tft.printf("%.0f", bat.tempCell);   // single sensor
-  degC(tcol);
-  lw2 = rowLabel(6, y + 92, tr(S_SPREAD));
-  uint16_t scol = spreadBad ? COL_ORANGE : COL_MUTED;
-  tft.setTextSize(2); tft.setTextColor(scol, COL_BG); tft.setCursor(6 + lw2 + 8, y + 92);
-  tft.printf("%.1f", td); degC(scol);
-  lw2 = rowLabel(6, y + 118, tr(S_CHARGES));
-  tft.setTextSize(2); tft.setTextColor(COL_TEXT, COL_BG); tft.setCursor(6 + lw2 + 8, y + 118);
-  tft.printf("%u", bat.chargeCount);
-  // Right column: cell bars (LXT = 5, laid out on a fixed 24px pitch). Bar height =
-  // value font height; value in size-2 with "V" attached; fill mapped 2.5V (empty) ->
-  // 4.2V (full). NOTE: 10 cells (XGT) don't fit this pitch — a compact 2-column layout
-  // is the one real UI rework the XGT episode owns; here we just iterate cellCount.
-  int bx = 158, rowH = 24, bh = 16, barx = 176, barw = 72;
-  float cmn = 9.0f;
-  for (int i = 0; i < cellCount; i++) if (bat.cell[i] > 0.1f && bat.cell[i] < cmn) cmn = bat.cell[i];
-  for (int i = 0; i < cellCount; i++) {
-    int cy = y + i * rowH;
-    tft.setTextSize(1); tft.setTextColor(COL_MUTED, COL_BG);
-    tft.setCursor(bx, cy + 4); tft.printf("C%d", i + 1);
-    tft.drawRect(barx, cy, barw, bh, COL_PANEL);
-    int fw = (int)((bat.cell[i] - 2.5f) / (4.2f - 2.5f) * (barw - 2));
-    if (fw < 0) fw = 0; if (fw > barw - 2) fw = barw - 2;
-    tft.fillRect(barx + 1, cy + 1, fw, bh - 2, cellColor(bat.cell[i], cmn, bat.cellDiff));
-    char cvs[8]; snprintf(cvs, sizeof(cvs), "%.2fV", bat.cell[i]);
-    int vw = strlen(cvs) * 12;
-    tft.setTextSize(2); tft.setTextColor(COL_TEXT, COL_BG);
-    tft.setCursor(316 - vw, cy + 1); tft.print(cvs);
-  }
-  drawVerdictBanner(v);
-}
-// ---- Battery : paged ----
-void drawBatteryPage() {
-  if (batteryPage == 0)      drawBatteryOverview();
-  else if (batteryPage == 1) drawBatteryHealth();
-  else                       drawBatteryIdentity();
-}
-// ---- Repair : diagnose + prediction (wizard step 1) ----
-// Diagnose row (3-state): label + status text + a glyph on the right.
-//   st 0 = ok      -> green check
-//   st 1 = fault   -> red cross
-//   st 2 = suspect -> orange warning triangle "!" (empirical / possible, not confirmed)
-void drawDiagRowSt(const char* k, const char* val, int st) {
-  rowLabel(6, _ry, k);                                   // 9pt label like Battery rows
-  uint16_t col = (st == 0) ? COL_GREEN : (st == 1) ? COL_RED : COL_ORANGE;
-  tft.setTextSize(2);
-  int vw = txtW(val, 2);
-  tft.setTextColor(col, COL_BG); tft.setCursor(272 - vw, _ry); tft.print(val);
-  int ix = 288, yy = _ry;
-  if (st == 0) {
-    tft.drawLine(ix, yy + 8, ix + 5, yy + 14, col); tft.drawLine(ix + 5, yy + 14, ix + 15, yy + 2, col);
-    tft.drawLine(ix, yy + 9, ix + 5, yy + 15, col); tft.drawLine(ix + 5, yy + 15, ix + 15, yy + 3, col);
-  } else if (st == 1) {
-    tft.drawLine(ix, yy + 2, ix + 13, yy + 15, col); tft.drawLine(ix + 13, yy + 2, ix, yy + 15, col);
-    tft.drawLine(ix + 1, yy + 2, ix + 14, yy + 15, col); tft.drawLine(ix + 14, yy + 2, ix + 1, yy + 15, col);
-  } else {                                               // warning triangle with "!"
-    tft.drawTriangle(ix + 7, yy + 1, ix, yy + 15, ix + 14, yy + 15, col);
-    tft.fillRect(ix + 6, yy + 5, 2, 6, col); tft.fillRect(ix + 6, yy + 12, 2, 2, col);
-  }
-  _ry += 26;
-}
-void drawDiagRow(const char* k, const char* val, bool ok) { drawDiagRowSt(k, val, ok ? 0 : 1); }
-// A bottom prognosis banner: fill + centered bold caption (dark on the color). When `hint`
-// is set, a small "HINT" tag is drawn at the left — the whole Repair prognosis is a
-// prediction from reverse-engineered / empirical signals, not a measured guarantee.
-void drawPrognosisBanner(uint16_t bc, const char* bt, bool hint) {
-  tft.fillRect(0, 208, 320, 32, bc);
-  if (hint) {
-    tft.setTextSize(1); tft.setTextColor(bc == COL_MUTED ? COL_TEXT : COL_BG);
-    tft.setCursor(6, 213); tft.print(tr(S_HINT_TAG));
-  }
-  int pbw = gfxWidth(&FreeSansBold9pt7b, bt);
-  gfxText(&FreeSansBold9pt7b, (320 - pbw) / 2, 228, bt, COL_BG);
-}
-// Repair wizard, step 1: staged, feasibility-FIRST diagnosis.
-//  Stage 0 comms -> Stage 1 hardware faults (before lock, they invalidate an unlock)
-//  -> Stage 2 lock + prognosis -> Stage 3 the WHY (from the wear counters).
-// Every finding names the specific group / sensor; Stage 2 is phrased as a prediction.
-void drawWizardDiag() {
-  { char h[16]; snprintf(h, sizeof(h), "%s 1/4", tr(S_REPAIR)); drawHeader(h); }
-  drawPageDots(0, 4);
-  int y = HEADER_H + 8;
-
-  // --- Stage 0: comms ---
-  if (!bat.valid) {
-    tft.setTextSize(2); tft.setTextColor(COL_TEXT, COL_BG);
-    tft.setCursor(6, y);      tft.print(tr(S_CANNOT_DIAG));
-    tft.setTextSize(1); tft.setTextColor(COL_MUTED, COL_BG);
-    tft.setCursor(6, y + 28); tft.print(tr(S_NO_PACK_REPLY1));
-    tft.setCursor(6, y + 40); tft.print(tr(S_NO_PACK_REPLY2));
-    drawPrognosisBanner(COL_MUTED, tr(S_NO_DIAGNOSIS), false);   // a state, not a prediction
-    return;
-  }
-  bool isF0513 = strcmp(bat.commandVersion, "F0513") == 0;
-
-  // --- Stage 1: hardware faults (evaluated before lock) ---
-  int grp = 0; char action[64];
-  HwFault hw = findHardwareFault(&grp, action, sizeof(action));
-
-  // Checklist (the raw signals behind the verdict).
-  uint8_t causes = !isF0513 ? lockCauses(bat.msg) : 0;
-  char cb[24]; lockCausesText(causes, cb, sizeof(cb));
-  _ry = y;
-  rowLabel(6, _ry, tr(S_CHARGER_LOCK));
-  { const char* s = causes ? cb : tr(S_NONE); tft.setTextSize(2); int vw = txtW(s, 2);
-    tft.setTextColor(causes ? COL_YELLOW : COL_GREEN, COL_BG);
-    tft.setCursor(272 - vw, _ry); tft.print(s);           // value in the same column as the diag rows
-    if (!causes) {                                        // "none" -> a green OK check, like the other rows
-      int ix = 288, yy = _ry;
-      tft.drawLine(ix, yy + 8, ix + 5, yy + 14, COL_GREEN); tft.drawLine(ix + 5, yy + 14, ix + 15, yy + 2, COL_GREEN);
-      tft.drawLine(ix, yy + 9, ix + 5, yy + 15, COL_GREEN); tft.drawLine(ix + 5, yy + 15, ix + 15, yy + 3, COL_GREEN);
-    } }
-  _ry += 24;
-  // Latched marker is a HINT (orange warning), not a red fault, in the checklist too.
-  drawDiagRowSt(tr(S_LATCHED_FAULT), bat.latchedFault ? tr(S_YES) : tr(S_NONE), bat.latchedFault ? 2 : 0);
-  // Thermistor row is 3-state: confirmed fault (pinned) red, suspect (spread) orange "?", else ok.
-  int thSt = thermistorFault() ? 1 : (thermistorSuspect() ? 2 : 0);
-  drawDiagRowSt(tr(S_THERMISTOR), thSt == 1 ? tr(S_FAULTV) : (thSt == 2 ? "?" : tr(S_OKV)), thSt);
-  { char cv[12]; bool cbad = (hw == HW_SENSE_WIRE || hw == HW_WEAK_CELL || hw == HW_IMBALANCE);
-    if (cbad) snprintf(cv, sizeof(cv), "G%d", grp); else strcpy(cv, tr(S_OKV));
-    drawDiagRow(tr(S_CELLS), cv, !cbad); }
-
-  // --- Finding + action / prognosis text (names the specific group or sensor) ---
-  // The finding TITLE + line2 carry the wizard's detailed prediction ("why" + should/unlikely/
-  // check). The bottom BANNER is NOT computed here: it is drawVerdictBanner(computeVerdict()), the
-  // exact same verdict (word + colour + icon) as the Battery tile/screens, so the two can never
-  // disagree (single source of truth).
-  int fy = _ry + 4;
-  const char* title; uint16_t tcol; char line2[64];
-
-  if (hw != HW_NONE) {
-    tcol = COL_RED;
-    switch (hw) {
-      case HW_SENSE_WIRE: title = tr(S_HW_SENSE);  break;
-      case HW_WEAK_CELL:  title = tr(S_HW_WEAK);   break;
-      case HW_IMBALANCE:  title = tr(S_HW_IMB);    break;
-      default:            title = tr(S_HW_THERM);  break;
-    }
-    strncpy(line2, action, sizeof(line2)); line2[sizeof(line2) - 1] = 0;
-  } else if (bat.latchedFault) {
-    // Checked BEFORE "not locked": a latched marker means the BMS memorised a fault even if the
-    // pack isn't charger-locked right now (matches computeVerdict -> V_SUSPECT).
-    title = tr(S_BMS_MEMORISED); tcol = COL_ORANGE;
-    if (bat.odEventCount)                             strcpy(line2, tr(S_WHY_OD));
-    else if (bat.olEventCount)                        strcpy(line2, tr(S_WHY_OL));
-    else if (bat.healthEstPct < 50)                  strcpy(line2, tr(S_WHY_WEAR)); // <50% => >~448 cycles
-    else                                             strcpy(line2, tr(S_WHY_UNCLEAR));
-  } else if (!causes && !bat.locked) {
-    title = tr(S_NO_LOCK_NO_FAULT); tcol = COL_GREEN;
-    strcpy(line2, tr(S_PACK_HEALTHY));
-  } else {
-    // Charger-locked, no fault marker -> a false lockout our unlock should clear.
-    title = tr(S_FALSE_LOCKOUT); tcol = COL_GREEN;
-    strcpy(line2, tr(S_UNLOCK_SHOULD_HOLD));
-  }
-
-  // Spread-only thermistor suspicion: add a check note on an otherwise-clean finding (the banner
-  // already reflects it via computeVerdict -> V_SUSPECT when not charger-locked).
-  if (hw == HW_NONE && tcol == COL_GREEN && thermistorSuspect()) {
-    strcpy(line2, tr(S_WHY_THERM_CHECK));
-    tcol = COL_ORANGE;
-  }
-
-  tft.setTextSize(1); tft.setTextColor(tcol, COL_BG);
-  tft.setCursor(6, fy);      tft.print(title);
-  tft.setTextColor(COL_MUTED, COL_BG);
-  tft.setCursor(6, fy + 12); tft.print(line2);
-  tft.setCursor(6, fy + 28);
-  if      (causes && hw == HW_NONE) tft.print(tr(S_HINT_CONTINUE_BACK));
-  else if (hw != HW_NONE)           tft.print(tr(S_HINT_FIXHW_BACK));
-  else                              tft.print(tr(S_HINT_NOTHING_BACK));
-  drawVerdictBanner(computeVerdict());   // same verdict as the Battery tile/screens
-}
-// ---- Tools list ----
 void drawTools() {
-  drawHeader(tr(S_TOOLS));
-  int y = HEADER_H + 6;
-  for (int i = 0; i < toolCount; i++) {
-    int iy = y + i * 34;
-    bool sel = (toolIndex == i);
-    if (sel) {
-      tft.fillRoundRect(4, iy, 312, 30, 6, RGB565(0x12, 0x30, 0x39));
-      tft.drawRoundRect(4, iy, 312, 30, 6, COL_ACCENT);
-      tft.drawRoundRect(5, iy + 1, 310, 28, 5, COL_ACCENT);
-    } else {
-      tft.fillRoundRect(4, iy, 312, 30, 6, COL_BG);   // erase any previous highlight
-    }
-    static const uint16_t tcol[] = { COL_ACCENT, COL_YELLOW, COL_MUTED, COL_ORANGE, COL_GREEN, COL_TEXT };
-    uint16_t ig = tcol[i];
-    int cx = 24, cy = iy + 15;
-    switch (i) {
-      case 0: iconBridge(cx, cy, ig);  break;
-      case 1: iconSun(cx, cy, ig);     break;
-      case 2: iconSunOff(cx, cy, ig);  break;
-      case 3: iconRefresh(cx, cy, ig); break;
-      case 4: iconCode(cx, cy, ig);    break;
-      case 5:                                          // settings = sliders glyph
-        tft.drawFastHLine(cx - 8, cy - 4, 16, ig); tft.fillCircle(cx - 2, cy - 4, 2, ig);
-        tft.drawFastHLine(cx - 8, cy,     16, ig); tft.fillCircle(cx + 4, cy,     2, ig);
-        tft.drawFastHLine(cx - 8, cy + 4, 16, ig); tft.fillCircle(cx - 4, cy + 4, 2, ig);
-        break;
-    }
-    gfxText(&FreeSansBold9pt7b, 46, iy + 20, tr((StrId)(S_PC_BRIDGE + i)), sel ? COL_HEAD : COL_TEXT);
-    if (i >= 1 && i <= 3) {                       // "acts on the pack" marker (test-mode + LED/reset
-                                                  // command; only Reset persists) vs read-only tools
-      int px = 292, py = iy + 6;
-      tft.drawLine(px, py + 14, px + 13, py + 1, COL_YELLOW);       // body
-      tft.drawLine(px + 1, py + 14, px + 14, py + 1, COL_YELLOW);
-      tft.drawLine(px + 10, py, px + 15, py + 5, COL_YELLOW);       // eraser end
-      tft.fillTriangle(px, py + 14, px + 4, py + 14, px, py + 10, COL_YELLOW); // tip
-    }
+  header(tr(S_TOOLS));
+  drawToolsPage();
+#if BOARD_HAS_TOUCH
+  footer(S_H_CLICK_OPEN, S_T_BELOW_PAGE, S_H_BACK_MENU);
+#else
+  footer(S_H_TURN_SELECT, S_H_CLICK_OPEN, S_H_BACK_MENU);
+#endif
+}
+// Settings: 3 rows (4 on the CYD, with Calibrate touch: then the pitch tightens so the 4th row clears the footer).
+static int settingsPitch() { return settingsCount > 3 ? LIST_ROW_H + FIELD_GAP : LIST_ROW_PITCH; }
+static void drawSettingsRow(int i) {
+  static const IconFn icons[4] = { iconRefresh, iconBridge, iconDoc, iconSettings };
+  const int y = CONTENT_Y + i * settingsPitch();
+  listRowChrome(y, settingsIndex == i, icons[i], (i <= 2) ? tr((StrId)(S_FLIP + i)) : tr(S_CALIBRATE));
+  if (i < 2) {                                 // boolean toggles: ON green / OFF muted (shared pills)
+    const bool on = (i == 0) ? cfgFlip : cfgBridgeBoot;
+    rowBadge(y, on ? "ON" : "OFF", on ? COL_GREEN : COL_MUTED, COL_BG);
+  } else if (i == 2) {                         // Language: current code (click cycles)
+    rowBadge(y, langCode(lang), COL_ACCENT, COL_TEXT);
+  } else {                                     // Calibrate touch: an action row that opens the calibration
+    gfxText(FONT_LEVEL3, SCREEN_W - 2 * SP_3 - SP_2, y + 26, ">", COL_ACCENT);
   }
 }
 void drawSettings() {
-  drawHeader(tr(S_SETTINGS));
-  int y = HEADER_H + 12;
-  bool vals[2] = { cfgFlip, cfgBridgeBoot };
-  for (int i = 0; i < settingsCount; i++) {
-    int iy = y + i * 40;
-    bool sel = (settingsIndex == i);
-    if (sel) {
-      tft.fillRoundRect(4, iy, 312, 34, 6, RGB565(0x12, 0x30, 0x39));
-      tft.drawRoundRect(4, iy, 312, 34, 6, COL_ACCENT);
-      tft.drawRoundRect(5, iy + 1, 310, 32, 5, COL_ACCENT);
-    } else {
-      tft.fillRoundRect(4, iy, 312, 34, 6, COL_BG);
-    }
-    const char* lbl = (i <= 2) ? tr((StrId)(S_FLIP + i)) : tr(S_CALIBRATE);
-    gfxText(&FreeSansBold9pt7b, 14, iy + 22, lbl, sel ? COL_HEAD : COL_TEXT);
-    tft.setTextSize(2);
-    if (i < 2) {                               // boolean toggles
-      const char* on = vals[i] ? "ON" : "OFF";
-      tft.setTextColor(vals[i] ? COL_GREEN : COL_MUTED);
-      int vw = strlen(on) * 12; tft.setCursor(300 - vw, iy + 10); tft.print(on);
-    } else if (i == 2) {                       // Language: current code (click cycles)
-      const char* code = langCode(lang);
-      tft.setTextColor(COL_ACCENT);
-      int vw = strlen(code) * 12; tft.setCursor(300 - vw, iy + 10); tft.print(code);
-    } else {                                   // Calibrate touch: an action row (chevron)
-      tft.setTextColor(COL_ACCENT); tft.setCursor(300 - 12, iy + 10); tft.print(">");
-    }
-  }
-  tft.setTextSize(1); tft.setTextColor(COL_MUTED, COL_BG);
-  tft.setCursor(6, 224); tft.print(tr(S_HINT_TOGGLE_SAVE));
+  header(tr(S_SETTINGS));
+  for (int i = 0; i < settingsCount; i++) drawSettingsRow(i);
+  footer(S_H_TURN_SELECT, S_H_CLICK_TOGGLE, S_H_BACK_TOOLS);   // each toggle is saved at once
 }
+// Encoder moved the cursor on a list screen: repaint only the item that lost the selection and the
+// one that gained it (never fillScreen per detent: it flashes black on the panel).
+void redrawSelection(int prev, int cur) {
+  switch (state) {
+    case LAUNCHER: drawLauncherTile(prev); drawLauncherTile(cur); break;
+    case TOOLS:                                       // crossing a page boundary redraws the page
+      if (prev / TOOLS_PER_PAGE != cur / TOOLS_PER_PAGE) drawToolsPage();
+      else { drawToolRow(prev); drawToolRow(cur); }
+      break;
+    case SETTINGS: drawSettingsRow(prev);  drawSettingsRow(cur);  break;
+    default:       render();                                      break;
+  }
+}
+// Which item a touch at (sx, sy) selects. Geometry stays owned by this file (the same helpers
+// that draw the rows), so a layout change can never desynchronise the hit-testing.
+int touchHit(UiState s, int sx, int sy) {
+  switch (s) {
+    case LAUNCHER: {
+      const int col = (sx >= SCREEN_W / 2) ? 1 : 0;
+      const int row = (sy >= CONTENT_Y + TILE_H + TILE_GAP / 2) ? 1 : 0;
+      return row * 2 + col;
+    }
+    case TOOLS: {                                       // a row of the current page, or the zone under the rows
+      const int i = (sy - CONTENT_Y) / LIST_ROW_PITCH;
+      if (i >= TOOLS_PER_PAGE) return TOUCH_NEXT_PAGE;
+      return toolPage() * TOOLS_PER_PAGE + (i < 0 ? 0 : i);
+    }
+    case SETTINGS: {
+      int i = (sy - CONTENT_Y) / settingsPitch();
+      return i < 0 ? 0 : (i >= settingsCount ? settingsCount - 1 : i);
+    }
+    case CONFIRM_UNLOCK:
+    case CONFIRM_RESET: {
+      // Only the buttons act (1 = primary, 0 = Cancel, -1 = nowhere): a stray tap must never write
+      // to the pack. The unlock screen's no-button branches (F0513, nothing to do) take any tap.
+      if (s == CONFIRM_UNLOCK && (strcmp(bat.commandVersion, "F0513") == 0 || !bat.valid || lockCauses(bat.msg) == 0))
+        return 1;
+      const int by = CONTENT_Y + 72 + CARD_GAP + 36 + SP_2, bw = (CONTENT_W - SP_2) / 2;   // drawButtonPair's row
+      if (sy < by || sy >= by + BTN_H) return -1;
+      if (sx >= GUTTER && sx < GUTTER + bw) return 0;
+      if (sx >= GUTTER + bw + SP_2 && sx < GUTTER + CONTENT_W) return 1;
+      return -1;
+    }
+    default: return 0;
+  }
+}
+
 void render() {
   // Clear on a screen change, and on a Battery page change (different layouts).
-  // Launcher/Tools selection redraw their tiles/rows in place (self-erasing), no clear.
+  // Launcher/Tools/Settings selection repaint their items in place (self-erasing), no clear.
   bool clear = ((int)state != lastRenderedState);
   if (state == BATTERY && batteryPage != lastBatteryPage) clear = true;
   if (clear) tft.fillScreen(COL_BG);

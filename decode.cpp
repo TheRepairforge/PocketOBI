@@ -147,7 +147,7 @@ bool readF0513Cells() {
   bat.cell[4] = le16(c5, 0) / 1000.0;
   // Reject a partial / mid-dropout read: a Li-ion cell is < 4.3 V, and a dropped read comes back
   // 0xFFFF -> 65.5 V. Any cell above 5 V means the burst was not fully answered.
-  for (int i = 0; i < cellCount; i++) if (bat.cell[i] > 5.0f) return false;
+  for (int i = 0; i < cellCount; i++) if (bat.cell[i] > CELL_V_IMPLAUS) return false;
 
   float sum = 0, mn = 99, mx = 0;
   for (int i = 0; i < cellCount; i++) {
@@ -181,6 +181,9 @@ bool readLiveData() {
   bat.cell[2] = le16(payload, 6) / 1000.0;
   bat.cell[3] = le16(payload, 8) / 1000.0;
   bat.cell[4] = le16(payload, 10) / 1000.0;
+  // Same reject as the F0513 path (#54): a marginal D7 answer comes back with every byte
+  // trending to 0xFF (62-65 V cells). It is no read, not a pack with a hardware fault.
+  for (int i = 0; i < cellCount; i++) if (bat.cell[i] > CELL_V_IMPLAUS) return false;
 
   float mn = 99, mx = 0;
   for (int i = 0; i < cellCount; i++) {
@@ -205,13 +208,20 @@ bool readLiveData() {
 // ENABLE around every command, resetting that state, so static-first is safe.
 bool readAllData() {
   bool ok1 = readStaticInfo();
+  // No static answer = no pack (or a dead BMS): skip the live read, which would retry for
+  // several seconds with the previous pack's command version.
+  if (!ok1) { bat.valid = false; return false; }
   bool ok2 = readLiveData();
   // A reading is only trustworthy with plausible live cell data. Very old / marginal packs
   // can answer the static frame (or the F0513 fallback) while the live read is silent or
   // all-FF; without this guard that surfaced as a false "0.0 V healthy/unlock" tile. A 5S
   // LXT pack reads well above 5 V even deeply discharged, so packVoltage ~0 means "no live
   // data", not "empty pack".
-  if (!ok1 || !ok2 || bat.packVoltage < 5.0f) { bat.valid = false; return false; }
+  // Upper bound (#54/#50): no 5S pack reads above 22 V; a corrupted D7 pack field (29.6 V in
+  // issue #16) or an F0513 cell sum past it is a bad read, never a tile.
+  if (!ok2 || bat.packVoltage < 5.0f || bat.packVoltage > cellCount * PACK_V_IMPLAUS_PER_CELL) {
+    bat.valid = false; return false;
+  }
   return true;
 }
 bool tempImplausible(float t) { return t < TEMP_MIN_PLAUS || t > TEMP_MAX_PLAUS; }
@@ -365,6 +375,7 @@ void readExtended() {
   bat.extValid = false;
   bat.socRaw = 0; bat.odEventCount = 0; bat.olEventCount = 0;
   bat.odWearPct = 0; bat.olWearPct = 0; bat.faultMkA = 0; bat.faultMkB = 0;
+  bat.asmY = 0; bat.asmM = 0; bat.asmD = 0;     // else an F0513 pack shows the previous pack's date
   if (!bat.valid || strcmp(bat.commandVersion, "F0513") == 0) return;
 
   digitalWrite(ENABLE_PIN, HIGH); delay(400);

@@ -55,15 +55,15 @@ Original build & protocol deep-dive — how it works, the reverse-engineering, a
 
 ## Project status
 
-Current release: **[v2.3.0](https://github.com/TheRepairforge/PocketOBI/releases/latest)** — see [CHANGELOG.md](CHANGELOG.md) for details.
+Current release: see the **[latest release](https://github.com/TheRepairforge/PocketOBI/releases/latest)** and [CHANGELOG.md](CHANGELOG.md) for details.
 
 The **v2** interface: a 2×2 launcher, a paged Battery view, a
 traffic-light verdict and a staged Repair wizard, multilingual EN/FR/DE/ES, on a
 single-source build. Validated on real BL18xx packs. Since **v2.2** the same firmware
 also runs on the **CYD** (ESP32-2432S028R) with a touch UI, as an
-[alternative board](#alternative-board-cyd-esp32-2432s028r). Since **v2.3** there is a
-[Japanese build](#日本語--japanese--help-wanted) and every release ships ready-to-flash
-binaries. Feedback and test reports
+[alternative board](#alternative-board-cyd-esp32-2432s028r). Since **v2.3** every release ships ready-to-flash
+binaries, and since **v2.5** an [Asia build](#asia-build-日本語--한국어--help-wanted) shows the UI
+in Japanese, Korean and Vietnamese. Feedback and test reports
 (especially serial logs from real packs) are very welcome.
 
 > ⚠️ **Safety first.** These packs contain lithium cells and up to ~21 V on
@@ -76,21 +76,21 @@ binaries. Feedback and test reports
 
 - **Standalone V2 interface** — a 2×2 launcher (Battery / Repair / Tools / About)
   driven by the rotary encoder (+ a secondary back button: short = back, long = home);
-  it jumps straight to the Battery view when a pack is connected.
+  the pack is read on demand, when you open Battery or Repair.
 - **Battery view, paged** (turn the encoder): Overview / Health / Identity.
   - *Overview*: per-cell voltage bars (green / yellow / red), pack voltage, spread.
   - *Health*: our own cycle-based Condition estimate, over-discharge / over-load wear
     counters, cell min/max + spread, both temperature sensors + spread.
   - *Identity*: model, charge count, manufacturing date, capacity, and the pack
     **serial number** (ROM ID in Makita 16-char hex format).
-- **Traffic-light verdict** — HEALTHY / REPAIRABLE / REAL FAULT (plus an orange
-  "possible HW fix" tier). One verdict, computed from a single source and shown
+- **Traffic-light verdict** — HEALTHY (green) / UNLOCK (yellow) / POSSIBLE HW FIX
+  (orange) / HARDWARE FIX (red). One verdict, computed from a single source and shown
   identically on the Battery tile, the screens and the Repair wizard.
 - **Repair wizard** — a staged, feasibility-first check: comms → hardware faults
   (broken sense wire / weak group / imbalance / thermistor, each naming the group or
-  sensor) → lock + prognosis (false lockout "should hold" vs a memorised fault
-  "unlikely to hold"). A hardware fault blocks the unlock; the prognosis reads as
-  guidance, never a guarantee.
+  sensor) → charger lock + prognosis (a false lockout: "our unlock should hold"; a pack
+  that re-locks after the unlock has a real fault). A hardware fault blocks the unlock;
+  the prognosis reads as guidance, never a guarantee.
 - **Unlock / repair** — rewrites the frame to lift a *false* charger lockout on a
   pack whose cells are healthy: clears the charger-lock nybble, recomputes the
   charger-validated checksums, writes the frame back. Never forces a genuinely bad
@@ -105,20 +105,25 @@ binaries. Feedback and test reports
   a health estimate and a guided repair workflow. Dual use: standalone tester **and** PC adapter.
 - Tools: pack LED test, error reset, raw debug view (ROM ID + message frame).
 
-## 日本語 / Japanese — help wanted
+## Asia build: 日本語 / 한국어 — help wanted
 
-A **Japanese build** of the firmware shows the whole UI in Japanese (Settings → Language →
-JA). Its text is a **first draft that no native speaker has reviewed**: expect stiff phrasing
-and some wrong repair vocabulary. I do not read Japanese, so I cannot judge it myself.
+The **Asia build** of the firmware shows the whole UI in Japanese, Korean or Vietnamese, with
+English kept to find your way (Settings → Language → EN / JA / KO / VI; French, German and
+Spanish are in the standard build). The Japanese and Korean texts are **first drafts that no
+native speaker has reviewed**: expect stiff phrasing and some wrong repair vocabulary. I read
+neither language, so I cannot judge them myself. The Vietnamese one was written by a
+Vietnamese user, without accents (the device fonts have none).
 
-**If you read Japanese and work on power tools or batteries, I would love your help.**
-All the text is one file, [`strings_ja.h`](strings_ja.h): one line per message, with the English
-next to it. Open a pull request, or an [issue](../../issues/new?template=translation.yml)
-with corrections, no Git needed. You can see your text on every screen without a board with
-[`tools/hostsim`](tools/hostsim/README.md). Rules and details: [docs/TRANSLATING.md](docs/TRANSLATING.md).
+**If you read Japanese or Korean and work on power tools or batteries, I would love your
+help.** Each language is one file, [`strings_ja.h`](strings_ja.h) and [`strings_ko.h`](strings_ko.h):
+one line per message, with the English next to it. Open a pull request, or an
+[issue](../../issues/new?template=translation.yml) with corrections, no Git needed. You can see
+your text on every screen without a board with [`tools/hostsim`](tools/hostsim/README.md).
+Rules and details: [docs/TRANSLATING.md](docs/TRANSLATING.md).
 
-Build it with `pio run -e esp32-c3-ja` (or `cyd-ja`), or in the Arduino IDE by putting
-`#define ENABLE_CJK 1` in a local `board_local.h` next to the sketch.
+Build it with `pio run -e esp32-c3-asia` (or `cyd-asia`), or in the Arduino IDE by putting
+`#define ENABLE_CJK 1`, `#define ENABLE_EU 0` and `#define ENABLE_VI 1` in a local `board_local.h`
+next to the sketch.
 
 ## Architecture
 
@@ -225,7 +230,7 @@ merged image per board and language, flashed at address `0x0`:
 |---|---|
 | `PocketOBI-vX.Y.Z-esp32-c3.bin` | ESP32-C3 (the reference product) |
 | `PocketOBI-vX.Y.Z-cyd.bin` | CYD (ESP32-2432S028R) |
-| `PocketOBI-vX.Y.Z-esp32-c3-ja.bin` / `-cyd-ja.bin` | Same boards, Japanese build |
+| `PocketOBI-vX.Y.Z-esp32-c3-asia.bin` / `-cyd-asia.bin` | Same boards, Asia build (EN / JA / KO / VI; `-ja` up to v2.3.1) |
 | `PocketOBI-vX.Y.Z-cyd-ili9341.bin` | CYD fitted with an ILI9341 panel (mirrored image on the plain CYD build, see the [CYD guide](docs/CYD_GUIDE.md)) |
 
 ```bash
@@ -233,6 +238,10 @@ pip install esptool
 esptool --chip esp32c3 write_flash 0x0 PocketOBI-vX.Y.Z-esp32-c3.bin   # ESP32-C3
 esptool --chip esp32 write_flash 0x0 PocketOBI-vX.Y.Z-cyd.bin          # CYD
 ```
+
+A merged image flashed this way resets the saved settings (language, flip, touch calibration):
+set them again afterwards. The web flasher keeps them unless you tick "Erase device". If a CYD
+flash stops halfway, add `--baud 115200`.
 
 Older esptool versions are called `esptool.py`. Check a download against `SHA256SUMS.txt`
 from the same release. The `parts-*.zip` files hold the separate bootloader, partition
@@ -285,11 +294,24 @@ ESP32-C3 SuperMini); change `board` in that env for a different ESP32-C3 module.
 
 ## Usage
 
-Power the tool over USB, connect DATA / ENABLE / GND to the pack (never B+),
-and it reads automatically. Turn the encoder to navigate, click to select (on the CYD: tap).
-If the home screen shows "No battery found", check wiring and use
-Menu → Read battery. "Comm error" / all-`0xFF` means the pack's BMS is not
-responding (dead, or not an OBI-compatible pack).
+Power the tool over USB and connect DATA / ENABLE / GND to the pack (never B+).
+It boots to the launcher: **Battery / Repair / Tools / About**. Turn the encoder to
+select, click to open; the back button goes back, a long press returns to the launcher.
+The footer of each screen names what the inputs do there. On the CYD: tap an item, tap
+the title bar to go back.
+
+- **Battery** reads the pack when you open it. Turn to change page (Overview / Health /
+  Identity), click to read again. Until a pack has been read, the launcher tile shows
+  "NO PACK"; after a read it shows the pack voltage and the verdict.
+- **Repair** reads the pack and shows the diagnosis. If there is a lockout to clear and
+  no hardware fault, it asks "Unlock pack?" before anything is written: click confirms,
+  turning cancels.
+- **Tools** has two pages: PC bridge, Debug / raw, Settings; then Pack LEDs on, Pack LEDs
+  off, Reset error (marked "Write": they send a command to the pack).
+
+"Comm error" (NO RESPONSE) means the pack did not answer: check the DATA wiring, the
+pull-ups and GND, and re-seat the pack. A pack that never answers (all-`0xFF`) has a
+dead BMS or is not an OBI-compatible pack.
 
 Trouble reading a pack, or connecting the PC bridge? See
 **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** — a step-by-step guide to wiring,
@@ -337,14 +359,15 @@ other flags a likely faulty thermistor.
 
 The two sensors are reported by the BMS over the data line (there is **no
 separate thermistor pin** on the connector). The original protocol simply labels
-them **"Sensor 1"** and **"Sensor 2"** — **which reading is the cell sensor vs the
-MOSFET sensor is not documented**, and their physical placement on the BMS board
-is unknown. PocketOBI just shows both values; do not assume which is which.
+them **"Sensor 1"** and **"Sensor 2"**. PocketOBI treats sensor 1 as the cell sensor
+and sensor 2 as the board (MOSFET) sensor, and labels them **Cell/Board** in that
+order. That identification is our own observation, not a Makita document, and the
+exact placement of the sensors on the BMS board is not known.
 
 ## Versioning
 
 See [CHANGELOG.md](CHANGELOG.md). The current version is shown on the
-Version / info screen and defined as `FW_VERSION` in `pocketobi.h`.
+boot splash and the About screen, and defined as `FW_VERSION` in `pocketobi.h`.
 
 ## Credits
 
