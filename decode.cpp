@@ -121,9 +121,17 @@ bool readStaticInfo() {
     memset(bat.msg, 0, sizeof(bat.msg));
   }
 
+  // 14.4 V LXT packs (BL14xx) are 4S on the same connector: the BMS answers like an 18 V pack
+  // and reports cell 5 as exactly 0 (OBI issue #108 on the F0513 path, an independent BL1460B
+  // bench on the D7 path). The model string is the detection both command families share; a
+  // silent model ("LXT ?") stays 5S, so a 5S pack with a broken cell-5 sense line still reads
+  // as one. 4S packs are read-only: no unlock or error reset is validated on them (#28).
+  cellCount = (strncmp(bat.model, "BL14", 4) == 0) ? 4 : 5;
+
   bat.valid = true;
   return true;
 }
+bool packReadOnly() { return cellCount == 4; }
 // Read the 5 cell voltages + temperature over the F0513 command set (CC 31..35, CC 52).
 // Used for genuine F0513 packs AND as a live fallback for old (2010-era) packs that answer the
 // standard AA static frame but are silent on the D7 live read: their cells live here.
@@ -340,7 +348,9 @@ void dumpDecoded() {
 const char* verdictText(Verdict v) {
   // V_REPAIRABLE = false lock our unlock clears (software fix); V_FAULT = genuine hardware
   // issue the unlock won't hold (bench repair). Wording chosen to stay "everything is fixable".
-  switch (v) { case V_HEALTHY: return tr(S_HEALTHY); case V_REPAIRABLE: return tr(S_UNLOCK);
+  // A 14.4 V pack is read-only (#28): its lock is stated, never offered as an unlock.
+  switch (v) { case V_HEALTHY: return tr(S_HEALTHY);
+               case V_REPAIRABLE: return packReadOnly() ? tr(S_LOCKEDV) : tr(S_UNLOCK);
                case V_SUSPECT: return tr(S_SUSPECT_HW);
                case V_FAULT: return tr(S_HARDWARE_FIX); default: return tr(S_NO_PACK); }
 }

@@ -31,9 +31,9 @@
 // of truth reported by the PC bridge (interface-version query); keep FW_VERSION
 // consistent with it.
 #define FW_VER_MAJOR 2
-#define FW_VER_MINOR 4
-#define FW_VER_PATCH 0
-#define FW_VERSION "2.5.0"
+#define FW_VER_MINOR 5
+#define FW_VER_PATCH 1
+#define FW_VERSION "2.5.1"
 
 // Companion-app compatibility-contract version. Distinct from FW_VERSION: it bumps
 // ONLY when the coupling with the companion app changes — a bridge command is
@@ -76,7 +76,8 @@ enum HwFault { HW_NONE, HW_SENSE_WIRE, HW_WEAK_CELL, HW_IMBALANCE, HW_THERMISTOR
 // the XGT protocol is not settled, so any architecture designed today is a guess.
 //
 // Cell count: MAX_CELLS sizes the arrays (XGT is up to 10S); cellCount is the ACTIVE
-// count and every cell loop / render drives off it, never a literal 5. LXT = 5.
+// count and every cell loop / render drives off it, never a literal 5. LXT = 5, except a 14.4 V
+// LXT pack (model BL14xx, 4S): readStaticInfo() sets 4 and the pack is read-only (#28).
 // (The Overview still lays out 5 rows; a 10-bar layout is the one genuine UI rework
 // left to the XGT episode, deliberately not done here.)
 #define MAX_CELLS 10

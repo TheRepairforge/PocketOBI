@@ -6,6 +6,28 @@ Versioning follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH
 The version is defined in `pocketobi.h` as `FW_VERSION` and shown
 on the boot splash and the About screen.
 
+## [2.5.1] - 2026-10-22
+
+An honesty fix on the Repair wizard for the oldest Makita BMS generation, and read-only support
+for 14.4 V LXT packs.
+
+### Added
+- **14.4 V LXT packs (BL14xx), read-only** (issue #28). These 4-cell packs fit the same
+  connector and answer like an 18 V pack, but report a fifth cell at 0 V, so a healthy pack used
+  to read as a broken sense wire and a red "hardware fix". A pack whose model starts with
+  `BL14` is now read as 4 cells: four cell bars, "LXT 14.4V" as the type, the verdict and the
+  checks on four cells. Unlock and error reset are not offered on these packs (not validated);
+  a charger lock shows as LOCKED with "not supported". A pack whose model is not readable is
+  still treated as 5 cells.
+
+### Changed
+- **Unlock confirm, older (F0513) packs.** On a pack read through the F0513 cell path, the
+  unlock confirm screen now shows a yellow caveat — the unlock is not validated on this
+  generation and the pack may read still locked — in place of the generic scope line. The
+  button stays available (you can still try); a newer pack is unchanged. This follows bench
+  evidence that the frame write does nothing on an F0513-generation BMS, so the screen no
+  longer implies the write will take. Mirrored in the PackScope companion app.
+
 ## [2.5.0] - 2026-10-19
 
 A redesigned interface on every screen, Korean and Vietnamese in a new Asia build, safer touch confirms on the

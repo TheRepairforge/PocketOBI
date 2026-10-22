@@ -249,6 +249,10 @@ static void diagFinding(Finding &f) {
   } else if (!f.causes && !bat.locked) {
     f.title = tr(S_NO_LOCK_NO_FAULT); f.color = COL_GREEN;
     strcpy(f.line2, tr(S_PACK_HEALTHY));
+  } else if (packReadOnly()) {
+    // Charger-locked 14.4 V pack: the lock is a fact, the unlock is not offered (#28).
+    f.title = tr(S_CHARGER_LOCK); f.color = COL_YELLOW;
+    snprintf(f.line2, sizeof(f.line2), "LXT 14.4V - %s", tr(S_W_NOT_SUPPORTED));
   } else {
     // Charger-locked, no fault marker -> a false lockout our unlock should clear.
     f.title = tr(S_FALSE_LOCKOUT); f.color = COL_GREEN;
@@ -384,7 +388,7 @@ void drawBatteryIdentity() {
   fmtPackDate(buf, sizeof(buf), bat.mfgYear, bat.mfgMonth, bat.mfgDay);
   drawField(xb, y, wb, FIELD_H, iconCalendar, tr(S_PRODUCED), ok ? buf : "--");
   y += pitch;
-  drawField(x, y, wa, FIELD_H, iconDoc, tr(S_TYPE), ok ? "LXT 18V" : "--");
+  drawField(x, y, wa, FIELD_H, iconDoc, tr(S_TYPE), ok ? (cellCount == 4 ? "LXT 14.4V" : "LXT 18V") : "--");
   fmtPackDate(buf, sizeof(buf), 2000 + bat.asmY, bat.asmM, bat.asmD);
   drawField(xb, y, wb, FIELD_H, iconCalendar, tr(S_ASSEMBLED), ok ? buf : "--");
   y += pitch;
@@ -439,7 +443,7 @@ void drawWizardDiag() {
   drawCheckRow(GUTTER, ry + 3 * CHECK_ROW_H, CONTENT_W, tr(S_CELLS), cv, cbad ? CHECK_FAULT : CHECK_OK);
   // Only a lock with no hardware fault continues; otherwise the status card already says why (fix
   // the hardware first / nothing to repair) and a click just repeats it as a toast.
-  if (f.causes && f.hw == HW_NONE) footer(S_H_CLICK_CONTINUE, S_COUNT, S_H_TURN_CANCEL);
+  if (f.causes && f.hw == HW_NONE && !packReadOnly()) footer(S_H_CLICK_CONTINUE, S_COUNT, S_H_TURN_CANCEL);
   else                             footer(S_H_TURN_CANCEL, S_COUNT, S_H_BACK_MENU);
 }
 
@@ -450,9 +454,14 @@ void drawConfirmUnlock() {
   const bool isF0513 = strcmp(bat.commandVersion, "F0513") == 0;
   const uint8_t causes = bat.valid ? lockCauses(bat.msg) : 0;
   // Nothing will be written in the first two branches, so the header does not ask a question.
-  repairHeader(2, (isF0513 || causes == 0) ? S_REPAIR : S_HDR_UNLOCK_Q);
+  repairHeader(2, (isF0513 || packReadOnly() || causes == 0) ? S_REPAIR : S_HDR_UNLOCK_Q);
   if (isF0513) {
     statusCardText(CONTENT_Y, tr(S_W_NOT_SUPPORTED), COL_YELLOW, tr(S_SUB_F0513));
+    footer(S_H_CLICK_BACK);
+    return;
+  }
+  if (packReadOnly()) {                               // 14.4 V: never reached from the wizard; defence in depth
+    statusCardText(CONTENT_Y, tr(S_W_NOT_SUPPORTED), COL_YELLOW, "LXT 14.4V");
     footer(S_H_CLICK_BACK);
     return;
   }
@@ -469,7 +478,14 @@ void drawConfirmUnlock() {
   cardLabel(x + SP_3, y + 9, tr(S_LBL_WHAT));
   gfxText(FONT_LEVEL3, x + SP_3, y + 32, tr(S_WHAT_FLASH), COL_TEXT);
   drawCaption(x + SP_3, y + 40, "Sets nybble34=0, recomputes CS0/1/2.");
-  drawCaption(x + SP_3, y + 56, tr(S_REPAIRS_FALSE_ONLY), COL_MUTED);
+  // On an F0513-generation pack (cell path -> boardTempValid=false) the bench showed the
+  // frame write no-ops (SESSION_LOG 2026-10-21): keep the unlock available (JP: warn, not
+  // block) but swap the generic scope line for an honest caveat (L33), in yellow so it reads
+  // as a warning. A modern pack keeps the muted "repairs a false lockout only" line.
+  if (!bat.boardTempValid)
+    drawCaption(x + SP_3, y + 56, tr(S_W_F0513_UNVALIDATED), COL_YELLOW);
+  else
+    drawCaption(x + SP_3, y + 56, tr(S_REPAIRS_FALSE_ONLY), COL_MUTED);
   y += 72 + CARD_GAP;
   char cb[24], line[48];
   lockCausesText(causes, cb, sizeof(cb));
@@ -863,7 +879,7 @@ int touchHit(UiState s, int sx, int sy) {
     case CONFIRM_RESET: {
       // Only the buttons act (1 = primary, 0 = Cancel, -1 = nowhere): a stray tap must never write
       // to the pack. The unlock screen's no-button branches (F0513, nothing to do) take any tap.
-      if (s == CONFIRM_UNLOCK && (strcmp(bat.commandVersion, "F0513") == 0 || !bat.valid || lockCauses(bat.msg) == 0))
+      if (s == CONFIRM_UNLOCK && (strcmp(bat.commandVersion, "F0513") == 0 || packReadOnly() || !bat.valid || lockCauses(bat.msg) == 0))
         return 1;
       const int by = CONTENT_Y + 72 + CARD_GAP + 36 + SP_2, bw = (CONTENT_W - SP_2) / 2;   // drawButtonPair's row
       if (sy < by || sy >= by + BTN_H) return -1;

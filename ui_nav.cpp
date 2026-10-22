@@ -41,14 +41,15 @@ void activate(UiState s, int idx) {
       int grp;
       if (findHardwareFault(&grp, nullptr, 0) != HW_NONE)        // feasibility-first: fix HW before unlocking
         toast(tr(S_TOAST_FIXHW), COL_RED);                       // stay on diagnose
+      else if (causes && packReadOnly()) toast(tr(S_W_NOT_SUPPORTED), COL_YELLOW);   // 14.4 V: read-only (#28)
       else if (causes == 0) toast(tr(S_TOAST_NOTHING), COL_MUTED);
       else state = CONFIRM_UNLOCK;
       break;
     }
     case CONFIRM_UNLOCK: {
       bool isF0513 = strcmp(bat.commandVersion, "F0513") == 0;
-      uint8_t causes = (bat.valid && !isF0513) ? lockCauses(bat.msg) : 0;
-      if (causes == 0) { state = BATTERY; break; }     // nothing to repair -> no write
+      uint8_t causes = (bat.valid && !isF0513 && !packReadOnly()) ? lockCauses(bat.msg) : 0;
+      if (causes == 0) { state = BATTERY; break; }     // nothing to repair (or 14.4 V) -> no write
       unlockCausesBefore = causes;
       drawUnlockWorking();                             // step 3/4: working (unlockRepair blocks for a few seconds)
       unlockCausesAfter = unlockRepair(drawUnlockProgress);   // write + commit + reset + re-read, step by step
@@ -58,6 +59,7 @@ void activate(UiState s, int idx) {
       break;
     }
     case CONFIRM_RESET:
+      if (packReadOnly()) { state = TOOLS; break; }    // 14.4 V: no BMS write (#28), defence in depth
       resetLockedBefore = bat.locked;
       resetErrors();
       resetReread = readAllData();                     // a silent re-read must not pass for "unchanged"
@@ -69,7 +71,11 @@ void activate(UiState s, int idx) {
         case 0: bridgeActive = true; state = PC_BRIDGE; break;   // enter active by default
         case 1: ledsOn();  toast(tr(S_LEDS_ON_MSG), COL_GREEN); break;
         case 2: ledsOff(); toast(tr(S_LEDS_OFF_MSG), COL_MUTED); break;
-        case 3: state = readAllData() ? CONFIRM_RESET : COMM_ERROR; break;
+        case 3:
+          if (!readAllData()) state = COMM_ERROR;
+          else if (packReadOnly()) toast(tr(S_W_NOT_SUPPORTED), COL_YELLOW);   // 14.4 V: read-only (#28)
+          else state = CONFIRM_RESET;
+          break;
         case 4: state = readAllData() ? DEBUG_RAW : COMM_ERROR; break;
         case 5: settingsIndex = 0; state = SETTINGS; break;
       }

@@ -177,6 +177,7 @@ const char* const STRTAB_KO[] = {
   /*S_T_BELOW_PAGE*/          "아래: 페이지", // EN: "Below: page"
   /*S_LBL_HOWTO*/             "사용법", // EN: "How to"
   /*S_HOWTO_CAP*/             "Arduino OBI + 이 COM 포트", // EN: "Arduino OBI interface + this COM port"
+  /*S_W_F0513_UNVALIDATED*/   "F0513: 해제가 유지 안 될 수 있음", // EN: "F0513 chip: unlock may not hold."
 };
 static_assert(sizeof(STRTAB_KO) / sizeof(STRTAB_KO[0]) == S_COUNT,
               "strings_ko.h: one entry per StrId, in enum order");

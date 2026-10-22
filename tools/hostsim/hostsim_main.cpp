@@ -87,6 +87,16 @@ static void sCalibrate() {
 #endif
 
 static void sBattery(int page) { state = BATTERY; batteryPage = page; }
+// A 14.4 V LXT pack (#28): 4S, cell 5 reads 0, read-only. Illustrative values, not a capture.
+static void sPack14(bool locked) {
+  strcpy(bat.model, "BL1415N"); bat.capacityAh = 1.5f; cellCount = 4;
+  const float c[4] = { 3.95f, 3.96f, 3.95f, 3.96f };
+  float sum = 0;
+  for (int i = 0; i < 4; i++) { bat.cell[i] = c[i]; sum += c[i]; }
+  bat.cell[4] = 0.0f; bat.packVoltage = sum; bat.cellDiff = 0.01f;
+  memset(bat.msg, 0, 32);
+  if (locked) { bat.msg[21] = 0x7E; bat.chargerLocked = true; }
+}
 static const Screen SCREENS[] = {
   { "splash",         [] { state = LAUNCHER; drawSplash(); }, true },
   { "launcher",       [] { state = LAUNCHER; launcherIndex = 0; } },
@@ -94,7 +104,12 @@ static const Screen SCREENS[] = {
   { "battery_health", [] { sBattery(1); } },
   { "battery_identity", [] { sBattery(2); } },
   { "repair_diag",    [] { state = REPAIR_DIAG; } },
-  { "confirm_unlock", [] { state = CONFIRM_UNLOCK; } },
+  // A charger lock on byte 21 (nyb 42/43 mismatch) -> lockCauses != 0, so the confirm screen
+  // draws the real unlock card. Modern pack (boardTempValid stays true from the fixture).
+  { "confirm_unlock", [] { memset(bat.msg, 0, 32); bat.msg[21] = 0x7E; state = CONFIRM_UNLOCK; } },
+  // Same lock on the F0513 cell path (boardTempValid=false): the 2.5.1 honest caveat replaces
+  // the scope line. Longest-language render here is what the warning string must fit.
+  { "confirm_unlock_f0513", [] { memset(bat.msg, 0, 32); bat.msg[21] = 0x7E; bat.boardTempValid = false; state = CONFIRM_UNLOCK; } },
   { "unlock_result",  [] { state = UNLOCK_RESULT; unlockCausesBefore = LF_N34; unlockCausesAfter = 0; } },
   { "confirm_reset",  [] { state = CONFIRM_RESET; } },
   { "reset_result",   [] { state = RESET_RESULT; resetLockedBefore = true; resetLockedAfter = false; } },
@@ -104,6 +119,11 @@ static const Screen SCREENS[] = {
   { "pc_bridge",      [] { state = PC_BRIDGE; bridgeActive = true; } },
   { "about",          [] { state = ABOUT; aboutEgg = 0; } },
   { "comm_error",     [] { state = COMM_ERROR; } },
+  { "bl14_overview",  [] { sPack14(false); sBattery(0); } },
+  { "bl14_health",    [] { sPack14(false); sBattery(1); } },
+  { "bl14_identity",  [] { sPack14(false); sBattery(2); } },
+  { "bl14_repair_locked", [] { sPack14(true); state = REPAIR_DIAG; } },
+  { "bl14_confirm_unlock", [] { sPack14(true); state = CONFIRM_UNLOCK; } },
   { "nopack_overview", [] { bat.valid = false; sBattery(0); } },
   { "nopack_repair",  [] { bat.valid = false; state = REPAIR_DIAG; } },
 #if BOARD_HAS_TOUCH

@@ -58,6 +58,7 @@ static void fxSuspect() {
   bat.tempCell = 21.0f; bat.tempMosfet = 33.0f; bat.odEventCount = 12; finish();
 }
 static void fxF0513()   { base(); strcpy(bat.commandVersion, "F0513"); strcpy(bat.model, "BL1415");
+                          cellCount = 4; bat.cell[4] = 0.0f;   // 14.4 V: 4S, cell 5 reads 0 (#28)
                           bat.boardTempValid = false; bat.extValid = false; bat.chargeCount = 0; finish(); }
 static void fxNoPack()  { base(); finish(); bat.valid = false; }
 

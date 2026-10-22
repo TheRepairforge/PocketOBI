@@ -9,6 +9,7 @@ bool readLiveData();
 bool readAllData();
 bool tempImplausible(float t);
 bool thermistorFault();
+bool packReadOnly();   // 14.4 V (4S) LXT pack: read and diagnose only, no BMS write (#28)
 bool thermistorSuspect();
 HwFault findHardwareFault(int *group, char *action, size_t n);
 Verdict computeVerdict();

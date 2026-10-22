@@ -53,7 +53,9 @@ void serviceBridge() {
   } else if (cmd == 0x02) {                         // compatibility-contract query
     rsp[0] = PROTOCOL_VERSION;                       // app checks this to warn on mismatch
     rsp[1] = gammeId;                                // family id -> companion-app decoder routing
-    rsp[2] = cellCount;                              // active family cell count
+    // The family's nominal cell count, not the last pack's: a 14.4 V LXT pack is 4S (#28),
+    // the contract stays 5 for LXT.
+    rsp[2] = (gammeId == GAMME_LXT) ? 5 : cellCount;
   } else if (cmd == 0x31 || cmd == 0x32) {          // F0513 raw model/version
     uint8_t b1 = 0xFF, b2 = 0xFF;
     readF0513Raw(cmd, &b1, &b2);
