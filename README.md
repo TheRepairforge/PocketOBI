@@ -245,7 +245,8 @@ flash stops halfway, add `--baud 115200`.
 
 Older esptool versions are called `esptool.py`. Check a download against `SHA256SUMS.txt`
 from the same release. The `parts-*.zip` files hold the separate bootloader, partition
-table and application images for tools that want them.
+table and application images for tools that want them. Release images are built by the
+project's CI with [`tools/release_bins.sh`](tools/release_bins.sh), which you can also run yourself.
 
 ### Arduino IDE
 

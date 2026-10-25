@@ -6,6 +6,26 @@ Versioning follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH
 The version is defined in `pocketobi.h` as `FW_VERSION` and shown
 on the boot splash and the About screen.
 
+## [2.5.2] - 2026-10-25
+
+The screen no longer looks frozen while a pack is read, and the short messages are easier to read.
+
+### Added
+- **"Connecting..." while the pack is read** (pull request
+  [#33](https://github.com/TheRepairforge/PocketOBI/pull/33)). Opening Battery or Repair,
+  refreshing the battery page, and the Tools error-reset and debug reads now show a yellow
+  "Connecting..." banner until the pack has answered; an error reset shows it while it writes.
+  In every language of both builds. Thanks to scp38 for the contribution.
+
+### Changed
+- **Short messages** ("LEDs ON", "Nothing to repair", "Fix hardware first", ...) are drawn in
+  the same font as the rest of the interface instead of the enlarged pixel font.
+
+### Build
+- Release images are built by the project's CI with `tools/release_bins.sh`, which you can
+  also run yourself. The PlatformIO platform is pinned to `espressif32@7.1.3` (Arduino core
+  2.0.17), the one every release was built on.
+
 ## [2.5.1] - 2026-10-22
 
 An honesty fix on the Repair wizard for the oldest Makita BMS generation, and read-only support

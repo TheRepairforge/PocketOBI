@@ -1,0 +1,175 @@
+name: Firmware build
+
+# Builds every firmware variant with both toolchains on each push of a release or feature
+# branch: PlatformIO for every [env:*] of that ref's platformio.ini, arduino-cli for the
+# Arduino IDE path users follow. On release branches (and by hand) a third job builds the
+# release images with tools/release_bins.sh and keeps them as the `release-bins` artifact.
+# Nothing is flashed or published from here.
+
+on:
+  push:
+    branches:
+      - "release/**"
+      - "feature/**"
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "hardware/**"
+      - "video_scenes/**"
+      - ".github/ISSUE_TEMPLATE/**"
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  platformio:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - uses: actions/cache@v6
+        with:
+          path: ~/.platformio
+          key: pio-${{ hashFiles('platformio.ini') }}
+          restore-keys: pio-
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Build every env
+        shell: bash
+        run: |
+          envs=$(grep -oP '^\[env:\K[^\]]+' platformio.ini)
+          failed=""
+          for env in $envs; do
+            echo "::group::pio run -e $env"
+            pio run -e "$env" || failed="$failed $env"
+            echo "::endgroup::"
+          done
+          echo "### PlatformIO" >> "$GITHUB_STEP_SUMMARY"
+          for env in $envs; do
+            case " $failed " in *" $env "*) s="FAILED" ;; *) s="ok" ;; esac
+            echo "- \`$env\`: $s" >> "$GITHUB_STEP_SUMMARY"
+          done
+          [ -z "$failed" ] || { echo "failed:$failed"; exit 1; }
+
+  arduino-cli:
+    runs-on: ubuntu-latest
+    env:
+      ARDUINO_CLI: "1.5.1"
+      # Pinned to what the Arduino IDE build is checked with (HARDWARE_LXT.md "Toolchain").
+      ESP32_CORE: esp32:esp32@3.3.11
+      LIBS: >-
+        "Adafruit GFX Library@1.12.6"
+        "Adafruit ST7735 and ST7789 Library@1.11.0"
+        "RotaryEncoder@1.6.0"
+        "XPT2046_Touchscreen@1.4"
+    steps:
+      # Arduino requires the sketch folder to carry the sketch's name.
+      - uses: actions/checkout@v7
+        with:
+          path: PocketOBI
+
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.arduino15
+            ~/Arduino/libraries
+          key: arduino-${{ env.ESP32_CORE }}-v1
+
+      # The official binary, pinned and checksummed (arduino/setup-arduino-cli still runs on Node 20).
+      - name: Install arduino-cli
+        shell: bash
+        run: |
+          base=https://github.com/arduino/arduino-cli/releases/download/v$ARDUINO_CLI
+          tgz=arduino-cli_${ARDUINO_CLI}_Linux_64bit.tar.gz
+          curl -fsSLO "$base/$tgz" -O "$base/${ARDUINO_CLI}-checksums.txt"
+          grep " $tgz\$" "${ARDUINO_CLI}-checksums.txt" | sha256sum -c -
+          mkdir -p "$HOME/.local/bin" && tar -xzf "$tgz" -C "$HOME/.local/bin" arduino-cli
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Install core and libraries
+        shell: bash
+        run: |
+          arduino-cli config init --overwrite
+          arduino-cli config add board_manager.additional_urls \
+            https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          arduino-cli core update-index
+          arduino-cli core install "$ESP32_CORE"
+          eval arduino-cli lib install $LIBS
+
+      # Extra defines go in compiler.cpp.extra_flags: build.extra_flags would replace the
+      # board's own and drop the USB CDC defines (HARDWARE_LXT.md, hard-won).
+      - name: Build every variant
+        shell: bash
+        run: |
+          ASIA="-DENABLE_CJK=1 -DENABLE_EU=0 -DENABLE_VI=1"
+          C3=esp32:esp32:esp32c3:CDCOnBoot=cdc
+          CYD=esp32:esp32:esp32
+          variants=(
+            "c3|$C3|"
+            "c3-asia|$C3|$ASIA"
+            "cyd|$CYD|-DPOCKETOBI_BOARD=BOARD_CYD"
+            "cyd-asia|$CYD|-DPOCKETOBI_BOARD=BOARD_CYD $ASIA"
+            "cyd-ili9341|$CYD|-DPOCKETOBI_BOARD=BOARD_CYD -DCYD_ILI9341=1"
+          )
+          # Third carrier, on the branches that carry it (D48)
+          if grep -q 'BOARD_ES3C28P' PocketOBI/board_config.h; then
+            variants+=("es3c28p|esp32:esp32:esp32s3:CDCOnBoot=cdc|-DPOCKETOBI_BOARD=BOARD_ES3C28P -DENABLE_VI=1")
+          fi
+          failed=""
+          echo "### arduino-cli ($ESP32_CORE)" >> "$GITHUB_STEP_SUMMARY"
+          for v in "${variants[@]}"; do
+            IFS='|' read -r name fqbn flags <<< "$v"
+            echo "::group::$name ($fqbn $flags)"
+            if arduino-cli compile --fqbn "$fqbn" \
+                 --build-property "compiler.cpp.extra_flags=$flags" PocketOBI; then
+              s=ok
+            else
+              s=FAILED; failed="$failed $name"
+            fi
+            echo "::endgroup::"
+            echo "- \`$name\`: $s" >> "$GITHUB_STEP_SUMMARY"
+          done
+          [ -z "$failed" ] || { echo "failed:$failed"; exit 1; }
+
+  # Independent of the two compile jobs, so a red compile does not hide the images; the release
+  # tool only takes them from a run that is green as a whole.
+  release-bins:
+    if: startsWith(github.ref, 'refs/heads/release/') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - uses: actions/cache@v6
+        with:
+          path: ~/.platformio
+          key: pio-${{ hashFiles('platformio.ini') }}
+          restore-keys: pio-
+
+      - name: Install PlatformIO and esptool
+        run: pip install platformio esptool
+
+      - name: Build the release images
+        shell: bash
+        run: bash tools/release_bins.sh HEAD "$RUNNER_TEMP/release-bins"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-bins
+          path: ${{ runner.temp }}/release-bins/
+          if-no-files-found: error
+          retention-days: 30

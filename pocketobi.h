@@ -32,8 +32,8 @@
 // consistent with it.
 #define FW_VER_MAJOR 2
 #define FW_VER_MINOR 5
-#define FW_VER_PATCH 1
-#define FW_VERSION "2.5.1"
+#define FW_VER_PATCH 2
+#define FW_VERSION "2.5.2"
 
 // Companion-app compatibility-contract version. Distinct from FW_VERSION: it bumps
 // ONLY when the coupling with the companion app changes — a bridge command is
