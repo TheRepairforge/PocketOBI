@@ -163,4 +163,4 @@ void monoKv(int kx, int y, int vx, const char *k, const char *v);
 int faultCard(int y, uint16_t color, const char *title, const char *ref, const char *ctx = nullptr);
 
 // ---------- Toast ----------
-void toast(const char *msg, uint16_t col);
+void toast(const char *msg, uint16_t col, bool blocking = true);

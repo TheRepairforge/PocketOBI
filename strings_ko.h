@@ -74,6 +74,7 @@ const char* const STRTAB_KO[] = {
   /*S_SCAN*/                  "스캔", // EN: "scan"
   /*S_LEDS_ON_MSG*/           "LED 켜짐", // EN: "LEDs ON"
   /*S_LEDS_OFF_MSG*/          "LED 꺼짐", // EN: "LEDs OFF"
+  /*S_CONNECT_MSG*/           "연결 중...", // EN: "Connecting..."
   /*S_NO_DIAGNOSIS*/          "진단 없음", // EN: "NO DIAGNOSIS"
   /*S_HW_SENSE*/              "감지선 단선", // EN: "Broken sense wire"
   /*S_HW_WEAK*/               "약한 / 죽은 그룹", // EN: "Weak / dead group"

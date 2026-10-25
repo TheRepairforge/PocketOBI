@@ -69,6 +69,7 @@ const char* const STRTAB_VI[] = {
   /*S_SCAN*/                  "Quet", // EN: "scan"
   /*S_LEDS_ON_MSG*/           "DEN BAT", // EN: "LEDs ON"
   /*S_LEDS_OFF_MSG*/          "DEN TAT", // EN: "LEDs OFF"
+  /*S_CONNECT_MSG*/           "Dang ket noi...", // EN: "Connecting..."
   /*S_NO_DIAGNOSIS*/          "KHONG CHAN DOAN", // EN: "NO DIAGNOSIS"
   /*S_HW_SENSE*/              "Dut day do cell", // EN: "Broken sense wire"
   /*S_HW_WEAK*/               "Nhom cell yeu", // EN: "Weak / dead group"
