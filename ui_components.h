@@ -10,9 +10,6 @@
 // knows no screen, no UiState and no data model: the caller passes words, values and colours.
 #include "ui_host.h"
 
-#define NONBLOCKING 0
-#define BLOCKING 1
-
 // ---------- Text primitives ----------
 // GFX custom fonts are scaled by textSize in Adafruit_GFX: every helper forces textSize(1) so a GFX
 // label renders at its true point size. Return/measure the width in px (JA-aware, D33).
@@ -166,4 +163,4 @@ void monoKv(int kx, int y, int vx, const char *k, const char *v);
 int faultCard(int y, uint16_t color, const char *title, const char *ref, const char *ctx = nullptr);
 
 // ---------- Toast ----------
-void toast(const char* msg, uint16_t col, char blocking);
+void toast(const char *msg, uint16_t col, bool blocking = true);

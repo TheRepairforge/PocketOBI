@@ -20,12 +20,12 @@ void activate(UiState s, int idx) {
     case LAUNCHER:
       switch (idx) {
         case 0: // Battery
-          toast(tr(S_CONNECT_MSG), COL_YELLOW, NONBLOCKING);
+          toast(tr(S_CONNECT_MSG), COL_YELLOW, false);
           if (readAllData()) { readExtended(); batteryPage = 0; state = BATTERY; }
           else state = COMM_ERROR;
           break;
         case 1: // Repair (wizard)
-          toast(tr(S_CONNECT_MSG), COL_YELLOW, NONBLOCKING);
+          toast(tr(S_CONNECT_MSG), COL_YELLOW, false);
           if (readAllData()) { readExtended(); state = REPAIR_DIAG; }
           else state = COMM_ERROR;
           break;
@@ -34,24 +34,22 @@ void activate(UiState s, int idx) {
       }
       break;
     case BATTERY:                                      // click = refresh reading
-      toast(tr(S_CONNECT_MSG), COL_YELLOW, NONBLOCKING);
+      toast(tr(S_CONNECT_MSG), COL_YELLOW, false);
       if (readAllData()) { readExtended(); lastRenderedState = -1; }  // force a clean redraw
       else state = COMM_ERROR;
       break;
     case REPAIR_DIAG: {                                // continue to confirm
-      toast(tr(S_CONNECT_MSG), COL_YELLOW, NONBLOCKING);
       bool isF0513 = strcmp(bat.commandVersion, "F0513") == 0;
       uint8_t causes = (bat.valid && !isF0513) ? lockCauses(bat.msg) : 0;
       int grp;
       if (findHardwareFault(&grp, nullptr, 0) != HW_NONE)        // feasibility-first: fix HW before unlocking
-        toast(tr(S_TOAST_FIXHW), COL_RED, BLOCKING);             // stay on diagnose
-      else if (causes && packReadOnly()) toast(tr(S_W_NOT_SUPPORTED), COL_YELLOW, BLOCKING);   // 14.4 V: read-only (#28)
-      else if (causes == 0) toast(tr(S_TOAST_NOTHING), COL_MUTED, BLOCKING);
+        toast(tr(S_TOAST_FIXHW), COL_RED);                       // stay on diagnose
+      else if (causes && packReadOnly()) toast(tr(S_W_NOT_SUPPORTED), COL_YELLOW);   // 14.4 V: read-only (#28)
+      else if (causes == 0) toast(tr(S_TOAST_NOTHING), COL_MUTED);
       else state = CONFIRM_UNLOCK;
       break;
     }
     case CONFIRM_UNLOCK: {
-      toast(tr(S_CONNECT_MSG), COL_YELLOW, NONBLOCKING);
       bool isF0513 = strcmp(bat.commandVersion, "F0513") == 0;
       uint8_t causes = (bat.valid && !isF0513 && !packReadOnly()) ? lockCauses(bat.msg) : 0;
       if (causes == 0) { state = BATTERY; break; }     // nothing to repair (or 14.4 V) -> no write
@@ -64,8 +62,8 @@ void activate(UiState s, int idx) {
       break;
     }
     case CONFIRM_RESET:
-      toast(tr(S_CONNECT_MSG), COL_YELLOW, NONBLOCKING);
       if (packReadOnly()) { state = TOOLS; break; }    // 14.4 V: no BMS write (#28), defence in depth
+      toast(tr(S_CONNECT_MSG), COL_YELLOW, false);
       resetLockedBefore = bat.locked;
       resetErrors();
       resetReread = readAllData();                     // a silent re-read must not pass for "unchanged"
@@ -75,14 +73,16 @@ void activate(UiState s, int idx) {
     case TOOLS:
       switch (toolAt(idx)) {                           // position on screen -> tool (Tools has 2 pages)
         case 0: bridgeActive = true; state = PC_BRIDGE; break;   // enter active by default
-        case 1: ledsOn();  toast(tr(S_LEDS_ON_MSG), COL_GREEN, BLOCKING); break;
-        case 2: ledsOff(); toast(tr(S_LEDS_OFF_MSG), COL_MUTED, BLOCKING); break;
+        case 1: ledsOn();  toast(tr(S_LEDS_ON_MSG), COL_GREEN); break;
+        case 2: ledsOff(); toast(tr(S_LEDS_OFF_MSG), COL_MUTED); break;
         case 3:
+          toast(tr(S_CONNECT_MSG), COL_YELLOW, false);
           if (!readAllData()) state = COMM_ERROR;
-          else if (packReadOnly()) toast(tr(S_W_NOT_SUPPORTED), COL_YELLOW, BLOCKING);   // 14.4 V: read-only (#28)
+          else if (packReadOnly()) toast(tr(S_W_NOT_SUPPORTED), COL_YELLOW);   // 14.4 V: read-only (#28)
           else state = CONFIRM_RESET;
           break;
-        case 4: state = readAllData() ? DEBUG_RAW : COMM_ERROR; break;
+        case 4: toast(tr(S_CONNECT_MSG), COL_YELLOW, false);
+                state = readAllData() ? DEBUG_RAW : COMM_ERROR; break;
         case 5: settingsIndex = 0; state = SETTINGS; break;
       }
       break;
