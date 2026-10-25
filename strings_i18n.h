@@ -39,7 +39,7 @@ enum StrId {
   S_LOCKEDV, S_OKSTATE,
   // About / toasts / common hints
   S_SCAN,
-  S_LEDS_ON_MSG, S_LEDS_OFF_MSG,
+  S_LEDS_ON_MSG, S_LEDS_OFF_MSG, S_CONNECT_MSG,
   // Repair diagnostic engine (wizard)
   S_NO_DIAGNOSIS,
   S_HW_SENSE, S_HW_WEAK, S_HW_IMB, S_HW_THERM,
@@ -133,6 +133,7 @@ const char* const STRTAB[S_COUNT][LANG_COUNT] = {
   /*S_SCAN*/        { "scan",            "scan",             "scan",              "escanea" },
   /*S_LEDS_ON_MSG*/ { "LEDs ON",         "LEDs ON",          "LEDs AN",           "LEDs ON" },
   /*S_LEDS_OFF_MSG*/{ "LEDs OFF",        "LEDs OFF",         "LEDs AUS",          "LEDs OFF" },
+  /*S_CONNECT_MSG*/ { "Connecting...", "En connexion...",  "Verbinde...", "Conectando..."},
   /*S_NO_DIAGNOSIS*/{ "NO DIAGNOSIS",    "PAS DE DIAG",       "KEINE DIAGNOSE",    "SIN DIAGNOSTICO" },
   /*S_HW_SENSE*/    { "Broken sense wire","Fil de mesure casse","Sense-Draht defekt","Cable de sensado roto" },
   /*S_HW_WEAK*/     { "Weak / dead group","Groupe faible / mort","Gruppe schwach / tot","Grupo debil / muerto" },

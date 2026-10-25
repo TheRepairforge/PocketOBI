@@ -559,13 +559,13 @@ int faultCard(int y, uint16_t color, const char *title, const char *ref, const c
 }
 
 // ---------- Toast ----------
-// Brief centred confirmation banner (blocking ~0.9 s), then forces a redraw.
-void toast(const char *msg, uint16_t col) {
+// Brief centred confirmation banner (blocking ~0.9s, or non-blocking), then forces a redraw.
+void toast(const char *msg, uint16_t col, char blocking) {
   const int w = txtW(msg, 2), x = (SCREEN_W - TOAST_W) / 2, y = (SCREEN_H - TOAST_H) / 2;
   tft.fillRect(x, y, TOAST_W, TOAST_H, col);
   tft.drawRect(x, y, TOAST_W, TOAST_H, COL_BG);
   tft.setFont(NULL); tft.setTextSize(2); tft.setTextColor(COL_BG, col);
   tft.setCursor((SCREEN_W - w) / 2, y + SP_4); tft.print(msg);
-  delay(900);
-  lastRenderedState = -1;   // force a full redraw on the next render()
+  if (blocking == BLOCKING) delay(900);
+  lastRenderedState = -1;  // force a full redraw on the next render()
 }

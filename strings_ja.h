@@ -75,6 +75,7 @@ const char* const STRTAB_JA[] = {
   /*S_SCAN*/                  "スキャン", // EN: "scan"
   /*S_LEDS_ON_MSG*/           "LED点灯", // EN: "LEDs ON"
   /*S_LEDS_OFF_MSG*/          "LED消灯", // EN: "LEDs OFF"
+  /*S_CONNECT_MSG*/           "接続中...", // EN: "Connecting..."
   /*S_NO_DIAGNOSIS*/          "診断なし", // EN: "NO DIAGNOSIS"
   /*S_HW_SENSE*/              "センス線断線", // EN: "Broken sense wire"
   /*S_HW_WEAK*/               "劣化／不良グループ", // EN: "Weak / dead group"
