@@ -65,7 +65,9 @@ enum HwFault { HW_NONE, HW_SENSE_WIRE, HW_WEAK_CELL, HW_IMBALANCE, HW_THERMISTOR
 // Set to 1 to trace OneWire battery transactions over serial (diagnostic).
 // IMPORTANT: keep this 0 when using PC bridge mode — the debug prints share the
 // USB serial port and would corrupt the binary protocol the PC app expects.
+#ifndef COMM_DEBUG
 #define COMM_DEBUG 0
+#endif
 // How many times to retry a key read before giving up. Old / marginal packs answer
 // intermittently; each attempt is a full ENABLE power-cycle.
 #define READ_RETRIES 4

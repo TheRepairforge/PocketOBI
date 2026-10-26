@@ -82,6 +82,7 @@
 #include "display.h"
 #include "ui_nav.h"
 #include "bridge.h"
+#include "probe.h"     // PROBE_PULSE test build only
 #include "strings_ja.h"   // STRTAB_JA, only when ENABLE_CJK=1
 #include "strings_ko.h"   // STRTAB_KO, only when ENABLE_CJK=1
 #include "strings_vi.h"   // STRTAB_VI, only when ENABLE_VI=1
@@ -363,6 +364,9 @@ void setup() {
   state = cfgBridgeBoot ? PC_BRIDGE : LAUNCHER;
   render();
 #endif
+#if PROBE_PULSE
+  probeBegin();
+#endif
 }
 
 void loop() {
@@ -374,6 +378,9 @@ void loop() {
   // PC bridge mode: act as a USB<->OneWire bridge for the PC app (only while active).
 #if !UI_DEMO
   if (state == PC_BRIDGE && bridgeActive) serviceBridge();
+#endif
+#if PROBE_PULSE
+  if (state != PC_BRIDGE) probeService();
 #endif
 
 #if BOARD_HAS_ENCODER
