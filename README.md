@@ -223,7 +223,7 @@ Board selection and build notes: [CYD_NOTES.md](CYD_NOTES.md).
 Since v2.6 the firmware also builds for the LCDWiki **ES3C28P**, a 2.8" ESP32-S3 board with an
 ILI9341V panel and FT6336G **capacitive** touch. Same logic and screens as the CYD, driven by touch;
 Settings > Calibrate is there if taps land off target. The board has a LiPo charger and a battery
-socket, so it can run without a USB cable (it does not show the battery level).
+socket, but running it from a cell instead of USB is not tested yet (it would not show the battery level).
 Thanks to the community tester of [discussion #22](https://github.com/TheRepairforge/PocketOBI/discussions/22)
 who brought it up and tested every early build.
 
