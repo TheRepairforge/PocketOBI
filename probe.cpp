@@ -32,8 +32,15 @@ static void help() {
   Serial.println("  a  R1 test mode out + ENABLE power-cycle");
   Serial.println("  b  R2 DATA held low 500 ms, then released");
   Serial.println("  c  R3 one static frame read (33 AA 00)");
+  Serial.println("test2, one command at a time:");
+  Serial.println("  d  S1 clear once      CC F0 00");
+  Serial.println("  e  S2 cell 1 only     CC 31");
+  Serial.println("  f  S3 temp only       CC 52");
+  Serial.println("  g  S4 bus reset only  (no byte written)");
+  Serial.println("  h  S5 ENABLE high 5 s, no traffic, then low");
+  Serial.println("  l  S6 ENABLE latch    high until l again");
   Serial.println("  ?  this list");
-  Serial.println("Each step ends with ENABLE low.");
+  Serial.println("Each step ends with ENABLE low (except l).");
 }
 
 static void groupModel() {
@@ -101,6 +108,47 @@ static void fullRead() {
   Serial.printf("  model \"%s\" valid=%d\n", bat.model, bat.valid ? 1 : 0);
 }
 
+// test2: one command at a time, to find the smallest trigger.
+static void singleClear() {
+  uint8_t t[8];
+  sendCommand(CLEAR_CMD, t);
+}
+
+static void singleCell1() {
+  uint8_t c[2] = {0, 0};
+  sendCommand(F0513_VCELL1_CMD, c);
+  Serial.printf("  cell1 %02X %02X\n", c[0], c[1]);
+}
+
+static void singleTemp() {
+  uint8_t c[2] = {0, 0};
+  sendCommand(F0513_TEMP_CMD, c);
+  Serial.printf("  temp %02X %02X\n", c[0], c[1]);
+}
+
+// A bus reset with no byte written: does any traffic do it, or only these commands?
+static void resetOnly() {
+  enableOn();
+  bool present = makita.reset();
+  enableOff();
+  Serial.printf("  presence %d\n", present ? 1 : 0);
+}
+
+// ENABLE high for 5 s with no traffic, then low: does the edge alone start or restart it?
+static void enableLong() {
+  digitalWrite(ENABLE_PIN, HIGH);
+  delay(5000);
+  digitalWrite(ENABLE_PIN, LOW);
+}
+
+// ENABLE left high until this key is pressed again (any other key drops it at its end).
+static bool enableLatched = false;
+static void enableLatch() {
+  enableLatched = !enableLatched;
+  digitalWrite(ENABLE_PIN, enableLatched ? HIGH : LOW);
+  Serial.printf("  ENABLE now %s\n", enableLatched ? "HIGH (latched)" : "LOW");
+}
+
 static void remedyExitCycle() {
   uint8_t t[8];
   sendCommand(TESTMODE_EXIT_CMD, t);
@@ -138,11 +186,19 @@ void probeService() {
     case 'a': name = "R1 test mode out + ENABLE cycle"; fn = remedyExitCycle; break;
     case 'b': name = "R2 DATA low 500 ms";              fn = remedyDataLow;   break;
     case 'c': name = "R3 static frame read";            fn = groupStatic;     break;
+    case 'd': name = "S1 clear once";          fn = singleClear; break;
+    case 'e': name = "S2 cell 1 only";         fn = singleCell1; break;
+    case 'f': name = "S3 temp only";           fn = singleTemp;  break;
+    case 'g': name = "S4 bus reset only";      fn = resetOnly;   break;
+    case 'h': name = "S5 ENABLE high 5 s";     fn = enableLong;  break;
+    case 'l': name = "S6 ENABLE latch toggle"; fn = enableLatch; break;
     case '?': help(); return;
     default: return;   // ignore line endings and stray keys
   }
+  if (k != 'l') enableLatched = false;   // every other step ends with ENABLE low
   Serial.printf("[%8lu ms] >>> %s\n", millis(), name);
   fn();
-  stamp("<<< done, ENABLE low. Watch the scope now.");
+  stamp(enableLatched ? "<<< done, ENABLE HIGH. Watch the scope now."
+                      : "<<< done, ENABLE low. Watch the scope now.");
 }
 #endif
