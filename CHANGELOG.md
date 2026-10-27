@@ -6,6 +6,24 @@ Versioning follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH
 The version is defined in `pocketobi.h` as `FW_VERSION` and shown
 on the boot splash and the About screen.
 
+## [2.6.0] - 2026-10-27
+
+A third board, the ES3C28P (ESP32-S3 with capacitive touch), and Simplified Chinese in the Asia build.
+
+### Added
+- **ES3C28P board** (LCDWiki, 2.8" ESP32-S3, ILI9341V panel, FT6336G capacitive touch). Same
+  screens and logic as the CYD, driven by touch, with Settings > Calibrate. Languages EN / FR /
+  DE / ES / VI. The pack lead takes two of the board's sockets (DATA and ENABLE from Expand,
+  3.3 V and GND from I2C), with 470 Ω pull-ups: see the README. New release image
+  `PocketOBI-vX.Y.Z-es3c28p.bin`. Thanks to the community tester of
+  [discussion #22](https://github.com/TheRepairforge/PocketOBI/discussions/22), who brought the
+  board up and tested every early build.
+- **Simplified Chinese** in the Asia build (Settings > Language > ZH), translated by a Chinese
+  user ([issue #29](https://github.com/TheRepairforge/PocketOBI/issues/29)). Thanks to
+  wu3266089-collab for the translation! The
+  "Connecting..." banner, added after the translation, has our own provisional wording:
+  corrections welcome.
+
 ## [2.5.2] - 2026-10-25
 
 The screen no longer looks frozen while a pack is read, and the short messages are easier to read.

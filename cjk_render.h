@@ -9,7 +9,7 @@
 //   ENABLE_CJK=1 : PocketTFT overrides write(): UTF-8 text printed through ANY print()/
 //                  printf() is decoded, ASCII keeps the normal font path, and a Japanese or
 //                  Korean character is drawn from the current language's bitmap glyph
-//                  tables (glyphs_ja.h / glyphs_ko.h) at the
+//                  tables (glyphs_ja/ko/zh.h) at the
 //                  height of the current font: 16 px next to a GFX font; with the classic
 //                  font (8*size px), 12 px at size 1, 16 at 2, then 12 or 16 scaled up.
 //                  So call sites need no change to show Japanese: tr() returns it, and
@@ -28,7 +28,7 @@ constexpr int LANG_AVAIL[] = {
   LANG_FR, LANG_DE, LANG_ES,
 #endif
 #if ENABLE_CJK
-  LANG_JA, LANG_KO,
+  LANG_JA, LANG_KO, LANG_ZH,
 #endif
 #if ENABLE_VI
   LANG_VI,
@@ -45,8 +45,8 @@ inline int langNext(int l) {
   for (int i = 0; i < LANG_NUM; i++) if (LANG_AVAIL[i] == l) return LANG_AVAIL[(i + 1) % LANG_NUM];
   return LANG_AVAIL[0];
 }
-// A language drawn from the bitmap glyph tables (Japanese, Korean).
-inline bool langWide(int l) { return ENABLE_CJK && (l == LANG_JA || l == LANG_KO); }
+// A language drawn from the bitmap glyph tables (Japanese, Korean, Chinese).
+inline bool langWide(int l) { return ENABLE_CJK && (l == LANG_JA || l == LANG_KO || l == LANG_ZH); }
 
 // Vertical nudge for classic-font (size 1) lines in a wide-glyph UI (Japanese, Korean): a 12 px cell
 // spans [y-2, y+10) where an ASCII row spans [y, y+8), so a caption squeezed under a 9 pt value needs
@@ -58,6 +58,7 @@ inline const char* langCode(int l) {
 #if ENABLE_CJK
   if (l == LANG_JA) return "JA";
   if (l == LANG_KO) return "KO";
+  if (l == LANG_ZH) return "ZH";
 #endif
   if (l == LANG_VI) return "VI";
   return LANG_CODE[l];

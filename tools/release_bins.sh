@@ -18,7 +18,7 @@
 set -e
 REF=$1; OUT=$2; VER=$3
 [ -n "$OUT" ] || { echo "usage: $0 <git-ref> <out-dir> [<version>]"; exit 2; }
-ENVS="esp32-c3 cyd esp32-c3-asia cyd-asia cyd-ili9341"   # -ja up to 2.3.1, -asia from 2.5.0
+ENVS="esp32-c3 cyd esp32-c3-asia cyd-asia cyd-ili9341 es3c28p"   # -ja up to 2.3.1, -asia from 2.5.0, es3c28p from 2.6.0
 REPO=$(cd "$(dirname "$0")/.." && pwd)
 if [ -d /c ]; then WT=/c/pob; else WT=$(mktemp -d)/pob; fi
 if [ -d /c/pio ]; then export PLATFORMIO_CORE_DIR=C:/pio; fi

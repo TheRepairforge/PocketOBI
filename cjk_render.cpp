@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Copyright (c) 2026 TheRepairForge
-// PocketOBI — Japanese / Korean (CJK) text engine, compiled only when ENABLE_CJK=1 (DECISIONS.md
+// PocketOBI — Japanese / Korean / Chinese (CJK) text engine, compiled only when ENABLE_CJK=1 (DECISIONS.md
 // D19/D33/D58). PocketTFT::write() decodes UTF-8 as it is printed: ASCII goes to the normal
 // Adafruit_GFX path, a wide code point is blitted from the current language's 16x16 or 12x12
-// bitmap table (glyphs_ja.h, glyphs_ko.h), scaled up for large classic-font sizes (see cjkCell()
+// bitmap table (glyphs_ja/ko/zh.h), scaled up for large classic-font sizes (see cjkCell()
 // in cjk_render.h).
 // With ENABLE_CJK=0 this file compiles to nothing.
 #include "pocketobi.h"
@@ -11,6 +11,7 @@
 #if ENABLE_CJK
 #include "glyphs_ja.h"
 #include "glyphs_ko.h"
+#include "glyphs_zh.h"
 
 // Vertical nudge of the 16 px cell below a GFX-font baseline, so kanji sit level with the
 // FreeSans labels (tuned on the bench with the 2026-09-10 spike).
@@ -62,19 +63,22 @@ size_t PocketTFT::write(const uint8_t *buf, size_t n) {
   return n;
 }
 
-// The glyph of cp in a cell, from the current language's table first, then the other one
+// The glyph of cp in a cell, from the current language's table first, then the other ones
 // (each table only holds the characters its own strings use).
+struct GlyphTable { int lang; const CjkGlyph16* g16; const CjkGlyph12* g12; int n; };
+static const GlyphTable TABLES[] = {
+  { LANG_JA, CJK_GLYPHS16_JA, CJK_GLYPHS12_JA, CJK_GLYPH_COUNT_JA },
+  { LANG_KO, CJK_GLYPHS16_KO, CJK_GLYPHS12_KO, CJK_GLYPH_COUNT_KO },
+  { LANG_ZH, CJK_GLYPHS16_ZH, CJK_GLYPHS12_ZH, CJK_GLYPH_COUNT_ZH },
+};
 static const uint8_t* wideGlyph(uint32_t cp, int cell) {
-  const bool ko = (lang == LANG_KO);
-  const uint8_t* b;
-  if (cell == 16) {
-    b = ko ? findGlyph(CJK_GLYPHS16_KO, CJK_GLYPH_COUNT_KO, cp) : findGlyph(CJK_GLYPHS16_JA, CJK_GLYPH_COUNT_JA, cp);
-    if (!b) b = ko ? findGlyph(CJK_GLYPHS16_JA, CJK_GLYPH_COUNT_JA, cp) : findGlyph(CJK_GLYPHS16_KO, CJK_GLYPH_COUNT_KO, cp);
-  } else {
-    b = ko ? findGlyph(CJK_GLYPHS12_KO, CJK_GLYPH_COUNT_KO, cp) : findGlyph(CJK_GLYPHS12_JA, CJK_GLYPH_COUNT_JA, cp);
-    if (!b) b = ko ? findGlyph(CJK_GLYPHS12_JA, CJK_GLYPH_COUNT_JA, cp) : findGlyph(CJK_GLYPHS12_KO, CJK_GLYPH_COUNT_KO, cp);
-  }
-  return b;
+  for (int pass = 0; pass < 2; pass++)
+    for (const GlyphTable& t : TABLES) {
+      if ((t.lang == lang) != (pass == 0)) continue;
+      const uint8_t* b = (cell == 16) ? findGlyph(t.g16, t.n, cp) : findGlyph(t.g12, t.n, cp);
+      if (b) return b;
+    }
+  return nullptr;
 }
 
 // Draw one non-ASCII code point at the cursor and advance it, matching the current font.

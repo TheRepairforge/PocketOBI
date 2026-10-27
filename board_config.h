@@ -15,6 +15,13 @@
 // logic. This is the XGT seam of REPO_MAP.md, generalised to a second board.
 #define BOARD_LXT_C3 1   // ESP32-C3 SuperMini + ST7789 + EC11 encoder (shipping product)
 #define BOARD_CYD    2   // "Cheap Yellow Display" ESP32-2432S028R: ST7789 + XPT2046 touch (dev/alt)
+#define BOARD_ES3C28P 3  // LCDWiki ES3C28P: ESP32-S3 + ILI9341V + FT6336G capacitive touch (D48)
+
+// Touch driver, one selector per board (D48): never two booleans. The sketch includes and
+// instantiates the driver this names; the logic only calls touch.touched() / touch.getPoint().
+#define TOUCH_NONE    0   // no touch input
+#define TOUCH_XPT2046 1   // resistive, on its own SPI bus (CYD)
+#define TOUCH_FT6336  2   // capacitive, on I2C, reports pixels (ES3C28P, touch_ft6336.h)
 
 // Optional LOCAL board override (gitignored, never committed): drop a file
 // "board_local.h" next to this header containing e.g.
@@ -37,11 +44,16 @@
 // Capability flags — test the CAPABILITY, not the board id, in the logic below,
 // so a future third board reuses the same #if without editing every call site.
 #define BOARD_HAS_ENCODER (POCKETOBI_BOARD == BOARD_LXT_C3)
-#define BOARD_HAS_TOUCH   (POCKETOBI_BOARD == BOARD_CYD)
+#define BOARD_HAS_TOUCH   (BOARD_TOUCH_DRIVER != TOUCH_NONE)
 
 // ================= BOARD HEADER =================
 // Every GPIO assignment lives here, nowhere else. A new board adds one branch.
-// Three sub-blocks per board: battery bus / input device / display.
+// Three sub-blocks per board: battery bus / input device / display. Each branch also
+// sets the per-board capability selectors: BOARD_TOUCH_DRIVER (a TOUCH_* value),
+// BOARD_TOUCH_NEEDS_CAL (1 = Settings > Calibrate is offered), PANEL_ILI9341
+// (1 = write the ILI9341 MADCTL orientation in applyRotation()) and PANEL_INVERT
+// (1 = the panel needs display inversion ON for correct colours, setup()) and
+// PANEL_ILI9341_INIT (1 = send the ILI9341 power / VCOM / gamma registers after tft.init(), setup()).
 #if POCKETOBI_BOARD == BOARD_LXT_C3
 // --- PocketOBI-LXT (ESP32-C3 SuperMini) — the shipping product ---
 // --- Battery bus ---
@@ -58,6 +70,12 @@
 #define TFT_RST  10
 #define TFT_MOSI 1   // SDA
 #define TFT_SCLK 0   // SCL
+// --- Capabilities: no touch, no calibration, ST7789 orientation ---
+#define BOARD_TOUCH_DRIVER    TOUCH_NONE
+#define BOARD_TOUCH_NEEDS_CAL 0
+#define PANEL_ILI9341         0
+#define PANEL_INVERT          0
+#define PANEL_ILI9341_INIT    0
 
 #elif POCKETOBI_BOARD == BOARD_CYD
 // --- CYD ESP32-2432S028R, dual-USB (USB-C + micro) revision (dev/alt target) ---
@@ -88,7 +106,61 @@
 #ifndef CYD_ILI9341
 #define CYD_ILI9341 0
 #endif
+// --- Capabilities ---
+#define BOARD_TOUCH_DRIVER    TOUCH_XPT2046
+#define BOARD_TOUCH_NEEDS_CAL 1
+#define PANEL_ILI9341         CYD_ILI9341
+#define PANEL_INVERT          0
+#define PANEL_ILI9341_INIT    0
+// Factory touch calibration (raw XPT2046 -> screen pixels, see ui_nav.cpp). Measured on the
+// bench; Settings > Calibrate overwrites them in NVS.
+#define TCAL_DEF_X_LEFT   3765   // raw Y at screen x=0   (left edge)
+#define TCAL_DEF_X_RIGHT   235   // raw Y at screen x=319 (right edge)
+#define TCAL_DEF_Y_TOP     415   // raw X at screen y=0   (top edge)
+#define TCAL_DEF_Y_BOTTOM 3751   // raw X at screen y=239 (bottom edge)
+
+#elif POCKETOBI_BOARD == BOARD_ES3C28P
+// --- LCDWiki ES3C28P: ESP32-S3 (16 MB flash, PSRAM unused), ILI9341V 240x320, FT6336G touch ---
+// Native USB on the Type-C. Pack read bench-tested on our own board (D48). GPIO3 is an S3
+// strapping pin (JTAG source select), pulled up at boot by its resistor: harmless while the
+// JTAG-select eFuse is not burnt.
+// --- Battery bus: Expand socket pins 1-2; the pull-ups' 3V3 and GND come from the I2C socket
+// pins 1-2 (its IO15/IO16 are the touch bus, leave them). Wiring: HARDWARE_ES3C28P.md ---
+#define ONEWIRE_PIN 2    // DATA, + 470 ohm pull-up to 3V3
+#define ENABLE_PIN  3    // ENABLE, + 470 ohm pull-up to 3V3
+// --- Input: capacitive touch (FT6336G on I2C, no encoder, no back button) ---
+#define TOUCH_SDA  16
+#define TOUCH_SCL  15
+#define TOUCH_RST  18    // active low: pulsed once in begin()
+#define TOUCH_INT  17    // active low while touched; optional, not read (the sketch polls over I2C)
+// --- Display: ILI9341V (SPI, hardware) ---
+#define TFT_CS   10
+#define TFT_DC   46      // strapping pin on the S3, driven by the display after boot
+#define TFT_RST  -1      // tied to the chip reset on this carrier
+#define TFT_MOSI 11
+#define TFT_SCLK 12      // MISO not wired to the sketch (no read-back)
+#define TFT_BL   45      // backlight: driven HIGH in setup(), else the panel stays black
+// --- Capabilities ---
+#define BOARD_TOUCH_DRIVER    TOUCH_FT6336
+#define BOARD_TOUCH_NEEDS_CAL 1   // a capacitive panel reports pixels; Settings > Calibrate refines the defaults below
+#define PANEL_ILI9341         1
+// The ES3C28P's ILI9341V shows every colour inverted with inversion OFF (tester photos, #22:
+// near-black background drawn cream, teal header salmon, green bars magenta).
+#define PANEL_INVERT          1
+// tft.init() is the ST7789 sequence: on this ILI9341V it leaves power, VCOM and gamma at their reset
+// values (tester: near-black drawn grey-blue). The generic Adafruit ILI9341 values were tried in test5
+// and broke the picture on this module (noise lines, then horizontal stripes on every redraw), so they
+// stay OFF here until the board vendor's own init values are known.
+#define PANEL_ILI9341_INIT    0
+// Factory touch calibration, measured by the community tester (one board, Settings > Calibrate,
+// then the five-target touch test landed on every target). The FT6336 reports pixels in the
+// panel's native portrait frame (x 0..239, y 0..319): screen X follows raw Y, screen Y follows
+// raw X REVERSED on this module (the identity guess of the first builds was wrong).
+#define TCAL_DEF_X_LEFT     4    // raw Y at screen x=0   (left edge)
+#define TCAL_DEF_X_RIGHT  315    // raw Y at screen x=319 (right edge)
+#define TCAL_DEF_Y_TOP    206    // raw X at screen y=0   (top edge)
+#define TCAL_DEF_Y_BOTTOM  10    // raw X at screen y=239 (bottom edge)
 
 #else
-#  error "POCKETOBI_BOARD must be BOARD_LXT_C3 or BOARD_CYD"
+#  error "POCKETOBI_BOARD must be BOARD_LXT_C3, BOARD_CYD or BOARD_ES3C28P"
 #endif

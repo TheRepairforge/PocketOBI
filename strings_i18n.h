@@ -7,15 +7,15 @@
 
 // ---------- i18n (string table; GFX fonts are ASCII-only, so no accents:
 // FR/ES accents dropped, German umlauts as ae/oe/ue/ss) ----------
-// LANG_COUNT = the four columns of STRTAB below. Japanese and Korean (D19, D58) are NOT
-// STRTAB columns: their strings live in strings_ja.h / strings_ko.h and only exist when
+// LANG_COUNT = the four columns of STRTAB below. Japanese, Korean, Chinese (D19, D58, D70) are NOT
+// STRTAB columns: their strings live in strings_ja/ko/zh.h and only exist when
 // ENABLE_CJK=1, so this table stays four-wide for PackScope/tools/gen_locales.py.
 // The language ids are PINNED (D58): they are saved in NVS, so a new language takes the
 // next free number and never shifts another one. Vietnamese (D50, D60) is an ASCII column in
 // strings_vi.h, also outside STRTAB. Which ones the user can pick is the build's LANG_AVAIL[]
 // (cjk_render.h).
 enum Lang { LANG_EN = 0, LANG_FR = 1, LANG_DE = 2, LANG_ES = 3, LANG_COUNT = 4,
-            LANG_JA = 4, LANG_KO = 5, LANG_VI = 6 };
+            LANG_JA = 4, LANG_KO = 5, LANG_VI = 6, LANG_ZH = 7 };
 const char* const LANG_CODE[LANG_COUNT] = { "EN", "FR", "DE", "ES" };
 
 enum StrId {

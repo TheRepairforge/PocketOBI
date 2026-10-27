@@ -119,7 +119,7 @@ def contact_sheet(frames, cols=4, pad=8, label_h=16):
 
 def main():
     ap = argparse.ArgumentParser(description="Render PocketOBI screens on the PC")
-    ap.add_argument("--asia", action="store_true", help="Asia build: EN + JA + KO + VI (ENABLE_CJK=1, ENABLE_EU=0, ENABLE_VI=1)")
+    ap.add_argument("--asia", action="store_true", help="Asia build: EN + JA + KO + VI + ZH (ENABLE_CJK=1, ENABLE_EU=0, ENABLE_VI=1)")
     ap.add_argument("--board", choices=sorted(BOARDS), default="c3")
     ap.add_argument("--scale", type=int, default=1, help="integer zoom of the PNGs")
     ap.add_argument("--gfx", help="Adafruit GFX Library folder")

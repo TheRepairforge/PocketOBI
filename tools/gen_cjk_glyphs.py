@@ -83,6 +83,10 @@ LANGS = {
            "shipped": {16: "NotoSansKR-Medium.otf", 12: "fusion-pixel-12px-monospaced-ko.otf"},
            "licence": "SIL Open Font License 1.1 (Noto Sans CJK KR, Fusion Pixel; see THIRD-PARTY.md)",
            "dev": [r"C:\Windows\Fonts\malgun.ttf"]},
+    "zh": {"name": "Simplified Chinese",
+           "shipped": {16: "NotoSansSC-Medium.otf", 12: "fusion-pixel-12px-monospaced-zh_hans.otf"},
+           "licence": "SIL Open Font License 1.1 (Noto Sans CJK SC, Fusion Pixel; see THIRD-PARTY.md)",
+           "dev": [r"C:\Windows\Fonts\msyh.ttc", r"C:\Windows\Fonts\simsun.ttc"]},
 }
 LANG = LANGS["ja"]  # set by main() from --lang
 

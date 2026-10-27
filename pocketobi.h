@@ -17,23 +17,28 @@
 #include "cjk_config.h"   // ENABLE_CJK (D19); before strings_i18n.h
 #include "strings_i18n.h"
 #include "cjk_render.h"   // PocketTFT (the display type), LANG_NUM, txtW() (D19/D33)
-#if BOARD_HAS_TOUCH
+#if BOARD_TOUCH_DRIVER == TOUCH_XPT2046
 #include <XPT2046_Touchscreen.h>
+#elif BOARD_TOUCH_DRIVER == TOUCH_FT6336
+#include "touch_ft6336.h"        // FT6336_Touch + a minimal TS_Point (header-only, no library)
 #endif
 
-#define TCAL_DEF_X_LEFT   3765   // raw Y at screen x=0   (left edge)
-#define TCAL_DEF_X_RIGHT   235   // raw Y at screen x=319 (right edge)
-#define TCAL_DEF_Y_TOP     415   // raw X at screen y=0   (top edge)
-#define TCAL_DEF_Y_BOTTOM 3751   // raw X at screen y=239 (bottom edge)
+// Factory touch calibration (TCAL_DEF_*) is per board: board_config.h.
 #define TOUCH_Z_MIN 300          // reject ghost / very-light touches below this pressure
 #define TOUCH_DEBUG 0
+// Touch test screen reachable from Settings > Calibrate (hold the first target 2 s, or after
+// saving a calibration): dots + raw/mapped coordinates, no navigation. On for the ES3C28P test
+// builds (platformio.ini), where the touch mapping is still being established (D48).
+#ifndef TOUCH_TEST_MENU
+#define TOUCH_TEST_MENU 0
+#endif
 // Firmware version (see CHANGELOG.md). The numeric triplet is the single source
 // of truth reported by the PC bridge (interface-version query); keep FW_VERSION
 // consistent with it.
 #define FW_VER_MAJOR 2
 #define FW_VER_MINOR 5
 #define FW_VER_PATCH 2
-#define FW_VERSION "2.5.2"
+#define FW_VERSION "2.6.0"
 
 // Companion-app compatibility-contract version. Distinct from FW_VERSION: it bumps
 // ONLY when the coupling with the companion app changes — a bridge command is
@@ -65,7 +70,9 @@ enum HwFault { HW_NONE, HW_SENSE_WIRE, HW_WEAK_CELL, HW_IMBALANCE, HW_THERMISTOR
 // Set to 1 to trace OneWire battery transactions over serial (diagnostic).
 // IMPORTANT: keep this 0 when using PC bridge mode — the debug prints share the
 // USB serial port and would corrupt the binary protocol the PC app expects.
+#ifndef COMM_DEBUG
 #define COMM_DEBUG 0
+#endif
 // How many times to retry a key read before giving up. Old / marginal packs answer
 // intermittently; each attempt is a full ENABLE power-cycle.
 #define READ_RETRIES 4
@@ -182,9 +189,13 @@ enum { LF_CS0 = 0x01, LF_CS2 = 0x02, LF_N34 = 0x04, LF_CS1 = 0x08 };
 // Hardware singletons (defined in PocketOBI.ino)
 extern OneWire makita;
 extern PocketTFT tft;
-#if BOARD_HAS_TOUCH
+#if BOARD_TOUCH_DRIVER == TOUCH_XPT2046
 extern SPIClass touchSPI;
 extern XPT2046_Touchscreen touch;
+#elif BOARD_TOUCH_DRIVER == TOUCH_FT6336
+extern FT6336_Touch touch;
+#endif
+#if BOARD_HAS_TOUCH
 extern int tcXL, tcXR, tcYT, tcYB;
 extern bool touchDown;
 extern unsigned long lastTouchMs;

@@ -84,6 +84,7 @@
 #include "bridge.h"
 #include "strings_ja.h"   // STRTAB_JA, only when ENABLE_CJK=1
 #include "strings_ko.h"   // STRTAB_KO, only when ENABLE_CJK=1
+#include "strings_zh.h"   // STRTAB_ZH, only when ENABLE_CJK=1
 #include "strings_vi.h"   // STRTAB_VI, only when ENABLE_VI=1
 
 
@@ -92,18 +93,23 @@ OneWire makita(ONEWIRE_PIN);
 // SCLK/MOSI pins are assigned via SPI.begin() in setup().
 PocketTFT tft(&SPI, TFT_CS, TFT_DC, TFT_RST);   // = Adafruit_ST7789, UTF-8 aware in the JA build
 
-#if BOARD_HAS_TOUCH
+#if BOARD_TOUCH_DRIVER == TOUCH_XPT2046
 // The display drives the default SPI object (remapped to its HSPI pins in setup()),
 // so the XPT2046 touch controller gets its OWN bus on a second SPIClass.
 #include <XPT2046_Touchscreen.h>
 SPIClass touchSPI(HSPI);
 XPT2046_Touchscreen touch(TOUCH_CS, TOUCH_IRQ);
+#elif BOARD_TOUCH_DRIVER == TOUCH_FT6336
+// Capacitive touch on I2C (ES3C28P): no extra bus, the driver starts Wire in begin().
+FT6336_Touch touch;
+#endif
 
-// Resistive-touch calibration: raw XPT2046 -> screen pixels. On this CYD the axes
-// are crossed (screen X from the raw Y axis inverted, screen Y from the raw X axis);
+#if BOARD_HAS_TOUCH
+// Touch calibration: raw controller reading -> screen pixels (ui_nav.cpp, mapTouch()). On the CYD
+// the axes are crossed (screen X from the raw Y axis inverted, screen Y from the raw X axis);
 // map() handles the inverted ranges. The four corner values live in NVS and are
-// editable from Settings > Calibrate; these #defines are the factory fallback,
-// measured on the bench. Re-run Calibrate after a panel swap.
+// editable from Settings > Calibrate; the TCAL_DEF_* #defines (board_config.h) are the factory
+// fallback, measured on the bench. Re-run Calibrate after a panel swap.
 int tcXL = TCAL_DEF_X_LEFT, tcXR = TCAL_DEF_X_RIGHT,
     tcYT = TCAL_DEF_Y_TOP,  tcYB = TCAL_DEF_Y_BOTTOM;
 // Set to 1 to calibrate manually: each tap draws a dot where it maps + prints
@@ -137,6 +143,7 @@ const char* tr(StrId id) {   // prototype in pocketobi.h
 #if ENABLE_CJK
   if (lang == LANG_JA) return STRTAB_JA[id] ? STRTAB_JA[id] : STRTAB[id][LANG_EN];
   if (lang == LANG_KO) return STRTAB_KO[id] ? STRTAB_KO[id] : STRTAB[id][LANG_EN];
+  if (lang == LANG_ZH) return STRTAB_ZH[id] ? STRTAB_ZH[id] : STRTAB[id][LANG_EN];
 #endif
 #if ENABLE_VI
   if (lang == LANG_VI) return STRTAB_VI[id] ? STRTAB_VI[id] : STRTAB[id][LANG_EN];
@@ -145,7 +152,7 @@ const char* tr(StrId id) {   // prototype in pocketobi.h
 }
 
 const int   toolCount = 6;
-#if BOARD_HAS_TOUCH
+#if BOARD_TOUCH_NEEDS_CAL
 const int   settingsCount = 4;   // Flip screen, PC bridge at boot, Language, Calibrate touch
 #else
 const int   settingsCount = 3;   // Flip screen, PC bridge at boot, Language
@@ -303,6 +310,11 @@ int lastBatteryPage = -1;  // force a screen clear when the Battery page changes
 
 void setup() {
   Serial.begin(115200);
+#if COMM_DEBUG && ARDUINO_USB_MODE && ARDUINO_USB_CDC_ON_BOOT
+  // Debug builds on native USB-CDC: with no PC reading the port (phone charger), every trace line
+  // would wait for the TX timeout. Drop them instead, so the UI does not stall.
+  Serial.setTxTimeoutMs(0);
+#endif
 
   pinMode(ENABLE_PIN, OUTPUT);
   digitalWrite(ENABLE_PIN, LOW);
@@ -317,15 +329,18 @@ void setup() {
   encoder = new RotaryEncoder(ENC_B, ENC_A, RotaryEncoder::LatchMode::FOUR3);
 #endif
 
-#if BOARD_HAS_TOUCH
+#if BOARD_TOUCH_DRIVER == TOUCH_XPT2046
   // XPT2046 on its own SPI bus; we read raw points and map them ourselves.
   touchSPI.begin(TOUCH_CLK, TOUCH_MISO, TOUCH_MOSI, TOUCH_CS);
   touch.begin(touchSPI);
   touch.setRotation(0);
+#elif BOARD_TOUCH_DRIVER == TOUCH_FT6336
+  // FT6336G on I2C; a missing controller is reported but does not halt the sketch.
+  if (!touch.begin()) Serial.println("FT6336G not found at 0x38: touch disabled");
 #endif
 
 #ifdef TFT_BL
-  // CYD: the backlight is GPIO-controlled — without this the panel stays black.
+  // CYD / ES3C28P: the backlight is GPIO-controlled — without this the panel stays black.
   pinMode(TFT_BL, OUTPUT);
   digitalWrite(TFT_BL, HIGH);
 #endif
@@ -348,7 +363,10 @@ void setup() {
 #endif
 
   tft.init(240, 320);        // 240x320 ST7789 panel (both boards)
-  tft.invertDisplay(false);  // correct colors on both boards' ST7789 panels
+#if PANEL_ILI9341_INIT
+  ili9341PanelInit();        // the ILI9341's own power / VCOM / gamma (board_config.h)
+#endif
+  tft.invertDisplay(PANEL_INVERT);  // per board (board_config.h): OFF on the ST7789 / CYD panels, ON on the ES3C28P
   applyRotation();
 
   // Boot splash, then straight to the launcher (or the PC bridge if configured). We deliberately

@@ -92,8 +92,8 @@ void activate(UiState s, int idx) {
       else if (idx == 1) { cfgBridgeBoot = !cfgBridgeBoot; prefs.putBool("bridge", cfgBridgeBoot); }
       else if (idx == 2) { lang = langNext(lang); prefs.putInt("lang", lang);
                            lastRenderedState = -1; }   // full redraw so all text swaps
-#if BOARD_HAS_TOUCH
-      else if (idx == 3) { calibrateTouch(); lastRenderedState = -1; }  // Calibrate touch (CYD)
+#if BOARD_TOUCH_NEEDS_CAL
+      else if (idx == 3) { calibrateTouch(); lastRenderedState = -1; }  // Calibrate touch (CYD, ES3C28P)
 #endif
       break;
     case ABOUT:
@@ -157,9 +157,10 @@ void goHome() {
   if (state != LAUNCHER) { state = LAUNCHER; render(); }
 }
 #if BOARD_HAS_TOUCH
-// ---------- Touch input (CYD): tap-target, drives the shared nav core ----------
-// Map a raw XPT2046 reading (0..4095 per axis) to screen pixels, correcting axis
-// swap/flip and the 180-degree display flip (cfgFlip). Tunable via the TOUCH_* flags.
+// ---------- Touch input (CYD, ES3C28P): tap-target, drives the shared nav core ----------
+// Map a raw touch reading to screen pixels, correcting axis swap/flip and the 180-degree
+// display flip (cfgFlip). The raw range depends on the controller: XPT2046 0..4095 per axis,
+// FT6336 panel pixels (x 0..239, y 0..319). The TCAL_DEF_* defaults in board_config.h match each.
 void mapTouch(int rawX, int rawY, int *sx, int *sy) {
   long x = map(rawY, tcXL, tcXR, 0, 319);   // screen X <- raw Y axis (calibration in NVS)
   long y = map(rawX, tcYT, tcYB, 0, 239);   // screen Y <- raw X axis
@@ -194,11 +195,24 @@ void calibrateTouch() {
     tft.drawFastVLine(tx[i], ty[i] - 13, 27, COL_ACCENT);
     while (touch.touched()) delay(10);        // release the selecting/previous touch first
     delay(60);
+#if TOUCH_TEST_MENU
+    if (i == 0) {
+      tft.setTextColor(COL_MUTED, COL_BG);
+      tft.setCursor(72, 148); tft.print("Hold 2 s: touch test only");
+    }
+#endif
     for (;;) {                                // wait for a firm tap
       if (touch.touched()) { TS_Point p = touch.getPoint();
         if (p.z >= TOUCH_Z_MIN) { rx[i] = p.x; ry[i] = p.y; break; } }
       delay(5);
     }
+#if TOUCH_TEST_MENU
+    if (i == 0) {                             // still held after 2 s: test only, keep the calibration
+      const unsigned long t0 = millis();
+      while (touch.touched() && millis() - t0 < 2000) delay(10);
+      if (touch.touched()) { touchTest(); return; }
+    }
+#endif
     tft.fillCircle(tx[i], ty[i], 6, COL_GREEN);
     while (touch.touched()) delay(10);        // wait for release before the next target
     delay(150);
@@ -215,7 +229,54 @@ void calibrateTouch() {
   prefs.putInt("tcYT", tcYT); prefs.putInt("tcYB", tcYB);
   tft.fillScreen(COL_BG); tft.setTextColor(COL_GREEN, COL_BG); tft.setTextSize(2);
   tft.setCursor(96, 108); tft.print(tr(S_CAL_SAVED)); delay(700);
+#if TOUCH_TEST_MENU
+  touchTest();                                // check the new calibration straight away
+#endif
 }
+#if TOUCH_TEST_MENU
+// Touch test (ES3C28P test builds): five targets, a dot where each tap is mapped, the raw and
+// mapped coordinates on screen and on the serial log. Never navigates. A point the driver did
+// not trust (getPoint z = 0) is drawn grey and logged as REJECTED. Hold 2 s anywhere to leave.
+// English only, like the Debug screen (D33).
+void touchTest() {
+  const int M = 20;
+  const int tx[5] = { M, 319 - M, M, 319 - M, 160 };   // TL, TR, BL, BR, centre
+  const int ty[5] = { M, M, 239 - M, 239 - M, 120 };
+  tft.fillScreen(COL_BG);
+  tft.setTextSize(1); tft.setTextColor(COL_TEXT, COL_BG);
+  tft.setCursor(88, 96);  tft.print("Touch test: tap each target");
+  tft.setTextColor(COL_MUTED, COL_BG);
+  tft.setCursor(112, 140); tft.print("Hold 2 s to exit");
+  for (int i = 0; i < 5; i++) {
+    tft.drawCircle(tx[i], ty[i], 9, COL_ACCENT);
+    tft.drawFastHLine(tx[i] - 13, ty[i], 27, COL_ACCENT);
+    tft.drawFastVLine(tx[i], ty[i] - 13, 27, COL_ACCENT);
+  }
+  Serial.println("touch test: raw x,y (panel) -> map x,y (screen), ev 0=down 2=contact");
+  while (touch.touched()) delay(10);         // release the tap that opened the test
+  delay(100);
+  for (;;) {
+    if (!touch.touched()) { delay(5); continue; }
+    const TS_Point p = touch.getPoint();
+    int sx, sy;
+    mapTouch(p.x, p.y, &sx, &sy);
+    const bool ok = p.z >= TOUCH_Z_MIN;
+    const bool none = !ok && p.x == 0 && p.y == 0;   // no usable sample at all: no dot to draw
+    if (!none) tft.fillCircle(sx, sy, 4, ok ? COL_RED : COL_MUTED);
+    tft.fillRect(0, 224 - 32, 320, 12, COL_BG);   // the BL/BR targets sit lower, keep them
+    tft.setTextColor(COL_TEXT, COL_BG); tft.setCursor(40, 194);
+    tft.printf("raw %3d,%3d  map %3d,%3d  ev %u%s", p.x, p.y, sx, sy, touch.lastEvent, ok ? "" : " REJ");
+    Serial.printf("raw %d,%d  map %d,%d  ev %u%s\n", p.x, p.y, sx, sy, touch.lastEvent,
+                  ok ? "" : "  REJECTED");
+    const unsigned long t0 = millis();         // one dot per tap; a long hold leaves the test
+    while (touch.touched()) {
+      if (millis() - t0 > 2000) { while (touch.touched()) delay(10); return; }
+      delay(10);
+    }
+    delay(60);
+  }
+}
+#endif
 // The tapped target for the current screen. Cursor screens map a tap to the item
 // under the finger; the rest ignore the index (tap = their primary action).
 int touchHitIndex(UiState s, int sx, int sy) {

@@ -17,6 +17,16 @@ are retained in the source files.
   Maintained since 2010 by Paul Stoffregen (paul@pjrc.com)
   Bit-level timing modifications from the Open Battery Information project
 
+## Adafruit ILI9341 library (register values only)
+
+`ili9341PanelInit()` in `display.cpp` sends the ILI9341 power, VCOM, frame-rate and gamma register
+values of the Adafruit_ILI9341 library's init table (version 1.6.1). No other code is reused.
+Its notice:
+
+  Written by Limor "ladyada" Fried for Adafruit Industries.
+  BSD license, all text here must be included in any redistribution.
+  https://github.com/adafruit/Adafruit_ILI9341
+
 ## Open Battery Information (base project / protocol implementation)
 
 PocketOBI builds on the Open Battery Information project by Martin Jansson, from
@@ -56,12 +66,12 @@ SOFTWARE.
 
 --------------------------------------------------------------------------------
 
-## Noto Sans CJK JP / KR and Fusion Pixel (glyph bitmaps in `glyphs_ja.h` and `glyphs_ko.h`, Asia build only)
+## Noto Sans CJK JP / KR / SC and Fusion Pixel (glyph bitmaps in `glyphs_ja.h`, `glyphs_ko.h` and `glyphs_zh.h`, Asia build only)
 
-The Japanese and Korean characters of the `ENABLE_CJK` (Asia) build are 1-bit bitmaps
-rasterised by `tools/gen_cjk_glyphs.py`: the 16 px cell from Noto Sans JP Medium and Noto
-Sans KR Medium (Noto Sans CJK, version 2.004), the 12 px cell from Fusion Pixel 12px
-monospaced, Japanese and Korean variants (release 2026.09.25; its Hangul comes from Galmuri).
+The Japanese, Korean and Chinese characters of the `ENABLE_CJK` (Asia) build are 1-bit bitmaps
+rasterised by `tools/gen_cjk_glyphs.py`: the 16 px cell from Noto Sans JP Medium, Noto
+Sans KR Medium and Noto Sans SC Medium (Noto Sans CJK, version 2.004), the 12 px cell from Fusion Pixel 12px
+monospaced, Japanese, Korean and Simplified Chinese variants (release 2026.09.25; its Hangul comes from Galmuri).
 They are a modified form of the fonts and stay under the SIL Open Font License 1.1, reproduced
 below. The standard build contains none of them.
 
@@ -86,7 +96,7 @@ project ships without a license, none of its code is used here.
 
 --------------------------------------------------------------------------------
 
-## SIL Open Font License 1.1 (applies to the Noto Sans CJK JP / KR and Fusion Pixel glyphs above)
+## SIL Open Font License 1.1 (applies to the Noto Sans CJK JP / KR / SC and Fusion Pixel glyphs above)
 
 This Font Software is licensed under the SIL Open Font License,
 Version 1.1.

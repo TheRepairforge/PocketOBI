@@ -6,7 +6,7 @@
 
 [![Release](https://img.shields.io/github/v/release/TheRepairforge/PocketOBI?label=release&color=2f81f7)](https://github.com/TheRepairforge/PocketOBI/releases)
 [![License: PolyForm Noncommercial 1.0.0](https://img.shields.io/badge/license-PolyForm--NC--1.0.0-blue)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-ESP32--C3%20%7C%20CYD-lightgrey)](#hardware)
+[![Platform](https://img.shields.io/badge/platform-ESP32--C3%20%7C%20CYD%20%7C%20ES3C28P-lightgrey)](#hardware)
 [![Build with](https://img.shields.io/badge/build-Arduino%20%7C%20PlatformIO-blue)](#build--flash)
 
 [Website](https://therepairforge.github.io/pocketobi/) · [Platform family](#platform-family) · [Watch it in action](#-watch-it-in-action) · [Status](#project-status) · [Features](#features) · [Hardware](#hardware) · [Build & flash](#build--flash) · [License](#license)
@@ -63,7 +63,8 @@ single-source build. Validated on real BL18xx packs. Since **v2.2** the same fir
 also runs on the **CYD** (ESP32-2432S028R) with a touch UI, as an
 [alternative board](#alternative-board-cyd-esp32-2432s028r). Since **v2.3** every release ships ready-to-flash
 binaries, and since **v2.5** an [Asia build](#asia-build-日本語--한국어--help-wanted) shows the UI
-in Japanese, Korean and Vietnamese. Feedback and test reports
+in Japanese, Korean and Vietnamese, joined by Simplified Chinese in **v2.6**. Since v2.6 it also
+runs on the [ES3C28P](#alternative-board-es3c28p-esp32-s3) (ESP32-S3, capacitive touch). Feedback and test reports
 (especially serial logs from real packs) are very welcome.
 
 > ⚠️ **Safety first.** These packs contain lithium cells and up to ~21 V on
@@ -97,8 +98,8 @@ in Japanese, Korean and Vietnamese. Feedback and test reports
   pack back into service. See below.
 - **Error reset** with before → after feedback (full test-mode + power-cycle sequence).
 - Automatic detection of standard vs older **F0513** BMS generations.
-- **Multilingual UI** — English, French, German, Spanish, and **Japanese** in the
-  Japanese build (see below).
+- **Multilingual UI** — English, French, German, Spanish; Japanese, Korean, Vietnamese and
+  Simplified Chinese in the Asia build (see below).
 - **PC bridge mode** — acts as a USB↔OneWire adapter (drop-in ArduinoOBI), so a desktop
   app works through PocketOBI: the original *Open Battery Information* app, or our own
   companion **[PackScope](https://github.com/TheRepairforge/PackScope)** — saved history,
@@ -107,12 +108,13 @@ in Japanese, Korean and Vietnamese. Feedback and test reports
 
 ## Asia build: 日本語 / 한국어 — help wanted
 
-The **Asia build** of the firmware shows the whole UI in Japanese, Korean or Vietnamese, with
-English kept to find your way (Settings → Language → EN / JA / KO / VI; French, German and
-Spanish are in the standard build). The Japanese and Korean texts are **first drafts that no
-native speaker has reviewed**: expect stiff phrasing and some wrong repair vocabulary. I read
-neither language, so I cannot judge them myself. The Vietnamese one was written by a
-Vietnamese user, without accents (the device fonts have none).
+The **Asia build** of the firmware shows the whole UI in Japanese, Korean, Vietnamese or
+Simplified Chinese, with English kept to find your way (Settings → Language → EN / JA / KO / VI /
+ZH; French, German and Spanish are in the standard build). The Japanese and Korean texts are
+**first drafts that no native speaker has reviewed**: expect stiff phrasing and some wrong repair
+vocabulary. I read neither language, so I cannot judge them myself. The Vietnamese one was written
+by a Vietnamese user, without accents (the device fonts have none), and the Chinese one by a
+Chinese user ([issue #29](https://github.com/TheRepairforge/PocketOBI/issues/29)).
 
 **If you read Japanese or Korean and work on power tools or batteries, I would love your
 help.** Each language is one file, [`strings_ja.h`](strings_ja.h) and [`strings_ko.h`](strings_ko.h):
@@ -216,6 +218,30 @@ The whole pack connection fits on the CYD's 4-pin **CN1** header:
 Step-by-step guide (build, flash, wiring, first read): [docs/CYD_GUIDE.md](docs/CYD_GUIDE.md).
 Board selection and build notes: [CYD_NOTES.md](CYD_NOTES.md).
 
+### Alternative board: ES3C28P (ESP32-S3)
+
+Since v2.6 the firmware also builds for the LCDWiki **ES3C28P**, a 2.8" ESP32-S3 board with an
+ILI9341V panel and FT6336G **capacitive** touch. Same logic and screens as the CYD, driven by touch;
+Settings > Calibrate is there if taps land off target. The board has a LiPo charger and a battery
+socket, so it can run without a USB cable (it does not show the battery level).
+Thanks to the community tester of [discussion #22](https://github.com/TheRepairforge/PocketOBI/discussions/22)
+who brought it up and tested every early build.
+
+No single socket carries both the bus and 3.3 V, so the pack lead takes two of the board's
+1.25 mm sockets: DATA and ENABLE from **Expand**, 3.3 V and GND from **I2C** (pin 1 = the triangle
+on the silkscreen).
+
+| ES3C28P socket | Battery pin | Role |
+|---|---|---|
+| Expand pin 1, IO2 + 470 Ω pull-up to 3.3V | Pin 2 — **DATA** | OneWire data |
+| Expand pin 2, IO3 + 470 Ω pull-up to 3.3V | Pin 6 — **ENABLE** | enable (active high) |
+| I2C pin 2, GND | main **B-** terminal | ground |
+| I2C pin 1, 3.3V | — | feeds the two pull-ups |
+| — | Pin 1 — **B+ (18 V)** | **NEVER CONNECT** |
+
+Leave the I2C socket's IO15 / IO16 alone: they are the touch controller's bus. Never use the UART
+socket's 5V for the pull-ups.
+
 ## Build & flash
 
 ### Flash a prebuilt binary (no build)
@@ -230,13 +256,15 @@ merged image per board and language, flashed at address `0x0`:
 |---|---|
 | `PocketOBI-vX.Y.Z-esp32-c3.bin` | ESP32-C3 (the reference product) |
 | `PocketOBI-vX.Y.Z-cyd.bin` | CYD (ESP32-2432S028R) |
-| `PocketOBI-vX.Y.Z-esp32-c3-asia.bin` / `-cyd-asia.bin` | Same boards, Asia build (EN / JA / KO / VI; `-ja` up to v2.3.1) |
+| `PocketOBI-vX.Y.Z-esp32-c3-asia.bin` / `-cyd-asia.bin` | Same boards, Asia build (EN / JA / KO / VI, + ZH from v2.6.0; `-ja` up to v2.3.1) |
 | `PocketOBI-vX.Y.Z-cyd-ili9341.bin` | CYD fitted with an ILI9341 panel (mirrored image on the plain CYD build, see the [CYD guide](docs/CYD_GUIDE.md)) |
+| `PocketOBI-vX.Y.Z-es3c28p.bin` | ES3C28P (ESP32-S3), EN / FR / DE / ES / VI, from v2.6.0 |
 
 ```bash
 pip install esptool
 esptool --chip esp32c3 write_flash 0x0 PocketOBI-vX.Y.Z-esp32-c3.bin   # ESP32-C3
 esptool --chip esp32 write_flash 0x0 PocketOBI-vX.Y.Z-cyd.bin          # CYD
+esptool --chip esp32s3 write_flash 0x0 PocketOBI-vX.Y.Z-es3c28p.bin    # ES3C28P
 ```
 
 A merged image flashed this way resets the saved settings (language, flip, touch calibration):
@@ -273,6 +301,10 @@ project's CI with [`tools/release_bins.sh`](tools/release_bins.sh), which you ca
 v1.4), select **ESP32 Dev Module**, and put a `board_local.h` next to the sketch
 containing `#define POCKETOBI_BOARD BOARD_CYD` (the file is gitignored).
 
+**ES3C28P build (Arduino IDE):** no extra library (the touch driver is in the repo). Select
+**ESP32S3 Dev Module**, USB CDC On Boot: **Enabled**, Flash Size: **16MB**, and put
+`#define POCKETOBI_BOARD BOARD_ES3C28P` in `board_local.h` (add `#define ENABLE_VI 1` for Vietnamese).
+
 > Note: Arduino requires the sketch to live in a folder named `PocketOBI`.
 > If you downloaded a ZIP (GitHub adds a `-main` suffix), rename the inner
 > sketch folder back to `PocketOBI` before opening it.
@@ -286,6 +318,7 @@ uses, straight from the sketch folder — no separate project, no copy to keep i
 pio run -e esp32-c3             # build the ESP32-C3 product
 pio run -e esp32-c3 -t upload   # build + flash
 pio run -e cyd -t upload        # CYD alternative board
+pio run -e es3c28p -t upload    # ES3C28P alternative board
 pio device monitor              # serial monitor (115200)
 ```
 
@@ -298,8 +331,8 @@ ESP32-C3 SuperMini); change `board` in that env for a different ESP32-C3 module.
 Power the tool over USB and connect DATA / ENABLE / GND to the pack (never B+).
 It boots to the launcher: **Battery / Repair / Tools / About**. Turn the encoder to
 select, click to open; the back button goes back, a long press returns to the launcher.
-The footer of each screen names what the inputs do there. On the CYD: tap an item, tap
-the title bar to go back.
+The footer of each screen names what the inputs do there. On the CYD and the ES3C28P: tap an
+item, tap the title bar to go back.
 
 - **Battery** reads the pack when you open it. Turn to change page (Overview / Health /
   Identity), click to read again. Until a pack has been read, the launcher tile shows
