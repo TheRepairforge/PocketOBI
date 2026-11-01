@@ -390,7 +390,7 @@ void drawBatteryHealth() {
   float mn = 9, mx = 0;
   for (int i = 0; i < cellCount; i++) { if (bat.cell[i] > 0.1f && bat.cell[i] < mn) mn = bat.cell[i];
                                         if (bat.cell[i] > mx) mx = bat.cell[i]; }
-  snprintf(buf, sizeof(buf), "%.2f-%.2f V", mn, mx);
+  snprintf(buf, sizeof(buf), "%.3f-%.3f V", mn, mx);
   kpiCard(cx, y1 + KPI_H + CARD_GAP, kw, KPI_H, iconDoc, tr(S_CELLS), buf, bat.cellDiff > DIFF_BAD ? COL_RED : COL_GREEN);
   const uint16_t tc = thermistorFault() ? COL_RED : (thermistorSuspect() ? COL_ORANGE : COL_GREEN);
   fmtTemp(buf, sizeof(buf));
@@ -646,7 +646,7 @@ void drawDebugRaw() {
     monoKv(kx, y, vx, k, b); y += dy;
   }
   snprintf(b, sizeof(b), "%.2f V", bat.packVoltage);                                   monoKv(kx, y, vx, "PACK", b); y += dy;
-  snprintf(b, sizeof(b), "%.2f %.2f %.2f %.2f %.2f", bat.cell[0], bat.cell[1], bat.cell[2], bat.cell[3], bat.cell[4]);
+  snprintf(b, sizeof(b), "%.3f %.3f %.3f %.3f %.3f", bat.cell[0], bat.cell[1], bat.cell[2], bat.cell[3], bat.cell[4]);
   monoKv(kx, y, vx, "CELLS", b); y += dy;
  snprintf(b, sizeof(b), "%.1f / %.1f " 
   #if ENABLE_CJK

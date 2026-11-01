@@ -240,4 +240,5 @@ const char* const STRTAB[S_COUNT][LANG_COUNT] = {
   /*S_LBL_HOWTO*/ { "How to", "Mode d'emploi", "So geht's", "Como usar" },
   /*S_HOWTO_CAP*/ { "Arduino OBI interface + this COM port", "Interface Arduino OBI + ce port COM", "Schnittstelle Arduino OBI + COM-Port", "Interfaz Arduino OBI + este puerto COM" },
   /*S_W_F0513_UNVALIDATED*/ { "F0513 chip: unlock may not hold.", "Puce F0513: peut ne pas tenir.", "F0513-Chip: haelt evtl. nicht.", "Chip F0513: puede no aguantar." },
-  /*S_DUMMY_DGREE*/             { "", "", "", "" },};
+  /*S_DUMMY_DGREE*/ { "", "", "", "" },
+  };
