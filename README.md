@@ -8,6 +8,7 @@
 [![License: PolyForm Noncommercial 1.0.0](https://img.shields.io/badge/license-PolyForm--NC--1.0.0-blue)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-ESP32--C3%20%7C%20CYD%20%7C%20ES3C28P-lightgrey)](#hardware)
 [![Build with](https://img.shields.io/badge/build-Arduino%20%7C%20PlatformIO-blue)](#build--flash)
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-support%20the%20project-ff5e5b?logo=ko-fi&logoColor=white)](https://ko-fi.com/therepairforge)
 
 [Website](https://therepairforge.github.io/pocketobi/) · [Platform family](#platform-family) · [Watch it in action](#-watch-it-in-action) · [Status](#project-status) · [Features](#features) · [Hardware](#hardware) · [Build & flash](#build--flash) · [License](#license)
 
@@ -25,6 +26,8 @@ rotary encoder instead of a computer.
 
 Created by **The Repair Forge** — website: https://therepairforge.github.io/ — follow the build on YouTube:
 https://www.youtube.com/channel/UCQL_-pcIEkrDPyljl3QPzcw
+
+If it saved one of your packs, you can support the project on [Ko-fi](https://ko-fi.com/therepairforge).
 
 ## Platform family
 
