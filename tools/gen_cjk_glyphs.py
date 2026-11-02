@@ -2,7 +2,8 @@
 """
 gen_cjk_glyphs.py - build glyphs_<lang>.h from the strings in strings_<lang>.h.
 
---lang picks the language: ja (Japanese, the default) or ko (Korean) (DECISIONS.md D58).
+--lang picks the language: ja (Japanese, the default), ko (Korean), zh (Simplified Chinese) or
+zh_tw (Traditional Chinese) (DECISIONS.md D58, D70, D72).
 Below, "ja" stands for whichever language is picked: strings_ko.h, STRTAB_KO, glyphs_ko.h...
 
 The firmware tree is this repository by default; --tree points at another firmware tree
@@ -41,8 +42,11 @@ Korean: the same two families, Korean variants:
 Download them once into tools/.fonts/, next to this script (gitignored):
     https://github.com/notofonts/noto-cjk/raw/main/Sans/SubsetOTF/JP/NotoSansJP-Medium.otf
     https://github.com/notofonts/noto-cjk/raw/main/Sans/SubsetOTF/KR/NotoSansKR-Medium.otf
+    https://github.com/notofonts/noto-cjk/raw/main/Sans/SubsetOTF/SC/NotoSansSC-Medium.otf
+    https://github.com/notofonts/noto-cjk/raw/main/Sans/SubsetOTF/TC/NotoSansTC-Medium.otf
     https://github.com/TakWolf/fusion-pixel-font/releases  ->  fusion-pixel-font-12px-
-        monospaced-otf-v*.zip, keep fusion-pixel-12px-monospaced-ja.otf and -ko.otf
+        monospaced-otf-v*.zip, keep fusion-pixel-12px-monospaced-ja.otf, -ko.otf, -zh_hans.otf
+        and -zh_tw.otf
 When they are missing the script falls back to a Windows font (MS Gothic / Yu Gothic /
 Meiryo; Malgun Gothic for Korean). Those are NOT redistributable: such a glyphs_*.h is
 for development only and must never be committed.
@@ -87,6 +91,11 @@ LANGS = {
            "shipped": {16: "NotoSansSC-Medium.otf", 12: "fusion-pixel-12px-monospaced-zh_hans.otf"},
            "licence": "SIL Open Font License 1.1 (Noto Sans CJK SC, Fusion Pixel; see THIRD-PARTY.md)",
            "dev": [r"C:\Windows\Fonts\msyh.ttc", r"C:\Windows\Fonts\simsun.ttc"]},
+    # Taiwan forms in both cells: Noto Sans TC follows the MOE standard, so does Fusion Pixel zh_tw.
+    "zh_tw": {"name": "Traditional Chinese",
+              "shipped": {16: "NotoSansTC-Medium.otf", 12: "fusion-pixel-12px-monospaced-zh_tw.otf"},
+              "licence": "SIL Open Font License 1.1 (Noto Sans CJK TC, Fusion Pixel; see THIRD-PARTY.md)",
+              "dev": [r"C:\Windows\Fonts\msjh.ttc", r"C:\Windows\Fonts\mingliu.ttc"]},
 }
 LANG = LANGS["ja"]  # set by main() from --lang
 

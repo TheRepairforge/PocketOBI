@@ -66,12 +66,12 @@ SOFTWARE.
 
 --------------------------------------------------------------------------------
 
-## Noto Sans CJK JP / KR / SC and Fusion Pixel (glyph bitmaps in `glyphs_ja.h`, `glyphs_ko.h` and `glyphs_zh.h`, Asia build only)
+## Noto Sans CJK JP / KR / SC / TC and Fusion Pixel (glyph bitmaps in `glyphs_ja.h`, `glyphs_ko.h`, `glyphs_zh.h` and `glyphs_zh_tw.h`, Asia build only)
 
 The Japanese, Korean and Chinese characters of the `ENABLE_CJK` (Asia) build are 1-bit bitmaps
 rasterised by `tools/gen_cjk_glyphs.py`: the 16 px cell from Noto Sans JP Medium, Noto
-Sans KR Medium and Noto Sans SC Medium (Noto Sans CJK, version 2.004), the 12 px cell from Fusion Pixel 12px
-monospaced, Japanese, Korean and Simplified Chinese variants (release 2026.09.25; its Hangul comes from Galmuri).
+Sans KR Medium, Noto Sans SC Medium and Noto Sans TC Medium (Noto Sans CJK, version 2.004), the 12 px cell from Fusion Pixel 12px
+monospaced, Japanese, Korean, Simplified Chinese and Traditional Chinese (Taiwan) variants (release 2026.09.25; its Hangul comes from Galmuri).
 They are a modified form of the fonts and stay under the SIL Open Font License 1.1, reproduced
 below. The standard build contains none of them.
 
@@ -96,7 +96,7 @@ project ships without a license, none of its code is used here.
 
 --------------------------------------------------------------------------------
 
-## SIL Open Font License 1.1 (applies to the Noto Sans CJK JP / KR / SC and Fusion Pixel glyphs above)
+## SIL Open Font License 1.1 (applies to the Noto Sans CJK JP / KR / SC / TC and Fusion Pixel glyphs above)
 
 This Font Software is licensed under the SIL Open Font License,
 Version 1.1.

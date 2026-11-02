@@ -6,6 +6,14 @@ Versioning follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH
 The version is defined in `pocketobi.h` as `FW_VERSION` and shown
 on the boot splash and the About screen.
 
+## [2.7.0] - 2026-11-02
+
+Traditional Chinese in the Asia build.
+
+### Added
+- **Traditional Chinese** in the Asia build (Settings > Language > TW), Taiwan character forms,
+  translated by a Taiwanese user (#38). The "Connecting..." wording (連接中...) is ours, provisional.
+
 ## [2.6.0] - 2026-10-27
 
 A third board, the ES3C28P (ESP32-S3 with capacitive touch), and Simplified Chinese in the Asia build.

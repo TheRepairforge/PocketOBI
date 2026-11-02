@@ -85,6 +85,7 @@
 #include "strings_ja.h"   // STRTAB_JA, only when ENABLE_CJK=1
 #include "strings_ko.h"   // STRTAB_KO, only when ENABLE_CJK=1
 #include "strings_zh.h"   // STRTAB_ZH, only when ENABLE_CJK=1
+#include "strings_zh_tw.h" // STRTAB_ZH_TW, only when ENABLE_CJK=1
 #include "strings_vi.h"   // STRTAB_VI, only when ENABLE_VI=1
 
 
@@ -144,6 +145,7 @@ const char* tr(StrId id) {   // prototype in pocketobi.h
   if (lang == LANG_JA) return STRTAB_JA[id] ? STRTAB_JA[id] : STRTAB[id][LANG_EN];
   if (lang == LANG_KO) return STRTAB_KO[id] ? STRTAB_KO[id] : STRTAB[id][LANG_EN];
   if (lang == LANG_ZH) return STRTAB_ZH[id] ? STRTAB_ZH[id] : STRTAB[id][LANG_EN];
+  if (lang == LANG_ZH_TW) return STRTAB_ZH_TW[id] ? STRTAB_ZH_TW[id] : STRTAB[id][LANG_EN];
 #endif
 #if ENABLE_VI
   if (lang == LANG_VI) return STRTAB_VI[id] ? STRTAB_VI[id] : STRTAB[id][LANG_EN];

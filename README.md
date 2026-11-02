@@ -63,7 +63,7 @@ single-source build. Validated on real BL18xx packs. Since **v2.2** the same fir
 also runs on the **CYD** (ESP32-2432S028R) with a touch UI, as an
 [alternative board](#alternative-board-cyd-esp32-2432s028r). Since **v2.3** every release ships ready-to-flash
 binaries, and since **v2.5** an [Asia build](#asia-build-日本語--한국어--help-wanted) shows the UI
-in Japanese, Korean and Vietnamese, joined by Simplified Chinese in **v2.6**. Since v2.6 it also
+in Japanese, Korean and Vietnamese, joined by Simplified Chinese in **v2.6** and Traditional Chinese in **v2.7**. Since v2.6 it also
 runs on the [ES3C28P](#alternative-board-es3c28p-esp32-s3) (ESP32-S3, capacitive touch). Feedback and test reports
 (especially serial logs from real packs) are very welcome.
 
@@ -98,8 +98,8 @@ runs on the [ES3C28P](#alternative-board-es3c28p-esp32-s3) (ESP32-S3, capacitive
   pack back into service. See below.
 - **Error reset** with before → after feedback (full test-mode + power-cycle sequence).
 - Automatic detection of standard vs older **F0513** BMS generations.
-- **Multilingual UI** — English, French, German, Spanish; Japanese, Korean, Vietnamese and
-  Simplified Chinese in the Asia build (see below).
+- **Multilingual UI** — English, French, German, Spanish; Japanese, Korean, Vietnamese,
+  Simplified and Traditional Chinese in the Asia build (see below).
 - **PC bridge mode** — acts as a USB↔OneWire adapter (drop-in ArduinoOBI), so a desktop
   app works through PocketOBI: the original *Open Battery Information* app, or our own
   companion **[PackScope](https://github.com/TheRepairforge/PackScope)** — saved history,
@@ -108,9 +108,9 @@ runs on the [ES3C28P](#alternative-board-es3c28p-esp32-s3) (ESP32-S3, capacitive
 
 ## Asia build: 日本語 / 한국어 — help wanted
 
-The **Asia build** of the firmware shows the whole UI in Japanese, Korean, Vietnamese or
-Simplified Chinese, with English kept to find your way (Settings → Language → EN / JA / KO / VI /
-ZH; French, German and Spanish are in the standard build). The Japanese and Korean texts are
+The **Asia build** of the firmware shows the whole UI in Japanese, Korean, Vietnamese,
+Simplified or Traditional Chinese, with English kept to find your way (Settings → Language → EN / JA / KO / VI /
+ZH / TW; French, German and Spanish are in the standard build). The Japanese and Korean texts are
 **first drafts that no native speaker has reviewed**: expect stiff phrasing and some wrong repair
 vocabulary. I read neither language, so I cannot judge them myself. The Vietnamese one was written
 by a Vietnamese user, without accents (the device fonts have none), and the Chinese one by a
@@ -256,7 +256,7 @@ merged image per board and language, flashed at address `0x0`:
 |---|---|
 | `PocketOBI-vX.Y.Z-esp32-c3.bin` | ESP32-C3 (the reference product) |
 | `PocketOBI-vX.Y.Z-cyd.bin` | CYD (ESP32-2432S028R) |
-| `PocketOBI-vX.Y.Z-esp32-c3-asia.bin` / `-cyd-asia.bin` | Same boards, Asia build (EN / JA / KO / VI, + ZH from v2.6.0; `-ja` up to v2.3.1) |
+| `PocketOBI-vX.Y.Z-esp32-c3-asia.bin` / `-cyd-asia.bin` | Same boards, Asia build (EN / JA / KO / VI, + ZH from v2.6.0, + TW from v2.7.0; `-ja` up to v2.3.1) |
 | `PocketOBI-vX.Y.Z-cyd-ili9341.bin` | CYD fitted with an ILI9341 panel (mirrored image on the plain CYD build, see the [CYD guide](docs/CYD_GUIDE.md)) |
 | `PocketOBI-vX.Y.Z-es3c28p.bin` | ES3C28P (ESP32-S3), EN / FR / DE / ES / VI, from v2.6.0 |
 

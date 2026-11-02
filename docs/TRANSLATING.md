@@ -1,7 +1,7 @@
 # Translating PocketOBI
 
-PocketOBI's screens exist in English, French, German, Spanish, Japanese, Korean, Vietnamese and
-Simplified Chinese. English and French are written by the maintainer, Vietnamese and Chinese by native users; **German,
+PocketOBI's screens exist in English, French, German, Spanish, Japanese, Korean, Vietnamese,
+Simplified and Traditional Chinese. English and French are written by the maintainer, Vietnamese and both Chinese by native users; **German,
 Spanish, Japanese and Korean are first drafts that no native speaker has checked yet.** If you
 speak one of them, your corrections are very welcome.
 
@@ -11,9 +11,10 @@ speak one of them, your corrections are very welcome.
 | Japanese | `strings_ja.h` (`STRTAB_JA`) | Only in the Asia build (`ENABLE_CJK=1`), drawn with 16x16 bitmap glyphs |
 | Korean | `strings_ko.h` (`STRTAB_KO`) | Only in the Asia build (`ENABLE_CJK=1`), drawn with 16x16 bitmap glyphs |
 | Simplified Chinese | `strings_zh.h` (`STRTAB_ZH`) | Only in the Asia build (`ENABLE_CJK=1`), drawn with 16x16 bitmap glyphs (`--lang zh`) |
+| Traditional Chinese | `strings_zh_tw.h` (`STRTAB_ZH_TW`) | Only in the Asia build (`ENABLE_CJK=1`), drawn with 16x16 bitmap glyphs, Taiwan forms (`--lang zh_tw`) |
 | Vietnamese | `strings_vi.h` (`STRTAB_VI`) | Only in the Asia build (`ENABLE_VI=1`). ASCII only, like FR/DE/ES: no accents |
 
-The standard build offers EN / FR / DE / ES, the Asia build EN / JA / KO / VI / ZH.
+The standard build offers EN / FR / DE / ES, the Asia build EN / JA / KO / VI / ZH / TW.
 
 English is the reference. The language is chosen on the device in **Settings > Language**.
 

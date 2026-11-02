@@ -3,7 +3,7 @@
 // PocketOBI — Japanese / Korean / Chinese (CJK) text engine, compiled only when ENABLE_CJK=1 (DECISIONS.md
 // D19/D33/D58). PocketTFT::write() decodes UTF-8 as it is printed: ASCII goes to the normal
 // Adafruit_GFX path, a wide code point is blitted from the current language's 16x16 or 12x12
-// bitmap table (glyphs_ja/ko/zh.h), scaled up for large classic-font sizes (see cjkCell()
+// bitmap table (glyphs_ja/ko/zh/zh_tw.h), scaled up for large classic-font sizes (see cjkCell()
 // in cjk_render.h).
 // With ENABLE_CJK=0 this file compiles to nothing.
 #include "pocketobi.h"
@@ -12,6 +12,7 @@
 #include "glyphs_ja.h"
 #include "glyphs_ko.h"
 #include "glyphs_zh.h"
+#include "glyphs_zh_tw.h"
 
 // Vertical nudge of the 16 px cell below a GFX-font baseline, so kanji sit level with the
 // FreeSans labels (tuned on the bench with the 2026-09-10 spike).
@@ -70,6 +71,7 @@ static const GlyphTable TABLES[] = {
   { LANG_JA, CJK_GLYPHS16_JA, CJK_GLYPHS12_JA, CJK_GLYPH_COUNT_JA },
   { LANG_KO, CJK_GLYPHS16_KO, CJK_GLYPHS12_KO, CJK_GLYPH_COUNT_KO },
   { LANG_ZH, CJK_GLYPHS16_ZH, CJK_GLYPHS12_ZH, CJK_GLYPH_COUNT_ZH },
+  { LANG_ZH_TW, CJK_GLYPHS16_ZH_TW, CJK_GLYPHS12_ZH_TW, CJK_GLYPH_COUNT_ZH_TW },
 };
 static const uint8_t* wideGlyph(uint32_t cp, int cell) {
   for (int pass = 0; pass < 2; pass++)
