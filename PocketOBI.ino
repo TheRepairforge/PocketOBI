@@ -141,10 +141,16 @@ bool aboutCrashDrawn = false;
 // accessor and the mutable `lang` selector are logic/state and stay here. ----------
 int lang = LANG_EN;
 const char* tr(StrId id) {   // prototype in pocketobi.h
-#if ENABLE_CJK
+#if ENABLE_JA
   if (lang == LANG_JA) return STRTAB_JA[id] ? STRTAB_JA[id] : STRTAB[id][LANG_EN];
+#endif
+#if ENABLE_KO
   if (lang == LANG_KO) return STRTAB_KO[id] ? STRTAB_KO[id] : STRTAB[id][LANG_EN];
+#endif
+#if ENABLE_ZH
   if (lang == LANG_ZH) return STRTAB_ZH[id] ? STRTAB_ZH[id] : STRTAB[id][LANG_EN];
+#endif
+#if ENABLE_ZH_TW
   if (lang == LANG_ZH_TW) return STRTAB_ZH_TW[id] ? STRTAB_ZH_TW[id] : STRTAB[id][LANG_EN];
 #endif
 #if ENABLE_VI

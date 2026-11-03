@@ -455,7 +455,7 @@ void stepListCard(int y, int h, const char *label, const char *const *steps, int
 
 // ---------- Cell bar group ----------
 void cellBarGroup(int x, int y, int w, int h, const char *label, const char *caption,
-                  const float *v, const uint16_t *col, int n, float vMin, float vMax) {
+                  const float *v, const uint16_t *col, int n, float vMin, float vMax, int dp) {
   drawCard(x, y, w, h, false, RADIUS_MD);
   cardLabel(x + SP_2, y + SP_2, label);
   if (caption && caption[0]) drawCaption(x + w - SP_2 - txtW(caption, 1), y + SP_2 - wideDy(2), caption);
@@ -463,7 +463,8 @@ void cellBarGroup(int x, int y, int w, int h, const char *label, const char *cap
   const bool big = (n <= 5);                                     // 9 pt values, else classic size 1
   const int top = y + SP_5, pitch = (y + h - SP_1 - top) / n;
   const int ix = x + SP_2, iw = w - 2 * SP_2;
-  const int vw = big ? gfxWidth(FONT_LEVEL3_REG, "0.00") : txtW("0.00", 1);
+  const char *widest = dp >= 3 ? "0.000" : "0.00";              // the value column is sized to dp
+  const int vw = big ? gfxWidth(FONT_LEVEL3_REG, widest) : txtW(widest, 1);
   const int barx = ix + SP_5, barw = iw - SP_5 - vw - SP_2, bh = pitch - 4 < 8 ? pitch - 4 : 8;
   for (int i = 0; i < n; i++) {
     const int ry = top + i * pitch, mid = ry + pitch / 2;
@@ -474,7 +475,7 @@ void cellBarGroup(int x, int y, int w, int h, const char *label, const char *cap
     int pct = none ? 0 : (int)((v[i] - vMin) / (vMax - vMin) * 100.0f);
     drawProgress(barx, mid - bh / 2, barw, bh, pct, col[i]);
     const uint16_t vc = none ? COL_MUTED2 : (col[i] == COL_GREEN ? COL_TEXT : col[i]);
-    if (none) strcpy(t, "--"); else snprintf(t, sizeof(t), "%.2f", v[i]);
+    if (none) strcpy(t, "--"); else snprintf(t, sizeof(t), "%.*f", dp >= 3 ? 3 : 2, v[i]);
     if (big) gfxText(FONT_LEVEL3_REG, ix + iw - gfxWidth(FONT_LEVEL3_REG, t), mid + 5, t, vc);
     else     drawCaption(ix + iw - txtW(t, 1), mid - 4, t, vc);
   }

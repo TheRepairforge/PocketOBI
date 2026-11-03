@@ -6,6 +6,23 @@ Versioning follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH
 The version is defined in `pocketobi.h` as `FW_VERSION` and shown
 on the boot splash and the About screen.
 
+## [2.7.1] - 2026-11-03
+
+A native-speaker review of the Japanese, and finer readings.
+
+### Changed
+- **Japanese wording reviewed by a native speaker**: more natural, more precise labels (for
+  example 製造番号 for the serial number, 定格容量 for the rated capacity, 製造日 / 組立日 for the
+  dates, タッチ in the touch hints), and the temperature shown with ℃. Thanks to k-suzuki959 for
+  the review ([pull request #35](https://github.com/TheRepairforge/PocketOBI/pull/35)).
+- **Finer readings**: cell voltages to 3 decimals (cell bars, Health, Debug), pack voltage to 2
+  decimals on the home tile, temperatures to 0.1 degree.
+- Japanese shows the charge count as label then number (充電回数 127).
+
+### Added
+- **One build switch per Asian language** (`ENABLE_JA`, `ENABLE_KO`, `ENABLE_ZH`, `ENABLE_ZH_TW`):
+  leave a language out for a smaller image. The Asia images still carry them all.
+
 ## [2.7.0] - 2026-11-02
 
 Traditional Chinese in the Asia build.

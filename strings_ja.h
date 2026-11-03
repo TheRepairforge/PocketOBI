@@ -1,5 +1,5 @@
 #pragma once
-// Japanese string column (DECISIONS.md D19). Compiled only when ENABLE_CJK=1.
+// Japanese string column (DECISIONS.md D19). Compiled only when ENABLE_JA=1.
 //
 // One entry per StrId, in enum order (a static_assert below checks the count). Each
 // line carries the English source as a comment so a translator does not have to open
@@ -17,7 +17,7 @@
 // A character with no glyph draws as a hollow box on the device.
 #include "strings_i18n.h"
 
-#if ENABLE_CJK
+#if ENABLE_JA
 const char* const STRTAB_JA[] = {
   /*S_BATTERY*/               "バッテリー", // EN: "Battery"
   /*S_REPAIR*/                "修復", // EN: "Repair"
@@ -180,7 +180,8 @@ const char* const STRTAB_JA[] = {
   /*S_LBL_HOWTO*/             "使い方", // EN: "How to"
   /*S_HOWTO_CAP*/             "Arduino OBI＋このCOMポート", // EN: "Arduino OBI interface + this COM port"
   /*S_W_F0513_UNVALIDATED*/   "F0513: 解除が維持されない場合があります", // EN: "F0513 chip: unlock may not hold."
+  /*S_DEG_C*/                 "℃", // EN: "C"
 };
 static_assert(sizeof(STRTAB_JA) / sizeof(STRTAB_JA[0]) == S_COUNT,
               "strings_ja.h: one entry per StrId, in enum order");
-#endif // ENABLE_CJK
+#endif // ENABLE_JA

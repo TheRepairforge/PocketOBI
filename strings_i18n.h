@@ -73,6 +73,8 @@ enum StrId {
   // 2.5.1: honest caveat on the unlock confirm for an F0513-generation pack (cell path,
   // boardTempValid=false). The bench showed the frame write no-ops on this old BMS.
   S_W_F0513_UNVALIDATED,
+  // #35: the temperature unit, so a language can use its own sign (Japanese: U+2103).
+  S_DEG_C,
   S_COUNT
 };
 const char* const STRTAB[S_COUNT][LANG_COUNT] = {
@@ -238,4 +240,5 @@ const char* const STRTAB[S_COUNT][LANG_COUNT] = {
   /*S_LBL_HOWTO*/ { "How to", "Mode d'emploi", "So geht's", "Como usar" },
   /*S_HOWTO_CAP*/ { "Arduino OBI interface + this COM port", "Interface Arduino OBI + ce port COM", "Schnittstelle Arduino OBI + COM-Port", "Interfaz Arduino OBI + este puerto COM" },
   /*S_W_F0513_UNVALIDATED*/ { "F0513 chip: unlock may not hold.", "Puce F0513: peut ne pas tenir.", "F0513-Chip: haelt evtl. nicht.", "Chip F0513: puede no aguantar." },
+  /*S_DEG_C*/       { "C",               "C",                "C",                 "C" },
 };

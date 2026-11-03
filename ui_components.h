@@ -125,11 +125,11 @@ void beforeAfterCard(int y, const char *before, uint16_t bcol, const char *after
 // "Try this": a labelled card of numbered steps (ring + number + classic-font text), 24 px pitch.
 void stepListCard(int y, int h, const char *label, const char *const *steps, int n);
 // Cell bars (LXT Overview): small-caps label + right caption (the spread), then one row per cell:
-// "C<n>", bar (vMin empty .. vMax full), value with 2 decimals at 9 pt REGULAR (lighter than the bold
+// "C<n>", bar (vMin empty .. vMax full), value with `dp` decimals (default 2) at 9 pt REGULAR (lighter than the bold
 // values: five numbers side by side read heavy in bold; classic font past 5 cells so a 10-cell pack compacts). Colours come from the caller (the verdict code's thresholds);
 // a NaN value draws "--" over an empty track (no pack: nothing stale is shown).
 void cellBarGroup(int x, int y, int w, int h, const char *label, const char *caption,
-                  const float *v, const uint16_t *col, int n, float vMin, float vMax);
+                  const float *v, const uint16_t *col, int n, float vMin, float vMax, int dp = 2);
 // Busy card (a blocking write, e.g. the LXT unlock): accent-bordered card, the activity in 18 pt
 // (sentence case: an activity, not a status), and `below` centred under the card. busyProgress()
 // repaints only the progress band (caption line + bar) so a step change never flashes the screen;

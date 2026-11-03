@@ -238,7 +238,7 @@ static void drawLauncherTile(int i) {
   tft.drawBitmap(cx - ICON_W / 2, y + TILE_ICON_Y, ic, ICON_W, ICON_H, icc);
   if (i == 0) {                                  // Battery: V + verdict under the icon (verdict colour)
     char ms[48];
-    if (bat.valid) { snprintf(ms, sizeof(ms), "%.1fV %s", bat.packVoltage, verdictText(v));
+    if (bat.valid) { snprintf(ms, sizeof(ms), "%.2fV %s", bat.packVoltage, verdictText(v));
                      tft.setTextColor(verdictColor(v)); }
     else           { snprintf(ms, sizeof(ms), "%s", tr(S_NO_PACK)); tft.setTextColor(COL_MUTED); }
     tft.setFont(NULL); tft.setTextSize(1);
@@ -303,10 +303,11 @@ static void diagFinding(Finding &f) {
     f.color = COL_ORANGE;
   }
 }
-// Temperature value as the pack reports it: "cell/board C", or a single sensor.
+// Temperature value as the pack reports it (0.1 K steps): "cell/board C", or a single sensor.
+// The unit is a string (S_DEG_C) so a language can use its own sign (#35).
 static void fmtTemp(char *out, size_t n) {
-  if (bat.boardTempValid) snprintf(out, n, "%.0f/%.0f C", bat.tempCell, bat.tempMosfet);
-  else                    snprintf(out, n, "%.0f C", bat.tempCell);   // single sensor
+  if (bat.boardTempValid) snprintf(out, n, "%.1f/%.1f %s", bat.tempCell, bat.tempMosfet, tr(S_DEG_C));
+  else                    snprintf(out, n, "%.1f %s", bat.tempCell, tr(S_DEG_C));   // single sensor
 }
 void drawBatteryOverview() {
   header(bat.valid ? bat.model : tr(S_BATTERY));
@@ -324,7 +325,9 @@ void drawBatteryOverview() {
     // Pinned sensor = confirmed fault (red); spread-only = empirical suspicion (orange, explained on Health).
     const uint16_t tcol = tPinned ? COL_RED : (thermistorSuspect() ? COL_ORANGE : COL_TEXT);
     snprintf(buf, sizeof(buf), "%.2f V", bat.packVoltage);
-    snprintf(cap, sizeof(cap), "%u %s", bat.chargeCount, tr(S_CHARGES));
+    // Japanese reads label-then-count ("充電回数 127", #35); every other language keeps "127 Charges".
+    if (lang == LANG_JA) snprintf(cap, sizeof(cap), "%s %u", tr(S_CHARGES), bat.chargeCount);
+    else                 snprintf(cap, sizeof(cap), "%u %s", bat.chargeCount, tr(S_CHARGES));
     kpiCard(GUTTER, y, COL2_W, KPI_H, iconBattery, tr(S_PACK), buf, COL_TEXT, cap);
     fmtTemp(buf, sizeof(buf));
     kpiCard(GUTTER, y + KPI_H + CARD_GAP, COL2_W, KPI_H, iconThermo, tr(S_TEMP), buf, tcol,
@@ -343,7 +346,7 @@ void drawBatteryOverview() {
     cc[i] = bat.valid ? cellColor(bat.cell[i], cmn, bat.cellDiff) : COL_MUTED2;
   }
   if (bat.valid) snprintf(cap, sizeof(cap), "%s %.3f V", tr(S_SUB_CELL_DIFF), bat.cellDiff); else cap[0] = 0;
-  cellBarGroup(rx, y, COL2_W, ch, tr(S_CELLS), cap, cv, cc, cellCount, CELL_V_MIN, CELL_V_MAX);
+  cellBarGroup(rx, y, COL2_W, ch, tr(S_CELLS), cap, cv, cc, cellCount, CELL_V_MIN, CELL_V_MAX, 3);
 }
 
 // ---------- Battery : Health page ----------
@@ -385,7 +388,7 @@ void drawBatteryHealth() {
   float mn = 9, mx = 0;
   for (int i = 0; i < cellCount; i++) { if (bat.cell[i] > 0.1f && bat.cell[i] < mn) mn = bat.cell[i];
                                         if (bat.cell[i] > mx) mx = bat.cell[i]; }
-  snprintf(buf, sizeof(buf), "%.2f-%.2f V", mn, mx);
+  snprintf(buf, sizeof(buf), "%.3f-%.3f V", mn, mx);
   kpiCard(cx, y1 + KPI_H + CARD_GAP, kw, KPI_H, iconDoc, tr(S_CELLS), buf, bat.cellDiff > DIFF_BAD ? COL_RED : COL_GREEN);
   const uint16_t tc = thermistorFault() ? COL_RED : (thermistorSuspect() ? COL_ORANGE : COL_GREEN);
   fmtTemp(buf, sizeof(buf));
@@ -393,7 +396,7 @@ void drawBatteryHealth() {
   char cap[24]; cap[0] = 0;
   if (bat.boardTempValid) {
     const float td = bat.tempMosfet > bat.tempCell ? bat.tempMosfet - bat.tempCell : bat.tempCell - bat.tempMosfet;
-    snprintf(cap, sizeof(cap), "%s %.1f C", tr(S_SPREAD), td);
+    snprintf(cap, sizeof(cap), "%s %.1f %s", tr(S_SPREAD), td, tr(S_DEG_C));
   }
   kpiCard(kx2, y1 + KPI_H + CARD_GAP, kw, KPI_H, iconThermo, tr(S_TEMP_CB), buf, tc, cap);
 }
@@ -637,9 +640,9 @@ void drawDebugRaw() {
     monoKv(kx, y, vx, k, b); y += dy;
   }
   snprintf(b, sizeof(b), "%.2f V", bat.packVoltage);                                   monoKv(kx, y, vx, "PACK", b); y += dy;
-  snprintf(b, sizeof(b), "%.2f %.2f %.2f %.2f %.2f", bat.cell[0], bat.cell[1], bat.cell[2], bat.cell[3], bat.cell[4]);
+  snprintf(b, sizeof(b), "%.3f %.3f %.3f %.3f %.3f", bat.cell[0], bat.cell[1], bat.cell[2], bat.cell[3], bat.cell[4]);
   monoKv(kx, y, vx, "CELLS", b); y += dy;
-  snprintf(b, sizeof(b), "%.0f / %.0f C", bat.tempCell, bat.tempMosfet);              monoKv(kx, y, vx, "TEMP", b); y += dy;
+  snprintf(b, sizeof(b), "%.1f / %.1f C", bat.tempCell, bat.tempMosfet);            monoKv(kx, y, vx, "TEMP", b); y += dy;
   // Raw D6 fault markers (0x58D/0x309), research only, not interpreted (D24).
   snprintf(b, sizeof(b), "%02X/%02X", bat.faultMkA, bat.faultMkB);                      monoKv(kx, y, vx, "FAULTMK", b); y += dy;
   lockCausesText(lockCauses(bat.msg), b, sizeof(b));                                   monoKv(kx, y, vx, "LOCK/CS", b); y += dy;

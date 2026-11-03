@@ -1,5 +1,5 @@
 #pragma once
-// Traditional Chinese string column (DECISIONS.md D72). Compiled only when ENABLE_CJK=1 (the Asia
+// Traditional Chinese string column (DECISIONS.md D72). Compiled only when ENABLE_ZH_TW=1 (the Asia
 // build).
 //
 // One entry per StrId, in enum order (a static_assert below checks the count). Each
@@ -17,7 +17,7 @@
 // A character with no glyph draws as a hollow box on the device.
 #include "strings_i18n.h"
 
-#if ENABLE_CJK
+#if ENABLE_ZH_TW
 const char* const STRTAB_ZH_TW[] = {
   /*S_BATTERY*/             "電池資訊", // EN: "Battery"
   /*S_REPAIR*/              "維修", // EN: "Repair"
@@ -180,7 +180,8 @@ const char* const STRTAB_ZH_TW[] = {
   /*S_LBL_HOWTO*/           "操作方法", // EN: "How to"
   /*S_HOWTO_CAP*/           "Arduino OBI 介面 + 此 COM 連接埠", // EN: "Arduino OBI interface + this COM port"
   /*S_W_F0513_UNVALIDATED*/ "F0513 晶片：解鎖後可能再次鎖定。", // EN: "F0513 chip: unlock may not hold."
+  /*S_DEG_C*/                 nullptr, // EN: "C"
 };
 static_assert(sizeof(STRTAB_ZH_TW) / sizeof(STRTAB_ZH_TW[0]) == S_COUNT,
               "strings_zh_tw.h: one entry per StrId, in enum order");
-#endif // ENABLE_CJK
+#endif // ENABLE_ZH_TW

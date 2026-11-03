@@ -1,5 +1,5 @@
 #pragma once
-// Korean string column (DECISIONS.md D58). Compiled only when ENABLE_CJK=1 (the Asia build).
+// Korean string column (DECISIONS.md D58). Compiled only when ENABLE_KO=1 (the Asia build).
 //
 // One entry per StrId, in enum order (a static_assert below checks the count). Each
 // line carries the English source as a comment so a translator does not have to open
@@ -16,7 +16,7 @@
 // A character with no glyph draws as a hollow box on the device.
 #include "strings_i18n.h"
 
-#if ENABLE_CJK
+#if ENABLE_KO
 const char* const STRTAB_KO[] = {
   /*S_BATTERY*/               "배터리", // EN: "Battery"
   /*S_REPAIR*/                "수리", // EN: "Repair"
@@ -179,7 +179,8 @@ const char* const STRTAB_KO[] = {
   /*S_LBL_HOWTO*/             "사용법", // EN: "How to"
   /*S_HOWTO_CAP*/             "Arduino OBI + 이 COM 포트", // EN: "Arduino OBI interface + this COM port"
   /*S_W_F0513_UNVALIDATED*/   "F0513: 해제가 유지 안 될 수 있음", // EN: "F0513 chip: unlock may not hold."
+  /*S_DEG_C*/                 nullptr, // EN: "C"
 };
 static_assert(sizeof(STRTAB_KO) / sizeof(STRTAB_KO[0]) == S_COUNT,
               "strings_ko.h: one entry per StrId, in enum order");
-#endif // ENABLE_CJK
+#endif // ENABLE_KO

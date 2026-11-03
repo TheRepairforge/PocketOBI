@@ -9,10 +9,18 @@
 #include "pocketobi.h"
 
 #if ENABLE_CJK
+#if ENABLE_JA
 #include "glyphs_ja.h"
+#endif
+#if ENABLE_KO
 #include "glyphs_ko.h"
+#endif
+#if ENABLE_ZH
 #include "glyphs_zh.h"
+#endif
+#if ENABLE_ZH_TW
 #include "glyphs_zh_tw.h"
+#endif
 
 // Vertical nudge of the 16 px cell below a GFX-font baseline, so kanji sit level with the
 // FreeSans labels (tuned on the bench with the 2026-09-10 spike).
@@ -68,10 +76,18 @@ size_t PocketTFT::write(const uint8_t *buf, size_t n) {
 // (each table only holds the characters its own strings use).
 struct GlyphTable { int lang; const CjkGlyph16* g16; const CjkGlyph12* g12; int n; };
 static const GlyphTable TABLES[] = {
+#if ENABLE_JA
   { LANG_JA, CJK_GLYPHS16_JA, CJK_GLYPHS12_JA, CJK_GLYPH_COUNT_JA },
+#endif
+#if ENABLE_KO
   { LANG_KO, CJK_GLYPHS16_KO, CJK_GLYPHS12_KO, CJK_GLYPH_COUNT_KO },
+#endif
+#if ENABLE_ZH
   { LANG_ZH, CJK_GLYPHS16_ZH, CJK_GLYPHS12_ZH, CJK_GLYPH_COUNT_ZH },
+#endif
+#if ENABLE_ZH_TW
   { LANG_ZH_TW, CJK_GLYPHS16_ZH_TW, CJK_GLYPHS12_ZH_TW, CJK_GLYPH_COUNT_ZH_TW },
+#endif
 };
 static const uint8_t* wideGlyph(uint32_t cp, int cell) {
   for (int pass = 0; pass < 2; pass++)

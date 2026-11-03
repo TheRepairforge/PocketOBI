@@ -27,8 +27,17 @@ constexpr int LANG_AVAIL[] = {
 #if ENABLE_EU
   LANG_FR, LANG_DE, LANG_ES,
 #endif
-#if ENABLE_CJK
-  LANG_JA, LANG_KO, LANG_ZH, LANG_ZH_TW,
+#if ENABLE_JA
+  LANG_JA,
+#endif
+#if ENABLE_KO
+  LANG_KO,
+#endif
+#if ENABLE_ZH
+  LANG_ZH,
+#endif
+#if ENABLE_ZH_TW
+  LANG_ZH_TW,
 #endif
 #if ENABLE_VI
   LANG_VI,

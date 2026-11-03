@@ -2,9 +2,9 @@
 // Language build capabilities (DECISIONS.md D19, D58). TWO independent flags:
 //   ENABLE_CJK  0 (default) = no CJK code, strings or glyphs compiled in; the binary
 //                 matches a build without this feature.
-//               1 = Japanese + Korean: the glyph tables (glyphs_ja.h, glyphs_ko.h), the
-//                 string columns (strings_ja.h, strings_ko.h) and the UTF-8 renderer
-//                 (cjk_render.cpp).
+//               1 = the UTF-8 renderer (cjk_render.cpp) and, by default, every CJK
+//                 language (JA, KO, ZH, ZH_TW: glyphs_<lang>.h + strings_<lang>.h);
+//                 ENABLE_JA/KO/ZH/ZH_TW below pick them one by one.
 //   ENABLE_EU   1 (default) = FR/DE/ES selectable. 0 = not offered in Settings (their
 //                 strings stay compiled: STRTAB is always four-wide).
 //   ENABLE_VI   0 (default) = no Vietnamese. 1 = the strings_vi.h column (D50, D60): plain
@@ -43,4 +43,27 @@
 
 #ifndef ENABLE_VI
 #  define ENABLE_VI 0
+#endif
+
+// Per-language CJK flags (#35): each one compiles that language's strings and glyphs and
+// offers it in Settings. They default to ENABLE_CJK, so a build that only sets ENABLE_CJK=1
+// (the "-asia" envs) keeps every CJK language; set one to 0 to drop it, e.g. a Japanese-only
+// image from board_local.h with "#define ENABLE_KO 0" ... "#define ENABLE_ZH_TW 0".
+#ifndef ENABLE_JA
+#  define ENABLE_JA ENABLE_CJK
+#endif
+#ifndef ENABLE_KO
+#  define ENABLE_KO ENABLE_CJK
+#endif
+#ifndef ENABLE_ZH
+#  define ENABLE_ZH ENABLE_CJK
+#endif
+#ifndef ENABLE_ZH_TW
+#  define ENABLE_ZH_TW ENABLE_CJK
+#endif
+#if !ENABLE_CJK && (ENABLE_JA || ENABLE_KO || ENABLE_ZH || ENABLE_ZH_TW)
+#  error "ENABLE_JA/KO/ZH/ZH_TW need ENABLE_CJK=1 (the UTF-8 renderer)"
+#endif
+#if ENABLE_CJK && !(ENABLE_JA || ENABLE_KO || ENABLE_ZH || ENABLE_ZH_TW)
+#  error "ENABLE_CJK=1 with every CJK language off: set ENABLE_CJK=0 instead"
 #endif

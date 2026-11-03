@@ -1,5 +1,5 @@
 #pragma once
-// Simplified Chinese string column (DECISIONS.md D70). Compiled only when ENABLE_CJK=1 (the Asia
+// Simplified Chinese string column (DECISIONS.md D70). Compiled only when ENABLE_ZH=1 (the Asia
 // build).
 //
 // One entry per StrId, in enum order (a static_assert below checks the count). Each
@@ -17,7 +17,7 @@
 // A character with no glyph draws as a hollow box on the device.
 #include "strings_i18n.h"
 
-#if ENABLE_CJK
+#if ENABLE_ZH
 const char* const STRTAB_ZH[] = {
   /*S_BATTERY*/               "电池信息", // EN: "Battery"
   /*S_REPAIR*/                "维修", // EN: "Repair"
@@ -180,7 +180,8 @@ const char* const STRTAB_ZH[] = {
   /*S_LBL_HOWTO*/             "操作方法", // EN: "How to"
   /*S_HOWTO_CAP*/             "Arduino OBI 接口 + 此 COM 端口", // EN: "Arduino OBI interface + this COM port"
   /*S_W_F0513_UNVALIDATED*/   "F0513 芯片：解锁后可能再次锁定。", // EN: "F0513 chip: unlock may not hold."
+  /*S_DEG_C*/                 nullptr, // EN: "C"
 };
 static_assert(sizeof(STRTAB_ZH) / sizeof(STRTAB_ZH[0]) == S_COUNT,
               "strings_zh.h: one entry per StrId, in enum order");
-#endif // ENABLE_CJK
+#endif // ENABLE_ZH

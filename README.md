@@ -128,7 +128,9 @@ Rules and details: [docs/TRANSLATING.md](docs/TRANSLATING.md).
 
 Build it with `pio run -e esp32-c3-asia` (or `cyd-asia`), or in the Arduino IDE by putting
 `#define ENABLE_CJK 1`, `#define ENABLE_EU 0` and `#define ENABLE_VI 1` in a local `board_local.h`
-next to the sketch.
+next to the sketch. Since v2.7.1 each Asian language can be left out on its own: for example
+`#define ENABLE_KO 0`, `#define ENABLE_ZH 0` and `#define ENABLE_ZH_TW 0` give a smaller
+Japanese-only image (`ENABLE_JA` is the Japanese one).
 
 ## Architecture
 

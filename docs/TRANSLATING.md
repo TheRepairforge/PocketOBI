@@ -8,10 +8,10 @@ speak one of them, your corrections are very welcome.
 | Language | File | Notes |
 |---|---|---|
 | English, French, German, Spanish | `strings_i18n.h` (`STRTAB`) | ASCII only: the device fonts have no accents (FR/ES accents dropped, German umlauts written ae/oe/ue/ss) |
-| Japanese | `strings_ja.h` (`STRTAB_JA`) | Only in the Asia build (`ENABLE_CJK=1`), drawn with 16x16 bitmap glyphs |
-| Korean | `strings_ko.h` (`STRTAB_KO`) | Only in the Asia build (`ENABLE_CJK=1`), drawn with 16x16 bitmap glyphs |
-| Simplified Chinese | `strings_zh.h` (`STRTAB_ZH`) | Only in the Asia build (`ENABLE_CJK=1`), drawn with 16x16 bitmap glyphs (`--lang zh`) |
-| Traditional Chinese | `strings_zh_tw.h` (`STRTAB_ZH_TW`) | Only in the Asia build (`ENABLE_CJK=1`), drawn with 16x16 bitmap glyphs, Taiwan forms (`--lang zh_tw`) |
+| Japanese | `strings_ja.h` (`STRTAB_JA`) | Only in the Asia build (`ENABLE_CJK=1`, switch `ENABLE_JA`), drawn with 16x16 bitmap glyphs |
+| Korean | `strings_ko.h` (`STRTAB_KO`) | Only in the Asia build (`ENABLE_CJK=1`, switch `ENABLE_KO`), drawn with 16x16 bitmap glyphs |
+| Simplified Chinese | `strings_zh.h` (`STRTAB_ZH`) | Only in the Asia build (`ENABLE_CJK=1`, switch `ENABLE_ZH`), drawn with 16x16 bitmap glyphs (`--lang zh`) |
+| Traditional Chinese | `strings_zh_tw.h` (`STRTAB_ZH_TW`) | Only in the Asia build (`ENABLE_CJK=1`, switch `ENABLE_ZH_TW`), drawn with 16x16 bitmap glyphs, Taiwan forms (`--lang zh_tw`) |
 | Vietnamese | `strings_vi.h` (`STRTAB_VI`) | Only in the Asia build (`ENABLE_VI=1`). ASCII only, like FR/DE/ES: no accents |
 
 The standard build offers EN / FR / DE / ES, the Asia build EN / JA / KO / VI / ZH / TW.
