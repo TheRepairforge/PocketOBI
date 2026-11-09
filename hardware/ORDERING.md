@@ -69,6 +69,14 @@ cheapest option.
    get a **tracking number** by email. All that's left is soldering the
    components. 🔧
 
+## The enclosure
+
+No 3D printer? The case is a ready-to-order project too:
+**[PocketOBI enclosure on PCBWay](https://www.pcbway.com/project/shareproject/PocketOBI_enclosure_3D_printed_case_for_the_Makita_18V_LXT_battery_diagnostic_cb6f891f.html)**. Add it to the same cart as the board,
+and keep only **one** connector holder, the one matching your male terminals
+(6.3 or 7.8 mm). The files are also free on
+[Printables](https://www.printables.com/model/1833871-pocketobi-makita-18v-lxt-battery-diagnostic-tool-c).
+
 ## Something went wrong?
 
 Post a screenshot of the step that's stuck in the video comments — we'll

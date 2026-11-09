@@ -59,6 +59,9 @@ A 3D-printable enclosure is on Printables:
 — "PocketOBI – Makita 18V LXT Battery Diagnostic Tool", by The Repair Forge. The STL files
 are not committed here; download them from the Printables page.
 
+No printer? The same parts are a [ready-to-order project on PCBWay](https://www.pcbway.com/project/shareproject/PocketOBI_enclosure_3D_printed_case_for_the_Makita_18V_LXT_battery_diagnostic_cb6f891f.html): print only the
+connector holder that matches your terminals (6.3 or 7.8 mm).
+
 ## License
 
 The hardware design files in this folder (Gerbers, schematic, BOM) are licensed
