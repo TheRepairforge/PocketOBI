@@ -200,7 +200,8 @@ Notes:
   BMS can cut its own output on error).
 
 A carrier PCB has been **fabricated and bench-validated**. The fabrication files
-(Gerbers, schematic PDF, BOM) and ordering notes are in [`hardware/`](hardware/); the
+(Gerbers, schematic PDF, BOM) and ordering notes are in [`hardware/`](hardware/), and the
+board can be ordered in one click from its [ready-to-order PCBWay project](https://www.pcbway.com/project/shareproject/PocketOBI_Makita_18V_LXT_battery_diagnostic_tool_ESP32_C3_carrier_PCB_d090f32a.html); the
 wiring and pinout reference stays in [HARDWARE.md](HARDWARE.md).
 
 ### Alternative board: CYD (ESP32-2432S028R)

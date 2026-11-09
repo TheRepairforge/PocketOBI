@@ -3,6 +3,16 @@
 You don't need to read a schematic. You just send one `.zip` file, copy a
 few settings, and PCBWay makes the board. Plan for about 10 minutes.
 
+## Fastest way: the ready-to-order project
+
+The board is shared on PCBWay with the Gerbers already attached:
+**[PocketOBI on PCBWay](https://www.pcbway.com/project/shareproject/PocketOBI_Makita_18V_LXT_battery_diagnostic_tool_ESP32_C3_carrier_PCB_d090f32a.html)**. Click **Add to cart**, set the quantity, and
+go straight to step 5 below (address, shipping, payment). No file to upload,
+nothing to unzip.
+
+The manual route below does the same thing by hand, if you prefer it or use
+another fab house.
+
 ## Settings to copy
 
 Board: **91 × 34.5 mm · 2 layers**
