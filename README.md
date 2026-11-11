@@ -204,6 +204,9 @@ A carrier PCB has been **fabricated and bench-validated**. The fabrication files
 board can be ordered in one click from its [ready-to-order PCBWay project](https://www.pcbway.com/project/shareproject/PocketOBI_Makita_18V_LXT_battery_diagnostic_tool_ESP32_C3_carrier_PCB_d090f32a.html); the
 wiring and pinout reference stays in [HARDWARE.md](HARDWARE.md).
 
+The 3D-printed enclosure is free on [Printables](https://www.printables.com/model/1833871-pocketobi-makita-18v-lxt-battery-diagnostic-tool-c), or ready to order
+without a printer from its [PCBWay project](https://www.pcbway.com/project/shareproject/PocketOBI_enclosure_3D_printed_case_for_the_Makita_18V_LXT_battery_diagnostic_cb6f891f.html).
+
 ### Alternative board: CYD (ESP32-2432S028R)
 
 Since v2.2 the firmware also builds for the "Cheap Yellow Display" (dual-USB / ST7789
