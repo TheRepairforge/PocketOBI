@@ -39,8 +39,13 @@ static void help() {
   Serial.println("  g  S4 bus reset only  (no byte written)");
   Serial.println("  h  S5 ENABLE high 5 s, no traffic, then low");
   Serial.println("  l  S6 ENABLE latch    high until l again");
+  Serial.println("test3, ENABLE released (pin input, nothing driving it):");
+  Serial.println("  r  R4 release ENABLE  stays released until r again");
+  Serial.println("  m  G4 clear x2, then ENABLE released");
+  Serial.println("  n  G5 F0513 cells, then ENABLE released");
   Serial.println("  ?  this list");
-  Serial.println("Each step ends with ENABLE low (except l).");
+  Serial.println("Each step ends with ENABLE low (except l, r, m, n).");
+  Serial.println("Any key after r, m or n drives ENABLE low again first.");
 }
 
 static void groupModel() {
@@ -149,6 +154,25 @@ static void enableLatch() {
   Serial.printf("  ENABLE now %s\n", enableLatched ? "HIGH (latched)" : "LOW");
 }
 
+// test3: at the end of a read ENABLE is driven low. Unplugging it stops the pulsing,
+// although a floating ENABLE also reads low on the pack. Release the pin instead.
+static bool enableReleased = false;
+static void releaseEnable() {
+  pinMode(ENABLE_PIN, INPUT);   // no pull-up, no pull-down: nothing drives the line
+  enableReleased = true;
+}
+static void driveEnableLow() {
+  pinMode(ENABLE_PIN, OUTPUT);
+  digitalWrite(ENABLE_PIN, LOW);
+  enableReleased = false;
+}
+static void remedyRelease() {
+  if (enableReleased) { driveEnableLow(); Serial.println("  ENABLE driven LOW again"); }
+  else                { releaseEnable();  Serial.println("  ENABLE released"); }
+}
+static void groupClearRelease()      { groupClear();      releaseEnable(); }
+static void groupF0513CellsRelease() { groupF0513Cells(); releaseEnable(); }
+
 static void remedyExitCycle() {
   uint8_t t[8];
   sendCommand(TESTMODE_EXIT_CMD, t);
@@ -192,13 +216,18 @@ void probeService() {
     case 'g': name = "S4 bus reset only";      fn = resetOnly;   break;
     case 'h': name = "S5 ENABLE high 5 s";     fn = enableLong;  break;
     case 'l': name = "S6 ENABLE latch toggle"; fn = enableLatch; break;
+    case 'r': name = "R4 ENABLE release toggle";          fn = remedyRelease;          break;
+    case 'm': name = "G4 clear x2, ENABLE released";      fn = groupClearRelease;      break;
+    case 'n': name = "G5 F0513 cells, ENABLE released";   fn = groupF0513CellsRelease; break;
     case '?': help(); return;
     default: return;   // ignore line endings and stray keys
   }
   if (k != 'l') enableLatched = false;   // every other step ends with ENABLE low
+  if (k != 'r' && enableReleased) driveEnableLow();   // every step starts from a driven pin
   Serial.printf("[%8lu ms] >>> %s\n", millis(), name);
   fn();
-  stamp(enableLatched ? "<<< done, ENABLE HIGH. Watch the scope now."
-                      : "<<< done, ENABLE low. Watch the scope now.");
+  stamp(enableReleased ? "<<< done, ENABLE RELEASED. Watch the scope now."
+      : enableLatched  ? "<<< done, ENABLE HIGH. Watch the scope now."
+                       : "<<< done, ENABLE low. Watch the scope now.");
 }
 #endif
