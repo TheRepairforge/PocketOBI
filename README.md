@@ -101,7 +101,7 @@ runs on the [ES3C28P](#alternative-board-es3c28p-esp32-s3) (ESP32-S3, capacitive
   pack back into service. See below.
 - **Error reset** with before → after feedback (full test-mode + power-cycle sequence).
 - Automatic detection of standard vs older **F0513** BMS generations.
-- **Multilingual UI** — English, French, German, Spanish; Japanese, Korean, Vietnamese,
+- **Multilingual UI** — English, French, German, Spanish, Polish; Japanese, Korean, Vietnamese,
   Simplified and Traditional Chinese in the Asia build (see below).
 - **PC bridge mode** — acts as a USB↔OneWire adapter (drop-in ArduinoOBI), so a desktop
   app works through PocketOBI: the original *Open Battery Information* app, or our own

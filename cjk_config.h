@@ -7,10 +7,11 @@
 //                 ENABLE_JA/KO/ZH/ZH_TW below pick them one by one.
 //   ENABLE_EU   1 (default) = FR/DE/ES selectable. 0 = not offered in Settings (their
 //                 strings stay compiled: STRTAB is always four-wide).
-//   ENABLE_VI   0 (default) = no Vietnamese. 1 = the strings_vi.h column (D50, D60): plain
-//                 ASCII like FR/DE/ES, so no glyphs and no renderer are involved.
-// Builds: standard = CJK 0 / EU 1 / VI 0 (EN FR DE ES); "Asia" = CJK 1 / EU 0 / VI 1
-// (EN JA KO VI); demo = 1 / 1 / 1 (every language, for review). EN is in every build.
+//   ENABLE_VI   0 (default) = no Vietnamese. 1 = the strings_vi.h column (D50, D60), its diacritics
+//                 drawn by the narrow text path (D77) like FR/DE/ES accents.
+//   ENABLE_PL   defaults to ENABLE_EU = the strings_pl.h column (D77), offered after ES.
+// Builds: standard = CJK 0 / EU 1 / VI 0 / PL 1 (EN FR DE ES PL); "Asia" = CJK 1 / EU 0 / VI 1 / PL 0
+// (EN JA KO ZH TW VI); demo = every language, for review. EN is in every build.
 //
 // This lives in a real header, included before strings_i18n.h, for the same reason as
 // board_config.h: PlatformIO's .ino->.cpp conversion relocates #define directives, a
@@ -43,6 +44,12 @@
 
 #ifndef ENABLE_VI
 #  define ENABLE_VI 0
+#endif
+
+// Polish (D77): the strings_pl.h column, drawn by the narrow text path. Offered with FR/DE/ES, so it
+// defaults to ENABLE_EU (the standard build has it, the Asia build does not).
+#ifndef ENABLE_PL
+#  define ENABLE_PL ENABLE_EU
 #endif
 
 // Per-language CJK flags (#35): each one compiles that language's strings and glyphs and

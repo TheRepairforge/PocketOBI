@@ -36,9 +36,9 @@
 // of truth reported by the PC bridge (interface-version query); keep FW_VERSION
 // consistent with it.
 #define FW_VER_MAJOR 2
-#define FW_VER_MINOR 7
-#define FW_VER_PATCH 2
-#define FW_VERSION "2.7.2"
+#define FW_VER_MINOR 8
+#define FW_VER_PATCH 0
+#define FW_VERSION "2.8.0"
 
 // Companion-app compatibility-contract version. Distinct from FW_VERSION: it bumps
 // ONLY when the coupling with the companion app changes — a bridge command is

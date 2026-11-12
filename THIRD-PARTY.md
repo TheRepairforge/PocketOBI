@@ -75,6 +75,11 @@ monospaced, Japanese, Korean, Simplified Chinese and Traditional Chinese (Taiwan
 They are a modified form of the fonts and stay under the SIL Open Font License 1.1, reproduced
 below. The standard build contains none of them.
 
+Every build (standard included) also carries the German sharp s (ß) of `glyphs_narrow.h`, one
+bitmap per UI font, rasterised from Noto Sans JP Medium by `tools/gen_narrow_glyphs.py`: a
+modified form of that font, under the same licence. The other accented letters of that file are
+drawn from the Adafruit GFX fonts' own unaltered ASCII glyphs plus mark bitmaps of our own.
+
   https://github.com/notofonts/noto-cjk
   Copyright 2014-2021 Adobe (http://www.adobe.com/). Noto is a trademark of Google Inc.
 

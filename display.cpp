@@ -706,10 +706,7 @@ void drawWrapCentered(const char* s, int y, uint16_t col, uint8_t size) {
   while (i < n) {
     int take = 0, lastSpace = -1, w = 0;
     while (i + take < n) {                       // grow the line one character at a time
-      int cl = 1;
-#if ENABLE_CJK
-      cl = cjkCharLen(s + i + take);
-#endif
+      int cl = cjkCharLen(s + i + take);
       char one[5]; memcpy(one, s + i + take, cl); one[cl] = 0;
       int cw = txtW(one, size);
       if (w + cw > maxPx || take + cl > (int)sizeof(line) - 1) break;

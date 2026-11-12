@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Copyright (c) 2026 TheRepairForge
 // PocketOBI — Japanese / Korean / Chinese (CJK) text engine, compiled only when ENABLE_CJK=1 (DECISIONS.md
-// D19/D33/D58). PocketTFT::write() decodes UTF-8 as it is printed: ASCII goes to the normal
+// D19/D33/D58). PocketTFT::write() (narrow_render.cpp) decodes UTF-8 as it is printed: ASCII goes to the normal
 // Adafruit_GFX path, a wide code point is blitted from the current language's 16x16 or 12x12
 // bitmap table (glyphs_ja/ko/zh/zh_tw.h), scaled up for large classic-font sizes (see cjkCell()
 // in cjk_render.h).
@@ -48,29 +48,8 @@ static const uint8_t* findGlyph(const CjkGlyph12* t, int n, uint32_t cp) {
   return nullptr;
 }
 
-size_t PocketTFT::write(uint8_t c) {
-  if (need_) {                                    // continuation byte of a multi-byte char
-    if ((c & 0xC0) != 0x80) { need_ = 0; return write(c); }   // malformed: resync on c
-    cp_ = (cp_ << 6) | (c & 0x3F);
-    if (--need_ == 0) drawWide(cp_);
-    return 1;
-  }
-  if (c < 0x80) return Adafruit_ST7789::write(c);
-  if      ((c & 0xE0) == 0xC0) { cp_ = c & 0x1F; need_ = 1; }
-  else if ((c & 0xF0) == 0xE0) { cp_ = c & 0x0F; need_ = 2; }
-  else if ((c & 0xF8) == 0xF0) { cp_ = c & 0x07; need_ = 3; }
-  return 1;                                       // stray continuation byte: ignored
-}
-
-// One buffer = one string: start the decoder clean, so a truncated multi-byte sequence at the
-// end of one print() cannot swallow the first bytes of the next one.
-size_t PocketTFT::write(const uint8_t *buf, size_t n) {
-  need_ = 0; cp_ = 0;
-  size_t i = 0;
-  for (; i < n; i++) write(buf[i]);
-  need_ = 0; cp_ = 0;
-  return n;
-}
+// UTF-8 decoding (PocketTFT::write) and the measuring helpers are in narrow_render.cpp: a code point
+// the narrow tables do not hold arrives at drawWide() below.
 
 // The glyph of cp in a cell, from the current language's table first, then the other ones
 // (each table only holds the characters its own strings use).
@@ -122,43 +101,4 @@ void PocketTFT::drawWide(uint32_t cp) {
   cursor_x += adv;
 }
 
-int cjkCharLen(const char* s) {
-  uint8_t c = (uint8_t)*s;
-  if (c < 0x80) return 1;
-  int n = 1;
-  while (((uint8_t)s[n] & 0xC0) == 0x80) n++;
-  return n;
-}
-
-bool cjkHasWide(const char* s) {
-  for (; *s; s++) if ((uint8_t)*s >= 0x80) return true;
-  return false;
-}
-
-// Visit each code point of s: ASCII -> fn(c, true), other -> fn(0, false).
-template <typename F> static void eachCp(const char* s, F fn) {
-  for (const uint8_t* p = (const uint8_t*)s; *p; ) {
-    if (*p < 0x80) { fn(*p++, true); continue; }
-    p++;
-    while ((*p & 0xC0) == 0x80) p++;              // skip continuation bytes
-    fn(0, false);
-  }
-}
-
-int cjkWidth(const GFXfont* f, const char* s) {
-  int w = 0;
-  eachCp(s, [&](uint8_t c, bool ascii) {
-    if (!ascii) { w += CJK_ADV_GFX; return; }
-    if (c >= f->first && c <= f->last) w += f->glyph[c - f->first].xAdvance;
-  });
-  return w;
-}
-
-int txtW(const char* s, int size) {
-  int w = 0;
-  eachCp(s, [&](uint8_t, bool ascii) {
-    w += ascii ? 6 * size : cjkAdv(size);
-  });
-  return w;
-}
 #endif // ENABLE_CJK

@@ -1,20 +1,21 @@
 # Translating PocketOBI
 
-PocketOBI's screens exist in English, French, German, Spanish, Japanese, Korean, Vietnamese,
+PocketOBI's screens exist in English, French, German, Spanish, Polish, Japanese, Korean, Vietnamese,
 Simplified and Traditional Chinese. English and French are written by the maintainer, Vietnamese and both Chinese by native users; **German,
-Spanish, Japanese and Korean are first drafts that no native speaker has checked yet.** If you
+Spanish, Polish, Japanese and Korean are first drafts that no native speaker has checked yet.** If you
 speak one of them, your corrections are very welcome.
 
 | Language | File | Notes |
 |---|---|---|
-| English, French, German, Spanish | `strings_i18n.h` (`STRTAB`) | ASCII only: the device fonts have no accents (FR/ES accents dropped, German umlauts written ae/oe/ue/ss) |
+| English, French, German, Spanish | `strings_i18n.h` (`STRTAB`) | UTF-8 with real accents (é, ü, ß, ñ ...), drawn by the narrow text path ([NARROW_GLYPHS.md](NARROW_GLYPHS.md)) |
+| Polish | `strings_pl.h` (`STRTAB_PL`) | Standard build (`ENABLE_PL`, defaults to `ENABLE_EU`). UTF-8 with the diacritics; a maintainers' draft (#39): a native review is wanted |
 | Japanese | `strings_ja.h` (`STRTAB_JA`) | Only in the Asia build (`ENABLE_CJK=1`, switch `ENABLE_JA`), drawn with 16x16 bitmap glyphs |
 | Korean | `strings_ko.h` (`STRTAB_KO`) | Only in the Asia build (`ENABLE_CJK=1`, switch `ENABLE_KO`), drawn with 16x16 bitmap glyphs |
 | Simplified Chinese | `strings_zh.h` (`STRTAB_ZH`) | Only in the Asia build (`ENABLE_CJK=1`, switch `ENABLE_ZH`), drawn with 16x16 bitmap glyphs (`--lang zh`) |
 | Traditional Chinese | `strings_zh_tw.h` (`STRTAB_ZH_TW`) | Only in the Asia build (`ENABLE_CJK=1`, switch `ENABLE_ZH_TW`), drawn with 16x16 bitmap glyphs, Taiwan forms (`--lang zh_tw`) |
-| Vietnamese | `strings_vi.h` (`STRTAB_VI`) | Only in the Asia build (`ENABLE_VI=1`). ASCII only, like FR/DE/ES: no accents |
+| Vietnamese | `strings_vi.h` (`STRTAB_VI`) | Only in the Asia build (`ENABLE_VI=1`). UTF-8 with the diacritics, restored by the maintainers from the translator's ASCII text: a native review is wanted |
 
-The standard build offers EN / FR / DE / ES, the Asia build EN / JA / KO / VI / ZH / TW.
+The standard build offers EN / FR / DE / ES / PL, the Asia build EN / JA / KO / VI / ZH / TW.
 
 English is the reference. The language is chosen on the device in **Settings > Language**.
 
@@ -31,8 +32,10 @@ column, and attach the file to a [translation issue](https://github.com/TheRepai
 
 ### Two limits of the device screen
 
-- **Plain ASCII only.** The screen fonts have no accented letters: write `Reparer`, `Bateria`,
-  and German umlauts as `ae`, `oe`, `ue`, `ss`.
+- **Accents are welcome.** Write `Réparer`, `Batería`, `Brücke`, `Verschleiß` in UTF-8. Every
+  Latin-1 and Latin Extended-A letter is drawn except Æ, Ø, Œ, Þ, Ħ, Ŧ, Ŋ and the like, which
+  `tools/gen_narrow_glyphs.py --check` refuses. A string is at most 63 bytes (an accented letter
+  takes 2).
 - **Limited width.** Keep a fix close to the longest version shown today (the review page
   gives the number of characters). Every accepted fix is rendered on the real screen before it
   ships, so nothing ends up cut off.

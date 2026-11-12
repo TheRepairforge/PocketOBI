@@ -40,18 +40,16 @@ void gfxCenter(const GFXfont *f, int cx, int baseY, const char *s, uint16_t col)
   tft.setCursor(cx - w / 2, baseY); tft.print(s); tft.setFont(NULL);
 }
 
-// Uppercased copy of a UI label (the mockup's small-caps label style). Only ASCII letters change;
-// a multi-byte (Japanese) character is copied whole or not at all, never cut by the buffer end.
+// Uppercased copy of a UI label (the mockup's small-caps label style). ASCII and accented letters change
+// (narrowUpper(), é -> É); a multi-byte character is copied whole or not at all, never cut by the buffer
+// end, and a Japanese one is copied as it is.
 const char *upperLabel(const char *in, char *out, size_t n) {
   size_t i = 0;
   while (in[i]) {
-    int cl = 1;
-#if ENABLE_CJK
-    cl = cjkCharLen(in + i);
-#endif
+    int cl = cjkCharLen(in + i);
     if (i + cl + 1 > n) break;
     if (cl == 1) out[i] = (in[i] >= 'a' && in[i] <= 'z') ? in[i] - 32 : in[i];
-    else memcpy(out + i, in + i, cl);
+    else { memcpy(out + i, in + i, cl); narrowUpper(out + i, cl); }
     i += cl;
   }
   out[i] = 0;
@@ -553,9 +551,10 @@ int faultCard(int y, uint16_t color, const char *title, const char *ref, const c
   const int x = GUTTER, w = CONTENT_W;
   drawCard(x, y, w, FAULT_ROW_H, false, RADIUS_MD);
   iconWarningFilled(x + SP_4, y + FAULT_ROW_H / 2, color, COL_PANEL);
-  gfxText(FONT_LEVEL3, x + 34, y + 16, title, COL_TEXT);
-  drawCaption(x + 34, y + 20, ref, COL_MUTED);
-  if (ctx && ctx[0]) drawCaption(x + 34 + txtW(ref, 1) + SP_3, y + 20, ctx, COL_MUTED2);
+  // Baseline 17, not 16: a stacked Vietnamese mark over a capital (e.g. "Ấ") needs the extra pixel below the card border.
+  gfxText(FONT_LEVEL3, x + 34, y + 17, title, COL_TEXT);
+  drawCaption(x + 34, y + 21, ref, COL_MUTED);
+  if (ctx && ctx[0]) drawCaption(x + 34 + txtW(ref, 1) + SP_3, y + 21, ctx, COL_MUTED2);
   return y + FAULT_ROW_H;
 }
 

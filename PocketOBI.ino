@@ -87,6 +87,7 @@
 #include "strings_zh.h"   // STRTAB_ZH, only when ENABLE_CJK=1
 #include "strings_zh_tw.h" // STRTAB_ZH_TW, only when ENABLE_CJK=1
 #include "strings_vi.h"   // STRTAB_VI, only when ENABLE_VI=1
+#include "strings_pl.h"   // STRTAB_PL, only when ENABLE_PL=1
 
 
 OneWire makita(ONEWIRE_PIN);
@@ -155,6 +156,9 @@ const char* tr(StrId id) {   // prototype in pocketobi.h
 #endif
 #if ENABLE_VI
   if (lang == LANG_VI) return STRTAB_VI[id] ? STRTAB_VI[id] : STRTAB[id][LANG_EN];
+#endif
+#if ENABLE_PL
+  if (lang == LANG_PL) return STRTAB_PL[id] ? STRTAB_PL[id] : STRTAB[id][LANG_EN];
 #endif
   return STRTAB[id][lang];
 }

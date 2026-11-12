@@ -6,6 +6,24 @@ Versioning follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH
 The version is defined in `pocketobi.h` as `FW_VERSION` and shown
 on the boot splash and the About screen.
 
+## [2.8.0] - 2026-11-12
+
+Real accents on the screen, and Polish.
+
+### Added
+- **Accented letters.** French, German and Spanish are shown with their accents ("Réglages",
+  "Brücke", "Batería") instead of ASCII spellings, and Vietnamese with its diacritics. An accented
+  letter is the screen font's own letter plus small marks, so text keeps its width
+  ([docs/NARROW_GLYPHS.md](docs/NARROW_GLYPHS.md)). Latin-1 and Latin Extended-A are covered, so
+  a new Latin-script translation needs no font work. Spanish gets its opening "¿" and "¡".
+- **Polish** (requested in #39), in the standard build after Spanish: every screen, with its
+  diacritics. **Review by a native speaker wanted**: send corrections on #39.
+- The Vietnamese diacritics were restored from the original ASCII translation: **review by a native
+  speaker wanted.**
+
+### Changed
+- Fault rows draw their title one pixel lower, so a stacked accent over a capital clears the card edge.
+
 ## [2.7.2] - 2026-11-12
 
 Two screens that said more than they knew.

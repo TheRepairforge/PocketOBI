@@ -1,23 +1,20 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Copyright (c) 2026 TheRepairForge
 #pragma once
-// Japanese / Korean text seam (DECISIONS.md D19/D33/D58). Included by pocketobi.h, so every module sees
-// it; it depends only on the display library and the language enum.
+// Language set + Japanese / Korean / Chinese text seam (DECISIONS.md D19/D33/D58). Included by pocketobi.h,
+// so every module sees it; it depends only on the display library and the language enum.
 //
-//   ENABLE_CJK=0 : PocketTFT is plain Adafruit_ST7789 and every helper below is an inline
-//                  that reduces to the EN/FR/DE/ES code (txtW() == strlen * 6 * size).
-//   ENABLE_CJK=1 : PocketTFT overrides write(): UTF-8 text printed through ANY print()/
-//                  printf() is decoded, ASCII keeps the normal font path, and a Japanese or
-//                  Korean character is drawn from the current language's bitmap glyph
-//                  tables (glyphs_ja/ko/zh/zh_tw.h) at the
-//                  height of the current font: 16 px next to a GFX font; with the classic
-//                  font (8*size px), 12 px at size 1, 16 at 2, then 12 or 16 scaled up.
-//                  So call sites need no change to show Japanese: tr() returns it, and
-//                  the only thing a call site must not do is measure text with strlen().
-//
-// Measuring text: use txtW() (classic font) or gfxWidth() (GFX font) instead of strlen().
+// The display type PocketTFT and the measuring helpers (txtW(), cjkWidth() ...) live in narrow_render.h and
+// exist in every build: UTF-8 is decoded everywhere, accented Latin / Vietnamese take the narrow path.
+//   ENABLE_CJK=1 adds the wide path: a Japanese, Korean or Chinese character is drawn from the current
+//                language's bitmap glyph tables (glyphs_ja/ko/zh/zh_tw.h) at the height of the current
+//                font: 16 px next to a GFX font; with the classic font (8*size px), 12 px at size 1, 16 at
+//                2, then 12 or 16 scaled up.
+// So call sites need no change: tr() returns UTF-8, and the only thing a call site must not do is measure
+// text with strlen(). Use txtW() (classic font) or gfxWidth() (GFX font).
 #include <Adafruit_ST7789.h>
 #include "strings_i18n.h"
+#include "narrow_render.h"   // PocketTFT, txtW(), cjkWidth(), cjkCharLen() ... in every build
 
 extern int lang;
 
@@ -26,6 +23,9 @@ constexpr int LANG_AVAIL[] = {
   LANG_EN,
 #if ENABLE_EU
   LANG_FR, LANG_DE, LANG_ES,
+#endif
+#if ENABLE_PL
+  LANG_PL,
 #endif
 #if ENABLE_JA
   LANG_JA,
@@ -71,6 +71,7 @@ inline const char* langCode(int l) {
   if (l == LANG_ZH_TW) return "TW";
 #endif
   if (l == LANG_VI) return "VI";
+  if (l == LANG_PL) return "PL";
   return LANG_CODE[l];
 }
 
@@ -81,26 +82,4 @@ inline int cjkCell(int n)  { return (n & 1) ? 12 : 16; }
 inline int cjkScale(int n) { return n < 1 ? 1 : (n + 1) / 2; }
 inline int cjkAdv(int n)   { return (cjkCell(n) + 1) * cjkScale(n); }
 #define CJK_ADV_GFX 17     // next to a GFX font: always the 16 px cell
-
-class PocketTFT : public Adafruit_ST7789 {
-public:
-  using Adafruit_ST7789::Adafruit_ST7789;
-  size_t write(uint8_t c) override;
-  // Every print()/printf() of a whole string arrives here: the UTF-8 decoder starts clean
-  // for each one, so a string cut inside a character cannot leak into the next print.
-  size_t write(const uint8_t *buf, size_t n) override;
-  size_t write(const char *s) { return s ? write((const uint8_t *)s, strlen(s)) : 0; }
-private:
-  void drawWide(uint32_t cp);
-  uint32_t cp_ = 0;      // UTF-8 decoder state within ONE write(buf, n) call
-  uint8_t need_ = 0;     // continuation bytes still expected
-};
-
-int  cjkWidth(const GFXfont* f, const char* s);   // GFX-font pixel width, JA/KO included
-int  txtW(const char* s, int size);              // classic-font pixel width, JA/KO included
-bool cjkHasWide(const char* s);                  // any non-ASCII byte in s
-int  cjkCharLen(const char* s);                  // byte length of the UTF-8 char at s (1 at a NUL)
-#else
-using PocketTFT = Adafruit_ST7789;
-inline int txtW(const char* s, int size) { return (int)strlen(s) * 6 * size; }
 #endif
