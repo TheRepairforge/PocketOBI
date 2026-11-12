@@ -100,6 +100,8 @@ const char* const STRTAB_ZH_TW[] = {
   /*S_UNLOCK_SHOULD_HOLD*/  "我們的解鎖操作應該有效。", // EN: "Our unlock should hold."
   /*S_TOAST_FIXHW*/         "請先修復硬體", // EN: "Fix hardware first"
   /*S_TOAST_NOTHING*/       "無需維修", // EN: "Nothing to repair"
+  /*S_TOAST_USE_RESET*/      "工具 > 重置錯誤", // EN: "Use Tools > Reset error" (composed from S_TOOLS + S_RESET_ERROR)
+  /*S_TOAST_PACK_CHANGED*/   "電池已更換", // EN: "Pack changed" (ours, provisional)
   /*S_WORKING*/             "處理中…", // EN: "Working..."
   /*S_FRAME_STORE_PC*/      "修復資料幀 → 儲存 → 斷電重啟", // EN: "repair frame  ->  store  ->  power-cycle"
   /*S_TEMP_CB*/             "電芯 / 電路板", // EN: "Cell/Board"

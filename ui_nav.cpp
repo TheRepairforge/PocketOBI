@@ -9,6 +9,24 @@
 #include "ui_nav.h"
 #include "bridge.h"
 
+// A confirm screen can stay up while the pack is swapped. Re-read right before a BMS write and
+// compare the ROM id: unlockRepair() builds its frame from bat.msg, so a stale read would write one
+// pack's frame into another. On a different pack nothing is written and Battery shows the new one.
+static bool samePackBeforeWrite() {
+  uint8_t id[8];
+  memcpy(id, bat.romId, sizeof(id));
+  toast(tr(S_CONNECT_MSG), COL_YELLOW, false);
+  if (!readAllData()) { state = COMM_ERROR; return false; }
+  readExtended();
+  if (memcmp(id, bat.romId, sizeof(id)) != 0) {
+    toast(tr(S_TOAST_PACK_CHANGED), COL_YELLOW);
+    batteryPage = 0;
+    state = BATTERY;
+    return false;
+  }
+  return true;
+}
+
 // ---------- Buttons / navigation logic (V2) ----------
 // Activate target `idx` on screen `s`. Shared core of every selection: the
 // encoder calls it with the item under the cursor, a touch board calls it with
@@ -44,12 +62,15 @@ void activate(UiState s, int idx) {
       int grp;
       if (findHardwareFault(&grp, nullptr, 0) != HW_NONE)        // feasibility-first: fix HW before unlocking
         toast(tr(S_TOAST_FIXHW), COL_RED);                       // stay on diagnose
-      else if (causes && packReadOnly()) toast(tr(S_W_NOT_SUPPORTED), COL_YELLOW);   // 14.4 V: read-only (#28)
+      else if ((causes || bat.locked) && packReadOnly()) toast(tr(S_W_NOT_SUPPORTED), COL_YELLOW);   // 14.4 V: read-only (#28), lock or stored error alike
+      else if (causes == 0 && bat.valid && bat.locked && !packReadOnly())   // only the error register (nybble 40) is set:
+        toast(tr(S_TOAST_USE_RESET), COL_YELLOW);                           // the unlock does not clear it, Reset error does
       else if (causes == 0) toast(tr(S_TOAST_NOTHING), COL_MUTED);
       else state = CONFIRM_UNLOCK;
       break;
     }
     case CONFIRM_UNLOCK: {
+      if (!samePackBeforeWrite()) break;               // the causes below are judged on this fresh read
       bool isF0513 = strcmp(bat.commandVersion, "F0513") == 0;
       uint8_t causes = (bat.valid && !isF0513 && !packReadOnly()) ? lockCauses(bat.msg) : 0;
       if (causes == 0) { state = BATTERY; break; }     // nothing to repair (or 14.4 V) -> no write
@@ -62,8 +83,8 @@ void activate(UiState s, int idx) {
       break;
     }
     case CONFIRM_RESET:
-      if (packReadOnly()) { state = TOOLS; break; }    // 14.4 V: no BMS write (#28), defence in depth
-      toast(tr(S_CONNECT_MSG), COL_YELLOW, false);
+      if (!samePackBeforeWrite()) break;               // the F0513 / 14.4 V test below now reads this pack
+      if (packReadOnly() || strcmp(bat.commandVersion, "F0513") == 0) { state = TOOLS; break; }   // 14.4 V (#28) / F0513: no BMS write, defence in depth
       resetLockedBefore = bat.locked;
       resetErrors();
       resetReread = readAllData();                     // a silent re-read must not pass for "unchanged"
@@ -79,6 +100,9 @@ void activate(UiState s, int idx) {
           toast(tr(S_CONNECT_MSG), COL_YELLOW, false);
           if (!readAllData()) state = COMM_ERROR;
           else if (packReadOnly()) toast(tr(S_W_NOT_SUPPORTED), COL_YELLOW);   // 14.4 V: read-only (#28)
+          // F0513: its error register is not read (decode leaves bat.locked false), so the result screen
+          // could only claim "no error" without knowing it (L33). Not offered.
+          else if (strcmp(bat.commandVersion, "F0513") == 0) toast(tr(S_W_NOT_SUPPORTED), COL_YELLOW);
           else state = CONFIRM_RESET;
           break;
         case 4: toast(tr(S_CONNECT_MSG), COL_YELLOW, false);

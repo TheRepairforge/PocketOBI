@@ -100,6 +100,8 @@ const char* const STRTAB_JA[] = {
   /*S_UNLOCK_SHOULD_HOLD*/    "解除は維持されるはずです", // EN: "Our unlock should hold."
   /*S_TOAST_FIXHW*/           "先にハードを修理してください", // EN: "Fix hardware first"
   /*S_TOAST_NOTHING*/         "修理不要", // EN: "Nothing to repair"
+  /*S_TOAST_USE_RESET*/        "ツール > エラーリセット", // EN: "Use Tools > Reset error" (composed from S_TOOLS + S_RESET_ERROR)
+  /*S_TOAST_PACK_CHANGED*/     "パックが変わりました", // EN: "Pack changed" (ours, provisional)
   /*S_WORKING*/               "処理中...", // EN: "Working..."
   /*S_FRAME_STORE_PC*/        "フレームメモリ修復 -> 保存 -> 電源再投入", // EN: "repair frame  ->  store  ->  power-cycle"
   /*S_TEMP_CB*/               "セル／基板", // EN: "Cell/Board"

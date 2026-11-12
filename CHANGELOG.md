@@ -6,6 +6,29 @@ Versioning follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH
 The version is defined in `pocketobi.h` as `FW_VERSION` and shown
 on the boot splash and the About screen.
 
+## [2.7.2] - 2026-11-12
+
+Two screens that said more than they knew.
+
+### Changed
+- **Repair, a pack with only a stored error code.** When the BMS has an error code recorded but no
+  charger lock, the verdict says UNLOCK (the error can be cleared) but Repair answered "Nothing to
+  repair". It now points to the tool that clears it: "Use Tools > Reset error".
+- **Tools > Reset error on an older (F0513) pack** is no longer offered: this generation's error
+  register is not read, so the result screen could only say "no error" without knowing it. It now
+  shows NOT SUPPORTED, and nothing is written.
+- The Repair card of such a pack says the same ("Reset error", "Use Tools > Reset error") instead of
+  "False lockout, our unlock should hold"; the pointer is not shown on a 14.4 V pack or without a valid
+  reading.
+
+### Fixed
+- **A pack swapped on a confirm screen.** Unlock and Reset error now re-read the pack right before
+  writing and compare its ID with the one read before: the unlock builds its write from the earlier
+  reading, so a pack changed in between could have been written with another pack's data. On a
+  different pack nothing is written, a "Pack changed" message shows, and Battery shows the new pack.
+- **PC bridge version.** The bridge reported 2.5.2 to PackScope since 2.5.2; it now reports the
+  firmware's own version. Display only: PackScope checks the protocol version, which is unchanged.
+
 ## [2.7.1] - 2026-11-03
 
 A native-speaker review of the Japanese, and finer readings.

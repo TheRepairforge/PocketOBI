@@ -94,6 +94,8 @@ const char* const STRTAB_VI[] = {
   /*S_UNLOCK_SHOULD_HOLD*/    "Mo khoa co the duy tri", // EN: "Our unlock should hold."
   /*S_TOAST_FIXHW*/           "Sua phan cung truoc", // EN: "Fix hardware first"
   /*S_TOAST_NOTHING*/         "Khong co gi can sua", // EN: "Nothing to repair"
+  /*S_TOAST_USE_RESET*/        "Cong cu > Xoa loi", // EN: "Use Tools > Reset error" (composed from S_TOOLS + S_RESET_ERROR)
+  /*S_TOAST_PACK_CHANGED*/     "Pin da thay doi", // EN: "Pack changed" (ours, provisional)
   /*S_WORKING*/               "Dang xu ly...", // EN: "Working..."
   /*S_FRAME_STORE_PC*/        "Khung sua -> luu -> khoi dong lai", // EN: "repair frame  ->  store  ->  power-cycle"
   /*S_TEMP_CB*/               "Cell/Bo mach", // EN: "Cell/Board"

@@ -47,7 +47,7 @@ enum StrId {
   S_FIX_HW_FIRST, S_UNLIKELY_HOLD, S_SHOULD_HOLD,
   S_NO_LOCK_NO_FAULT, S_BMS_MEMORISED, S_FALSE_LOCKOUT,
   S_PACK_HEALTHY, S_WHY_OD, S_WHY_OL, S_WHY_WEAR, S_WHY_UNCLEAR, S_WHY_THERM_CHECK, S_UNLOCK_SHOULD_HOLD,
-  S_TOAST_FIXHW, S_TOAST_NOTHING, S_WORKING, S_FRAME_STORE_PC,
+  S_TOAST_FIXHW, S_TOAST_NOTHING, S_TOAST_USE_RESET, S_TOAST_PACK_CHANGED, S_WORKING, S_FRAME_STORE_PC,
   S_TEMP_CB,   // "Cell/Board" temp-row label (Temp1=cell, Temp2=board)
   S_CALIBRATE, // Settings > Calibrate touch (CYD touch board only)
   S_CAL_TAP, S_CAL_SAVED,  // touch calibration screen (CYD only)
@@ -160,6 +160,8 @@ const char* const STRTAB[S_COUNT][LANG_COUNT] = {
   /*S_UNLOCK_SHOULD_HOLD*/{ "Our unlock should hold.","Notre unlock devrait tenir.","Unser Entsperren sollte halten.","El desbloqueo deberia aguantar." },
   /*S_TOAST_FIXHW*/ { "Fix hardware first","Repare le materiel","Erst Hardware fixen","Repara hardware" },
   /*S_TOAST_NOTHING*/{ "Nothing to repair","Rien a reparer",   "Nichts zu reparieren","Nada que reparar" },
+  /*S_TOAST_USE_RESET*/{ "Use Tools > Reset error","Outils > Reset erreur","Werkzeuge > Fehler-Reset","Utiles > Reset error" },
+  /*S_TOAST_PACK_CHANGED*/{ "Pack changed","Pack change","Akku gewechselt","Bateria cambiada" },
   /*S_WORKING*/     { "Working...",       "Travail...",       "Arbeite...",        "Trabajando..." },
   /*S_FRAME_STORE_PC*/{ "repair frame  ->  store  ->  power-cycle","repare -> stocke -> power-cycle","Frame -> speichern -> Neustart","repara -> guarda -> reinicio" },
   /*S_TEMP_CB*/     { "Cell/Board",      "Cell/Carte",       "Zelle/Platine",     "Celda/Placa" },

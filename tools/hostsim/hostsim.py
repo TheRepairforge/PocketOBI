@@ -67,6 +67,7 @@ def build(args, out):
         f"-DPOCKETOBI_BOARD={BOARDS[args.board]}",
         f"-DENABLE_CJK={1 if args.asia else 0}", f"-DENABLE_EU={0 if args.asia else 1}",
         f"-DENABLE_VI={1 if args.asia else 0}",
+        *(f"-D{d}" for d in args.define),
         "-I", os.path.join(HERE, "shim"), "-I", gfx,
         "-x", "c++", os.path.join(ROOT, "PocketOBI.ino"), "-x", "none",
         *fw,
@@ -125,6 +126,8 @@ def main():
     ap.add_argument("--gfx", help="Adafruit GFX Library folder")
     ap.add_argument("--cxx", help='C++ compiler command, e.g. "g++" or "clang++"')
     ap.add_argument("--out", help="output folder (default tools/hostsim/out/<board>[-asia])")
+    ap.add_argument("-D", "--define", action="append", default=[], metavar="NAME=VALUE",
+                    help="extra build flag, repeatable, e.g. -D ENABLE_KO=0 (a Japanese-only Asia build)")
     args = ap.parse_args()
 
     out = args.out or os.path.join(HERE, "out", args.board + ("-asia" if args.asia else ""))

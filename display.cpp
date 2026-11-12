@@ -282,9 +282,14 @@ static void diagFinding(Finding &f) {
   } else if (!f.causes && !bat.locked) {
     f.title = tr(S_NO_LOCK_NO_FAULT); f.color = COL_GREEN;
     strcpy(f.line2, tr(S_PACK_HEALTHY));
+  } else if (!f.causes && bat.valid && !packReadOnly()) {
+    // Only the error register (nybble 40) is set: no charger lock for the unlock to clear, Tools >
+    // Reset error does it. Same pointer as the Repair toast (ui_nav.cpp), never "unlock should hold".
+    f.title = tr(S_RESET_ERROR); f.color = COL_YELLOW;
+    strcpy(f.line2, tr(S_TOAST_USE_RESET));
   } else if (packReadOnly()) {
-    // Charger-locked 14.4 V pack: the lock is a fact, the unlock is not offered (#28).
-    f.title = tr(S_CHARGER_LOCK); f.color = COL_YELLOW;
+    // 14.4 V pack: the lock (or the stored error) is a fact, no write is offered (#28). Name which.
+    f.title = f.causes ? tr(S_CHARGER_LOCK) : tr(S_RESET_ERROR); f.color = COL_YELLOW;
     snprintf(f.line2, sizeof(f.line2), "LXT 14.4V - %s", tr(S_W_NOT_SUPPORTED));
   } else {
     // Charger-locked, no fault marker -> a false lockout our unlock should clear.
