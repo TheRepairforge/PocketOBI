@@ -47,7 +47,7 @@ static char standIn(const NarrowComp* e) {
   uint8_t b = e->base;
   if (b == 1) return 'i';
   if (b == 2) return 'j';
-  if (b >= 16 && b < 32) return NARROW_FULL_STANDIN[b - 16];
+  if (b >= NARROW_FULL_BASE) return NARROW_FULL_STANDIN[b - NARROW_FULL_BASE];
   return (char)b;
 }
 
@@ -62,10 +62,10 @@ static int advanceIn(const GFXfont* f, int sx, int sy, uint32_t cp) {
   }
   if (cp < 0x80) { const GFXglyph* g = gfxGlyph(f, cp); return g ? pgm_read_byte(&g->xAdvance) * sx : 0; }
   if (const NarrowComp* e = findComp(cp)) {
-    if (e->base >= 16 && e->base < 32) {
-      if (const NarrowFull* fg = findFull(f, e->base - 16)) return fg->adv * sx;
+    if (e->base >= NARROW_FULL_BASE) {
+      if (const NarrowFull* fg = findFull(f, e->base - NARROW_FULL_BASE)) return fg->adv * sx;
       int w = 0;
-      for (const char* p = NARROW_FULL_FALLBACK[e->base - 16]; *p; p++) w += advanceIn(f, sx, sy, (uint8_t)*p);
+      for (const char* p = NARROW_FULL_FALLBACK[e->base - NARROW_FULL_BASE]; *p; p++) w += advanceIn(f, sx, sy, (uint8_t)*p);
       return w;
     }
     return advanceIn(f, sx, sy, (uint8_t)standIn(e));
@@ -218,12 +218,12 @@ bool PocketTFT::drawNarrow(uint32_t cp) {
   const NarrowComp* e = findComp(cp);
   if (!e) return false;
   const uint8_t base = e->base;
-  const bool full = base >= 16 && base < 32, dotless = base == 1 || base == 2;
+  const bool full = base >= NARROW_FULL_BASE, dotless = base == 1 || base == 2;
   const int adv = advanceOf(cp);
   if (!gfxFont) {                                 // classic font: a 6 x 8 cell per letter
     const int sx = textsize_x, sy = textsize_y;
     if (wrap && cursor_x + 6 * sx > _width) { cursor_x = 0; cursor_y += 8 * sy; }
-    if (full)         blitClassic(*this, NARROW_CLASSIC[2 + base - 16], cursor_x, cursor_y, sx, sy, textcolor, textbgcolor);
+    if (full)         blitClassic(*this, NARROW_CLASSIC[2 + base - NARROW_FULL_BASE], cursor_x, cursor_y, sx, sy, textcolor, textbgcolor);
     else if (dotless) blitClassic(*this, NARROW_CLASSIC[base - 1], cursor_x, cursor_y, sx, sy, textcolor, textbgcolor);
     else              drawChar(cursor_x, cursor_y, base, textcolor, textbgcolor, sx, sy);
     const uint16_t cb = e->cbox;
@@ -235,27 +235,30 @@ bool PocketTFT::drawNarrow(uint32_t cp) {
   }
   const GFXfont* f = gfxFont;
   const uint8_t* bmp = (const uint8_t*)f->bitmap;
+  InkBox b;
   if (full) {
-    const NarrowFull* fg = findFull(f, base - 16);
+    const NarrowFull* fg = findFull(f, base - NARROW_FULL_BASE);
     if (!fg) {                                    // this font has no full glyph: its fallback text
-      for (const char* p = NARROW_FULL_FALLBACK[base - 16]; *p; p++) Adafruit_ST7789::write((uint8_t)*p);
+      for (const char* p = NARROW_FULL_FALLBACK[base - NARROW_FULL_BASE]; *p; p++) Adafruit_ST7789::write((uint8_t)*p);
       return true;
     }
     if (wrap && cursor_x + adv > _width) { cursor_x = 0; cursor_y += pgm_read_byte(&f->yAdvance); }
     GFXglyph g = { fg->off, fg->w, fg->h, fg->adv, fg->xo, fg->yo };
-    blitGfx(*this, f, &g, NARROW_FULL_BITS, cursor_x, cursor_y, false, textcolor);
-    cursor_x += adv;
-    return true;
+    b = blitGfx(*this, f, &g, NARROW_FULL_BITS, cursor_x, cursor_y, false, textcolor);
+    if (!e->mark[0]) { cursor_x += adv; return true; }   // a full glyph with a mark: й = и + breve
+  } else {
+    const GFXglyph* g = gfxGlyph(f, (uint8_t)standIn(e));
+    if (!g) return false;
+    if (wrap && cursor_x + adv > _width) { cursor_x = 0; cursor_y += pgm_read_byte(&f->yAdvance); }
+    b = blitGfx(*this, f, g, bmp, cursor_x, cursor_y, dotless, textcolor);
   }
-  const GFXglyph* g = gfxGlyph(f, (uint8_t)standIn(e));
-  if (!g) return false;
-  if (wrap && cursor_x + adv > _width) { cursor_x = 0; cursor_y += pgm_read_byte(&f->yAdvance); }
-  InkBox b = blitGfx(*this, f, g, bmp, cursor_x, cursor_y, dotless, textcolor);
-  // Mark scale from the x-height: 1 up to 12 pt, 2 at 18 and 24 pt.
+  // Mark scale from the x-height: 1 up to 12 pt, 2 at 18 and 24 pt. A capital is told by its stand-in
+  // (the base letter itself for an accented Latin letter, 'H' for И).
   const GFXglyph* gx = gfxGlyph(f, 'x');
   const int xh = gx ? pgm_read_byte(&gx->height) : 10;
   const int sc = xh < 18 ? 1 : 2;
-  drawMarks(*this, e, b, false, sc, sc > 1 && base >= 'A' && base <= 'Z', textcolor);
+  const char si = standIn(e);
+  drawMarks(*this, e, b, false, sc, sc > 1 && si >= 'A' && si <= 'Z', textcolor);
   cursor_x += adv;
   return true;
 }
@@ -282,8 +285,8 @@ void PocketTFT::getTextBounds(const char *s, int16_t x, int16_t y, int16_t *x1, 
     if (n >= sizeof(proxy) - 4) return;
     if (cp < 0x80) { proxy[n++] = (char)cp; return; }
     const NarrowComp* e = findComp(cp);
-    if (e && !(e->base >= 16 && e->base < 32 && gfxFont && !findFull(gfxFont, e->base - 16))) { proxy[n++] = standIn(e); return; }
-    if (e) { for (const char* p = NARROW_FULL_FALLBACK[e->base - 16]; *p && n < sizeof(proxy) - 4; p++) proxy[n++] = *p; return; }
+    if (e && !(e->base >= NARROW_FULL_BASE && gfxFont && !findFull(gfxFont, e->base - NARROW_FULL_BASE))) { proxy[n++] = standIn(e); return; }
+    if (e) { for (const char* p = NARROW_FULL_FALLBACK[e->base - NARROW_FULL_BASE]; *p && n < sizeof(proxy) - 4; p++) proxy[n++] = *p; return; }
     int a = advanceOf(cp), sp = advanceOf('x');
     for (int k = 0; sp > 0 && k * sp < a && n < sizeof(proxy) - 4; k++) proxy[n++] = 'x';
   });

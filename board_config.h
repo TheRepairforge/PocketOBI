@@ -16,12 +16,14 @@
 #define BOARD_LXT_C3 1   // ESP32-C3 SuperMini + ST7789 + EC11 encoder (shipping product)
 #define BOARD_CYD    2   // "Cheap Yellow Display" ESP32-2432S028R: ST7789 + XPT2046 touch (dev/alt)
 #define BOARD_ES3C28P 3  // LCDWiki ES3C28P: ESP32-S3 + ILI9341V + FT6336G capacitive touch (D48)
+#define BOARD_S3_ST7796U 5  // ESP32-S3-DevKitC-1 + ST7796U 320x480 + GT911 capacitive touch (touch only, no encoder)
 
 // Touch driver, one selector per board (D48): never two booleans. The sketch includes and
 // instantiates the driver this names; the logic only calls touch.touched() / touch.getPoint().
 #define TOUCH_NONE    0   // no touch input
 #define TOUCH_XPT2046 1   // resistive, on its own SPI bus (CYD)
 #define TOUCH_FT6336  2   // capacitive, on I2C, reports pixels (ES3C28P, touch_ft6336.h)
+#define TOUCH_GT911   3   // capacitive, on I2C (16-bit registers), reports pixels (touch_gt911.h)
 
 // Optional LOCAL board override (gitignored, never committed): drop a file
 // "board_local.h" next to this header containing e.g.
@@ -161,6 +163,60 @@
 #define TCAL_DEF_Y_TOP    206    // raw X at screen y=0   (top edge)
 #define TCAL_DEF_Y_BOTTOM  10    // raw X at screen y=239 (bottom edge)
 
+#elif POCKETOBI_BOARD == BOARD_S3_ST7796U
+// --- ESP32-S3-DevKitC-1 + 3.5" ST7796U 320x480 module (SPI mode) + GT911 capacitive touch ---
+// Touch only: no encoder, no back button (like the ES3C28P). The UI fills the whole 480x320 landscape
+// panel (SCREEN_W/SCREEN_H below). Wiring and the module's resistor mod: README, "Alternative board:
+// ESP32-S3-DevKitC-1 + ST7796U + GT911". Contributed and bench-tested by yukonx (issue #43), one board.
+// --- Battery bus. GPIO45/46 are S3 STRAPPING pins and the pull-ups hold them HIGH at reset:
+//     GPIO45 high selects a 1.8 V flash supply unless the chip's VDD_SPI eFuse forces it, and GPIO46
+//     high with GPIO0 low (BOOT button) is not a valid download strap. They work on the contributor's
+//     board; on another DevKitC-1, any free non-strapping pair can replace them here. ---
+#define ONEWIRE_PIN 45   // DATA, + 470 ohm pull-up to 3V3
+#define ENABLE_PIN  46   // ENABLE, + 470 ohm pull-up to 3V3
+// --- Input: capacitive touch (GT911 on I2C, address 0x5D or 0x14 is probed) ---
+#define TOUCH_SDA  42
+#define TOUCH_SCL  41
+#define TOUCH_INT  40    // driven low during the reset pulse to select address 0x5D
+#define TOUCH_RST  15    // silkscreen "CPT_CS" on the module: the GT911 reset line
+// --- Display: ST7796U (SPI, hardware FSPI pins) ---
+#define TFT_CS   10
+#define TFT_DC    9
+#define TFT_RST  14
+#define TFT_MOSI 11
+#define TFT_SCLK 12
+#define TFT_BL    4      // backlight switch is a high-side P-MOS on this module: LOW = on
+#define TFT_BL_ON LOW
+// --- Panel geometry: native portrait size 320x480, used in landscape (480x320). A UI smaller than the
+//     panel is centred through the offsets (narrow_render.h, PanelST7789): 0 when the sizes are equal. ---
+#define PANEL_W        480
+#define PANEL_H        320
+#define SCREEN_W       480   // UI size (ui_theme.h); 320x240 on the other boards
+#define SCREEN_H       320
+#define PANEL_X_OFFSET ((PANEL_W - SCREEN_W) / 2)
+#define PANEL_Y_OFFSET ((PANEL_H - SCREEN_H) / 2)
+// --- Capabilities ---
+#define BOARD_TOUCH_DRIVER    TOUCH_GT911
+#define BOARD_TOUCH_NEEDS_CAL 1   // Settings > Calibrate refines the defaults below
+#define TOUCH_SWAP_XY         0   // 1 = the GT911 reports X/Y the other way round (see TOUCH_TEST_MENU)
+// The ST7796 landscape MADCTL is the same MV|BGR (0x28) / MX|MY|MV|BGR (0xE8) as the ILI9341 path in
+// applyRotation(), so that path is reused.
+#define PANEL_ILI9341         1
+#define PANEL_INVERT          0
+#define PANEL_ILI9341_INIT    0
+#define PANEL_ST7796_INIT     1   // ST7796 power / gamma sequence after tft.init() (display.cpp)
+// Touch calibration defaults (bench-measured): with MV and no mirror, screen X follows the GT911's raw Y
+// (panel long axis) and screen Y its raw X, both in the same direction.
+#define TCAL_DEF_X_LEFT     0    // raw Y at screen x=0              (left edge)
+#define TCAL_DEF_X_RIGHT  479    // raw Y at screen x=SCREEN_W-1     (right edge)
+#define TCAL_DEF_Y_TOP      0    // raw X at screen y=0              (top edge)
+#define TCAL_DEF_Y_BOTTOM 319    // raw X at screen y=SCREEN_H-1     (bottom edge)
+
 #else
-#  error "POCKETOBI_BOARD must be BOARD_LXT_C3, BOARD_CYD or BOARD_ES3C28P"
+#  error "POCKETOBI_BOARD must be BOARD_LXT_C3, BOARD_CYD, BOARD_ES3C28P or BOARD_S3_ST7796U"
+#endif
+
+// Backlight "on" level: HIGH unless a board says otherwise (BOARD_S3_ST7796U drives a P-MOS, LOW = on).
+#if defined(TFT_BL) && !defined(TFT_BL_ON)
+#define TFT_BL_ON HIGH
 #endif

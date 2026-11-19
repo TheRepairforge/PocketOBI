@@ -17,6 +17,7 @@ pip install pillow ziglang                 # once: image library + a C++ compile
 python tools/hostsim/hostsim.py            # EN / FR / DE / ES
 python tools/hostsim/hostsim.py --asia     # Asia build: EN / JA / KO
 python tools/hostsim/hostsim.py --asia --board cyd --scale 2
+python tools/hostsim/hostsim.py --board st7796u        # the 480x320 ESP32-S3 + ST7796U board
 ```
 
 Output, regenerated on each run and not committed:

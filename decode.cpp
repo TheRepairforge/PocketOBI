@@ -137,8 +137,13 @@ bool packReadOnly() { return cellCount == 4; }
 // standard AA static frame but are silent on the D7 live read: their cells live here.
 bool readF0513Cells() {
   uint8_t tmp[8];
-  sendCommand(CLEAR_CMD, tmp);
-  sendCommand(CLEAR_CMD, tmp);
+  // The two CLEARs only for a pack identified as F0513 (#43, test build): an old pack that answers
+  // the AA frame but is silent on the model and D7 reads its cells straight after the frame, as a PC
+  // capture of a BL1440 shows. Not bench-validated on any other old pack yet.
+  if (strcmp(bat.commandVersion, "F0513") == 0) {
+    sendCommand(CLEAR_CMD, tmp);
+    sendCommand(CLEAR_CMD, tmp);
+  }
 
   uint8_t c1[2], c2[2], c3[2], c4[2], c5[2], t[2];
   if (!sendCommandRetry(F0513_VCELL1_CMD, c1, nullptr, READ_RETRIES)) return false;
@@ -153,6 +158,14 @@ bool readF0513Cells() {
   bat.cell[2] = le16(c3, 0) / 1000.0;
   bat.cell[3] = le16(c4, 0) / 1000.0;
   bat.cell[4] = le16(c5, 0) / 1000.0;
+  // A silent model leaves cellCount at 5, but a 14.4 V pack has no fifth cell: on a BL1440 (#43)
+  // its fifth reading is 6.5 V, not a cell. Four plausible cells plus a fifth above a cell but
+  // well below a dropped read (0xFFFF-ish, 62-65 V) = a 4S pack: read it as one (read-only).
+  if (cellCount == 5 && bat.cell[4] > CELL_V_IMPLAUS && bat.cell[4] < 10.0f) {
+    bool fourOk = true;
+    for (int i = 0; i < 4; i++) if (bat.cell[i] < 2.0f || bat.cell[i] > CELL_V_IMPLAUS) fourOk = false;
+    if (fourOk) { cellCount = 4; bat.cell[4] = 0; }
+  }
   // Reject a partial / mid-dropout read: a Li-ion cell is < 4.3 V, and a dropped read comes back
   // 0xFFFF -> 65.5 V. Any cell above 5 V means the burst was not fully answered.
   for (int i = 0; i < cellCount; i++) if (bat.cell[i] > CELL_V_IMPLAUS) return false;

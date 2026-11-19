@@ -89,7 +89,78 @@ FULL = {0x00DF: (0xE1, "B", "ss"),
         0x00A1: (0xAD, "!", "!"),     # inverted exclamation mark (Spanish)
         0x00BF: (0xA8, "?", "?")}     # inverted question mark (Spanish)
 DOTLESS = {"i": 1, "j": 2}          # base codes 1/2: i/j drawn without their dot (a mark goes above)
-FULL_BASE = 16                      # base code FULL_BASE + k = FULL glyph k
+FULL_BASE = 128                     # base code FULL_BASE + k = FULL glyph k (k < 128)
+
+# ---- Cyrillic (Russian, #81) -------------------------------------------------------------------------
+# Compiled only when NARROW_CYRILLIC is set (cjk_config.h: follows ENABLE_RU), so a build without Russian
+# carries none of it. Three kinds, cheapest first:
+#  - a letter whose shape IS a Latin letter in every UI font takes that ASCII letter (no data at all);
+#  - ё/Ё are e/E + diaeresis, й/Й are и/И + breve (a mark on a full glyph);
+#  - every other letter is a FULL glyph: hand-drawn 5x8 art for the classic font (ours), rasterised from
+#    Noto Sans JP (OFL; Bold for the bold UI fonts) for each GFX font, capitals matched on the font's 'H',
+#    small letters on its 'x'. Its ASCII stand-in (advance, getTextBounds) is the letter of the same shape
+#    class whose advance is closest to the rasterised letter's own, over the five fonts.
+CYR_SHARED = {0x0410: "A", 0x0412: "B", 0x0415: "E", 0x041A: "K", 0x041C: "M", 0x041D: "H", 0x041E: "O",
+              0x0420: "P", 0x0421: "C", 0x0422: "T", 0x0425: "X",
+              0x0430: "a", 0x0435: "e", 0x043E: "o", 0x0440: "p", 0x0441: "c", 0x0443: "y", 0x0445: "x"}
+CYR_MARKED = {0x0401: ("E", ["DIAERESIS"]), 0x0451: ("e", ["DIAERESIS"])}
+CYR_ON_FULL = {0x0419: (0x0418, ["BREVE"]), 0x0439: (0x0438, ["BREVE"])}
+# Classic-font art, 8 rows top to bottom (row 6 = baseline, row 7 = descender), 5 columns. Ours.
+# (fallback text for a GFX font with no glyph, art)
+CYR_FULL = {
+    0x0411: ("B", ["XXXXX", "X....", "X....", "XXXX.", "X...X", "X...X", "XXXX.", "....."]),       # Б
+    0x0413: ("G", ["XXXXX", "X....", "X....", "X....", "X....", "X....", "X....", "....."]),       # Г
+    0x0414: ("D", [".XXXX", ".X..X", ".X..X", ".X..X", ".X..X", "XXXXX", "X...X", "....."]),       # Д
+    0x0416: ("Zh", ["X.X.X", "X.X.X", ".XXX.", "..X..", ".XXX.", "X.X.X", "X.X.X", "....."]),      # Ж
+    0x0417: ("Z", [".XXX.", "X...X", "....X", "..XX.", "....X", "X...X", ".XXX.", "....."]),       # З
+    0x0418: ("I", ["X...X", "X...X", "X..XX", "X.X.X", "XX..X", "X...X", "X...X", "....."]),       # И
+    0x041B: ("L", ["..XXX", ".X..X", ".X..X", ".X..X", ".X..X", ".X..X", "X...X", "....."]),       # Л
+    0x041F: ("P", ["XXXXX", "X...X", "X...X", "X...X", "X...X", "X...X", "X...X", "....."]),       # П
+    0x0423: ("U", ["X...X", "X...X", "X...X", ".XXXX", "....X", "X...X", ".XXX.", "....."]),       # У
+    0x0424: ("F", ["..X..", ".XXX.", "X.X.X", "X.X.X", "X.X.X", ".XXX.", "..X..", "....."]),       # Ф
+    0x0426: ("C", ["X..X.", "X..X.", "X..X.", "X..X.", "X..X.", "X..X.", "XXXXX", "....X"]),       # Ц
+    0x0427: ("Ch", ["X...X", "X...X", "X...X", ".XXXX", "....X", "....X", "....X", "....."]),      # Ч
+    0x0428: ("Sh", ["X.X.X", "X.X.X", "X.X.X", "X.X.X", "X.X.X", "X.X.X", "XXXXX", "....."]),      # Ш
+    0x0429: ("Sch", ["X.X.X", "X.X.X", "X.X.X", "X.X.X", "X.X.X", "X.X.X", "XXXXX", "....X"]),     # Щ
+    0x042A: ("'", ["XX...", ".X...", ".X...", ".XXX.", ".X..X", ".X..X", ".XXX.", "....."]),       # Ъ
+    0x042B: ("Y", ["X...X", "X...X", "X...X", "XXX.X", "X..XX", "X..XX", "XXX.X", "....."]),       # Ы
+    0x042C: ("'", ["X....", "X....", "X....", "XXXX.", "X...X", "X...X", "XXXX.", "....."]),       # Ь
+    0x042D: ("E", [".XXX.", "X...X", "....X", "..XXX", "....X", "X...X", ".XXX.", "....."]),       # Э
+    0x042E: ("Yu", ["X..X.", "X.X.X", "X.X.X", "XXX.X", "X.X.X", "X.X.X", "X..X.", "....."]),      # Ю
+    0x042F: ("Ya", [".XXXX", "X...X", "X...X", ".XXXX", "..X.X", ".X..X", "X...X", "....."]),      # Я
+    0x0431: ("b", ["..XXX", ".X...", "X.XX.", "XX..X", "X...X", "X...X", ".XXX.", "....."]),       # б
+    0x0432: ("v", [".....", ".....", "XXXX.", "X...X", "XXXX.", "X...X", "XXXX.", "....."]),       # в
+    0x0433: ("g", [".....", ".....", "XXXX.", "X....", "X....", "X....", "X....", "....."]),       # г
+    0x0434: ("d", [".....", ".....", "..XX.", ".X.X.", ".X.X.", ".X.X.", "XXXXX", "X...X"]),       # д
+    0x0436: ("zh", [".....", ".....", "X.X.X", "X.X.X", ".XXX.", "X.X.X", "X.X.X", "....."]),      # ж
+    0x0437: ("z", [".....", ".....", ".XXX.", "....X", "..XX.", "....X", ".XXX.", "....."]),       # з
+    0x0438: ("i", [".....", ".....", "X...X", "X..XX", "X.X.X", "XX..X", "X...X", "....."]),       # и
+    0x043A: ("k", [".....", ".....", "X..X.", "X.X..", "XX...", "X.X..", "X..X.", "....."]),       # к
+    0x043B: ("l", [".....", ".....", "..XXX", ".X..X", ".X..X", ".X..X", "X...X", "....."]),       # л
+    0x043C: ("m", [".....", ".....", "X...X", "XX.XX", "X.X.X", "X...X", "X...X", "....."]),       # м
+    0x043D: ("n", [".....", ".....", "X...X", "X...X", "XXXXX", "X...X", "X...X", "....."]),       # н
+    0x043F: ("p", [".....", ".....", "XXXXX", "X...X", "X...X", "X...X", "X...X", "....."]),       # п
+    0x0442: ("t", [".....", ".....", "XXXXX", "..X..", "..X..", "..X..", "..X..", "....."]),       # т
+    0x0444: ("f", [".....", "..X..", ".XXX.", "X.X.X", "X.X.X", "X.X.X", ".XXX.", "..X.."]),       # ф
+    0x0446: ("c", [".....", ".....", "X..X.", "X..X.", "X..X.", "X..X.", "XXXXX", "....X"]),       # ц
+    0x0447: ("ch", [".....", ".....", "X...X", "X...X", ".XXXX", "....X", "....X", "....."]),      # ч
+    0x0448: ("sh", [".....", ".....", "X.X.X", "X.X.X", "X.X.X", "X.X.X", "XXXXX", "....."]),      # ш
+    0x0449: ("sch", [".....", ".....", "X.X.X", "X.X.X", "X.X.X", "X.X.X", "XXXXX", "....X"]),     # щ
+    0x044A: ("'", [".....", ".....", "XX...", ".X...", ".XXX.", ".X..X", ".XXX.", "....."]),       # ъ
+    0x044B: ("y", [".....", ".....", "X...X", "X...X", "XXX.X", "X..XX", "XXX.X", "....."]),       # ы
+    0x044C: ("'", [".....", ".....", "X....", "X....", "XXXX.", "X...X", "XXXX.", "....."]),       # ь
+    0x044D: ("e", [".....", ".....", "XXXX.", "....X", ".XXXX", "....X", "XXXX.", "....."]),       # э
+    0x044E: ("yu", [".....", ".....", "X..X.", "X.X.X", "XXX.X", "X.X.X", "X..X.", "....."]),      # ю
+    0x044F: ("ya", [".....", ".....", ".XXXX", "X...X", ".XXXX", ".X..X", "X...X", "....."]),      # я
+}
+CYR_ALL = set(CYR_SHARED) | set(CYR_MARKED) | set(CYR_ON_FULL) | set(CYR_FULL)
+assert CYR_ALL == set(range(0x0410, 0x0450)) | {0x0401, 0x0451}, "the Russian alphabet, 66 letters"
+CYR_FONT = {False: "NotoSansJP-Medium.otf", True: "NotoSansJP-Bold.otf"}
+
+
+def art_cols(art):
+    """8 rows of 5 -> 5 classic columns (bit 0 = top row)."""
+    return [sum(1 << r for r in range(8) if art[r][c] == "X") for c in range(5)]
 
 COVER = list(range(0x00C0, 0x0100)) + list(range(0x0100, 0x0180)) + [0x01A0, 0x01A1, 0x01AF, 0x01B0] + \
     list(range(0x1EA0, 0x1EFA)) + [0x0218, 0x0219, 0x021A, 0x021B]
@@ -188,6 +259,65 @@ def raster_full(cp, gl, ya, font_path, bold, stand_in):
     return dict(w=gw, h=gh, adv=sb[3], xo=x_off, yo=y_off, bits=bits)
 
 
+def pack_bits(rows):
+    bits, acc, n = [], 0, 0
+    for r in rows:
+        for v in r:
+            acc = (acc << 1) | v
+            n += 1
+            if n == 8:
+                bits.append(acc); acc = 0; n = 0
+    if n:
+        bits.append(acc << (8 - n))
+    return bits
+
+
+def raster_cyr(cp, gl, font_path):
+    """Rasterise a Cyrillic letter for one GFX font: capitals sized so Noto's 'H' has the font's 'H' height,
+    small letters so Noto's 'x' has the font's 'x' height. Returns the ink and the letter's own advance."""
+    from PIL import ImageFont
+    calib = "H" if chr(cp).isupper() else "x"
+    target_h = gl[ord(calib) - 0x20][2]
+    size = 6
+    for _ in range(80):
+        f = ImageFont.truetype(font_path, size)
+        bb = f.getbbox(calib)
+        if bb[3] - bb[1] >= target_h:
+            break
+        size += 1
+    f = ImageFont.truetype(font_path, size)
+    ascent = f.getmetrics()[0]
+    mask = f.getmask(chr(cp), mode="L")
+    w, h = mask.size
+    bb = f.getbbox(chr(cp))
+    rows = [[1 if mask.getpixel((x, y)) >= 128 else 0 for x in range(w)] for y in range(h)]
+    ys = [y for y in range(h) if any(rows[y])]
+    xs = [x for x in range(w) if any(rows[y][x] for y in range(h))]
+    rows = [r[min(xs):max(xs) + 1] for r in rows[min(ys):max(ys) + 1]]
+    return dict(w=len(rows[0]), h=len(rows), yo=bb[1] + min(ys) - ascent, bits=pack_bits(rows),
+                natural=f.getlength(chr(cp)))
+
+
+def pick_standin(cyr, fonts, case=None):
+    """The ASCII letter whose advance is nearest the Cyrillic letter's natural advance, summed over the GFX
+    fonts, an advance narrower than the ink (+1 px of space) costing ten times more. Only the advance and
+    the ink width of a stand-in are used (gfxWidth() measures with getTextBounds()), so any letter will do,
+    except for a base that carries a mark: its stand-in's case tells a capital (a mark over a capital is
+    flattened at 18 and 24 pt), so case = "upper" / "lower" restricts it.
+    cyr: per font, the raster_cyr dict. fonts: per font, its glyph table."""
+    best = None
+    cands = ([chr(c) for c in range(ord("A"), ord("Z") + 1)] if case != "lower" else []) + \
+            ([chr(c) for c in range(ord("a"), ord("z") + 1)] if case != "upper" else [])
+    for ch in cands:
+        cost = 0.0
+        for gl, g in zip(fonts, cyr):
+            adv = gl[ord(ch) - 0x20][3]
+            cost += abs(adv - g["natural"]) + 10 * max(0, g["w"] + 1 - adv)
+        if best is None or cost < best[0]:
+            best = (cost, ch)
+    return best[1]
+
+
 # ---- strings -----------------------------------------------------------------------------------------
 LIT = re.compile(r'"((?:[^"\\]|\\.)*)"')
 
@@ -204,7 +334,7 @@ def narrow_strings(tree):
         lits = LIT.findall(line)
         for col, s in zip(("EN", "FR", "DE", "ES"), lits):
             out.append(("%s %s" % (m.group(1), col), s))
-    for fn, tag in (("strings_vi.h", "VI"), ("strings_pl.h", "PL")):
+    for fn, tag in (("strings_vi.h", "VI"), ("strings_pl.h", "PL"), ("strings_ru.h", "RU")):
         p = os.path.join(tree, fn)
         if not os.path.exists(p):
             continue
@@ -257,14 +387,43 @@ def generate(lib, fonts_dir):
     full_list = sorted(FULL)
     for k, cp in enumerate(full_list):
         comps.append((cp, FULL_BASE + k, FULL[cp][1], []))
+
+    # Cyrillic: rasterise the full letters first, their stand-ins come from the rasters.
+    for name in CYR_FONT.values():
+        if not os.path.exists(os.path.join(fonts_dir, name)):
+            sys.exit("missing %s (the OFL fonts of gen_cjk_glyphs.py)" % os.path.join(fonts_dir, name))
+    gfx = [(name,) + load_gfx(lib, name) for name in GFX_FONTS]
+    cyr_list = sorted(CYR_FULL)
+    cyr_k = {cp: len(full_list) + i for i, cp in enumerate(cyr_list)}
+    cyr_raster, cyr_standin = {}, {}
+    for cp in cyr_list:
+        rs = [raster_cyr(cp, gl, os.path.join(fonts_dir, CYR_FONT["Bold" in name])) for name, _, gl, _ in gfx]
+        cyr_raster[cp] = rs
+        marked = cp in {on for on, _ in CYR_ON_FULL.values()}
+        cyr_standin[cp] = pick_standin(rs, [gl for _, _, gl, _ in gfx],
+                                       ("upper" if chr(cp).isupper() else "lower") if marked else None)
+    for cp, base in CYR_SHARED.items():
+        comps.append((cp, ord(base), base, []))
+    for cp, (base, marks) in CYR_MARKED.items():
+        comps.append((cp, ord(base), base, list(marks)))
+    for cp in cyr_list:
+        comps.append((cp, FULL_BASE + cyr_k[cp], cyr_standin[cp], []))
+    for cp, (on, marks) in CYR_ON_FULL.items():
+        comps.append((cp, FULL_BASE + cyr_k[on], cyr_standin[on], list(marks)))
     comps.sort()
     have = {c[0] for c in comps}
+    assert len(full_list) + len(cyr_list) <= 256 - FULL_BASE
 
     def upper_of(cp):
         u = chr(cp).upper()
         if len(u) == 1 and ord(u) != cp and ord(u) in have and len(u.encode()) == len(chr(cp).encode()):
             return ord(u)
         return 0
+
+    def full_cols(k):
+        if k < len(full_list):
+            return classic_cols(cfont, FULL[full_list[k]][0])
+        return art_cols(CYR_FULL[cyr_list[k - len(full_list)]][1])
 
     L = []
     w = L.append
@@ -274,6 +433,8 @@ def generate(lib, fonts_dir):
     w("// Narrow text path data (docs/NARROW_GLYPHS.md): accented Latin + Vietnamese as base letter + marks,")
     w("// full glyphs where composition does not apply. Classic-font full glyphs come from the Adafruit GFX")
     w("// classic font (BSD); GFX-font full glyphs are rasterised from Noto Sans JP Medium (SIL OFL 1.1).")
+    w("// Cyrillic (inside #if NARROW_CYRILLIC, off unless the build sets it): classic-font art drawn by the")
+    w("// maintainers, GFX glyphs rasterised from Noto Sans JP Medium / Bold (SIL OFL 1.1).")
     w("#pragma once")
     w("#include <stdint.h>")
     w("")
@@ -293,62 +454,104 @@ def generate(lib, fonts_dir):
         w("};")
         w("static const uint8_t NARROW_ART_%s_BITS[] = { %s };" % (set_name, ", ".join("0x%02X" % b for b in bits)))
     w("")
-    w("// base: an ASCII letter; %d/%d = dotless i/j (a mark sits where the dot was); %d..31 = FULL glyph"
+    w("// base: an ASCII letter; %d/%d = dotless i/j (a mark sits where the dot was); %d..255 = FULL glyph"
       % (DOTLESS["i"], DOTLESS["j"], FULL_BASE))
-    w("// (base - %d). cbox = classic-font ink box of the base: top | left << 3 | right << 6 | bottom << 9."
-      % FULL_BASE)
+    w("// (base - NARROW_FULL_BASE), which may carry marks too (й = и + breve).")
+    w("// cbox = classic-font ink box of the base: top | left << 3 | right << 6 | bottom << 9.")
     w("// upper = the capital (same UTF-8 length) for upperLabel(), 0 if none.")
+    w("#define NARROW_FULL_BASE %d" % FULL_BASE)
     w("struct NarrowComp { uint16_t cp, upper, cbox; uint8_t base; uint8_t mark[4]; };")
     w("static const NarrowComp NARROW_COMP[] = {")
     custom = {1: [0x00, 0x44, 0x7C, 0x40, 0x00], 2: [0x20, 0x40, 0x44, 0x3C, 0x00]}   # dotless i, j
+    in_cyr = False
     for cp, bcode, base, marks in comps:
-        if FULL_BASE <= bcode < 32:
-            cols = classic_cols(cfont, FULL[cp][0])
+        if (cp in CYR_ALL) != in_cyr:
+            in_cyr = not in_cyr
+            w("#if NARROW_CYRILLIC" if in_cyr else "#endif")
+        if bcode >= FULL_BASE:
+            cols = full_cols(bcode - FULL_BASE)
         elif bcode in custom:
             cols = custom[bcode]
         else:
             cols = classic_cols(cfont, ord(base))
         t, l, r, b = ink_box(cols)
         mk = ["NM_" + m for m in marks] + ["NM_NONE"] * (4 - len(marks))
-        bs = ("%d" % bcode) if bcode < 32 else "'%s'" % base
+        bs = ("%d" % bcode) if (bcode < 32 or bcode >= FULL_BASE) else "'%s'" % base
         w("  { 0x%04X, 0x%04X, 0x%04X, %s, { %s } },   // %s" % (cp, upper_of(cp), t | l << 3 | r << 6 | b << 9, bs,
                                                          ", ".join(mk), chr(cp)))
+    if in_cyr:
+        w("#endif")
     w("};")
     w("static const int NARROW_COMP_N = sizeof(NARROW_COMP) / sizeof(NARROW_COMP[0]);")
     w("")
     w("// Classic-font columns (bit 0 = top row) of the bases the classic font lacks: dotless i, dotless j,")
     w("// then the FULL glyphs in order.")
-    rows = [custom[1], custom[2]] + [classic_cols(cfont, FULL[cp][0]) for cp in full_list]
     w("static const uint8_t NARROW_CLASSIC[][5] = {")
-    for r in rows:
+    for r in [custom[1], custom[2]] + [full_cols(k) for k in range(len(full_list))]:
         w("  { %s }," % ", ".join("0x%02X" % c for c in r))
+    w("#if NARROW_CYRILLIC")
+    for i, cp in enumerate(cyr_list):
+        w("  { %s },   // %s" % (", ".join("0x%02X" % c for c in full_cols(len(full_list) + i)), chr(cp)))
+    w("#endif")
     w("};")
     w("")
     w("// FULL glyphs per GFX font, recognised by fingerprint (yAdvance << 16 | bitmapOffset of 'W').")
     w("// A font with no entry draws the fallback text instead.")
     w("struct NarrowFull { uint32_t fp; uint8_t full; uint8_t w, h, adv; int8_t xo, yo; uint16_t off; };")
     font_path = os.path.join(fonts_dir, "NotoSansJP-Medium.otf")
-    if not os.path.exists(font_path):
-        sys.exit("missing %s (the OFL fonts of gen_cjk_glyphs.py)" % font_path)
     fbits, fents = [], []
-    for name in GFX_FONTS:
-        bmp, gl, ya = load_gfx(lib, name)
+    for name, bmp, gl, ya in gfx:
         fp = fingerprint(gl, ya)
         for k, cp in enumerate(full_list):
             g = raster_full(cp, gl, ya, font_path, "Bold" in name, FULL[cp][1])
             fents.append("  { 0x%08X, %d, %d, %d, %d, %d, %d, %d },   // %s %s"
                          % (fp, k, g["w"], g["h"], g["adv"], g["xo"], g["yo"], len(fbits), name, chr(cp)))
             fbits += g["bits"]
+    n_latin_bits = len(fbits)
+    cents, too_wide = [], []
+    for fi, (name, bmp, gl, ya) in enumerate(gfx):
+        fp = fingerprint(gl, ya)
+        for cp in cyr_list:
+            g = cyr_raster[cp][fi]
+            adv = gl[ord(cyr_standin[cp]) - 0x20][3]
+            if g["w"] > adv:
+                too_wide.append("%s %s: ink %d > advance %d" % (name, chr(cp), g["w"], adv))
+            xo = max(0, (adv - g["w"]) // 2)
+            cents.append("  { 0x%08X, %d, %d, %d, %d, %d, %d, %d },   // %s %s"
+                         % (fp, cyr_k[cp], g["w"], g["h"], adv, xo, g["yo"], len(fbits), name, chr(cp)))
+            fbits += g["bits"]
+    assert len(fbits) < 65536
     w("static const NarrowFull NARROW_FULL[] = {")
     L.extend(fents)
+    w("#if NARROW_CYRILLIC")
+    L.extend(cents)
+    w("#endif")
     w("};")
     w("static const int NARROW_FULL_N = sizeof(NARROW_FULL) / sizeof(NARROW_FULL[0]);")
-    w("static const uint8_t NARROW_FULL_BITS[] = { %s };" % ", ".join("0x%02X" % b for b in fbits))
-    w("static const char* const NARROW_FULL_FALLBACK[] = { %s };" % ", ".join('"%s"' % FULL[cp][2] for cp in full_list))
-    w("static const char NARROW_FULL_STANDIN[] = { %s };" % ", ".join("'%s'" % FULL[cp][1] for cp in full_list))
+    w("static const uint8_t NARROW_FULL_BITS[] = {")
+    w("  %s," % ", ".join("0x%02X" % b for b in fbits[:n_latin_bits]))
+    w("#if NARROW_CYRILLIC")
+    cb = fbits[n_latin_bits:]
+    for i in range(0, len(cb), 24):
+        w("  %s," % ", ".join("0x%02X" % b for b in cb[i:i + 24]))
+    w("#endif")
+    w("};")
+    w("static const char* const NARROW_FULL_FALLBACK[] = { %s,"
+      % ", ".join('"%s"' % FULL[cp][2] for cp in full_list))
+    w("#if NARROW_CYRILLIC")
+    w("  %s," % ", ".join('"%s"' % CYR_FULL[cp][0] for cp in cyr_list))
+    w("#endif")
+    w("};")
+    w("static const char NARROW_FULL_STANDIN[] = { %s," % ", ".join("'%s'" % FULL[cp][1] for cp in full_list))
+    w("#if NARROW_CYRILLIC")
+    w("  %s," % ", ".join("'%s'" % cyr_standin[cp] for cp in cyr_list))
+    w("#endif")
+    w("};")
     w("")
     w("// Refused (no ASCII letter + supported marks, no full glyph yet): %s"
       % " ".join("U+%04X" % c for c in refused))
+    if too_wide:
+        w("// Cyrillic ink wider than its advance (touches the next letter): %s" % "; ".join(too_wide))
     return "\n".join(L) + "\n", have
 
 

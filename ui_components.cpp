@@ -254,7 +254,7 @@ int drawKpi(int x, int y, const char *label, const char *value, uint16_t valueCo
 // value base y+31 / caption y+37.
 void kpiCard(int x, int y, int w, int h, IconFn icon, const char *label, const char *value,
              uint16_t valueColor, const char *caption) {
-  char lb[24];
+  char lb[40];  // room for a 2-byte script (RU S_TEMP_CB = 23 bytes)
   const bool cap = caption && caption[0];
   drawCard(x, y, w, h, false, RADIUS_MD);
   icon(x + SP_4 - 1, y + h / 2, COL_ACCENT, ICON_SCALE_HEADER);

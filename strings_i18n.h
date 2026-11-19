@@ -14,11 +14,10 @@
 // ENABLE_CJK=1, so this table stays four-wide for PackScope/tools/gen_locales.py.
 // The language ids are PINNED (D58): they are saved in NVS, so a new language takes the
 // next free number and never shifts another one. Vietnamese (D50, D60) is a column in
-// strings_vi.h, also outside STRTAB. Polish has id 9 reserved (no column yet: BACKLOG #82); Cyrillic
-// (Russian, #81) would take the next one. Which ones the user can pick is the build's LANG_AVAIL[]
-// (cjk_render.h).
+// strings_vi.h, also outside STRTAB. Polish (id 9) is strings_pl.h, Russian (id 10, #81)
+// strings_ru.h. Which ones the user can pick is the build's LANG_AVAIL[] (cjk_render.h).
 enum Lang { LANG_EN = 0, LANG_FR = 1, LANG_DE = 2, LANG_ES = 3, LANG_COUNT = 4,
-            LANG_JA = 4, LANG_KO = 5, LANG_VI = 6, LANG_ZH = 7, LANG_ZH_TW = 8, LANG_PL = 9 };
+            LANG_JA = 4, LANG_KO = 5, LANG_VI = 6, LANG_ZH = 7, LANG_ZH_TW = 8, LANG_PL = 9, LANG_RU = 10 };
 const char* const LANG_CODE[LANG_COUNT] = { "EN", "FR", "DE", "ES" };
 
 enum StrId {

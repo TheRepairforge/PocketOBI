@@ -27,6 +27,9 @@ constexpr int LANG_AVAIL[] = {
 #if ENABLE_PL
   LANG_PL,
 #endif
+#if ENABLE_RU
+  LANG_RU,
+#endif
 #if ENABLE_JA
   LANG_JA,
 #endif
@@ -72,6 +75,7 @@ inline const char* langCode(int l) {
 #endif
   if (l == LANG_VI) return "VI";
   if (l == LANG_PL) return "PL";
+  if (l == LANG_RU) return "RU";
   return LANG_CODE[l];
 }
 

@@ -88,6 +88,7 @@
 #include "strings_zh_tw.h" // STRTAB_ZH_TW, only when ENABLE_CJK=1
 #include "strings_vi.h"   // STRTAB_VI, only when ENABLE_VI=1
 #include "strings_pl.h"   // STRTAB_PL, only when ENABLE_PL=1
+#include "strings_ru.h"   // STRTAB_RU, only when ENABLE_RU=1
 
 
 OneWire makita(ONEWIRE_PIN);
@@ -104,6 +105,9 @@ XPT2046_Touchscreen touch(TOUCH_CS, TOUCH_IRQ);
 #elif BOARD_TOUCH_DRIVER == TOUCH_FT6336
 // Capacitive touch on I2C (ES3C28P): no extra bus, the driver starts Wire in begin().
 FT6336_Touch touch;
+#elif BOARD_TOUCH_DRIVER == TOUCH_GT911
+// Capacitive touch on I2C (GT911): no extra bus, the driver starts Wire in begin().
+GT911_Touch touch;
 #endif
 
 #if BOARD_HAS_TOUCH
@@ -159,6 +163,9 @@ const char* tr(StrId id) {   // prototype in pocketobi.h
 #endif
 #if ENABLE_PL
   if (lang == LANG_PL) return STRTAB_PL[id] ? STRTAB_PL[id] : STRTAB[id][LANG_EN];
+#endif
+#if ENABLE_RU
+  if (lang == LANG_RU) return STRTAB_RU[id] ? STRTAB_RU[id] : STRTAB[id][LANG_EN];
 #endif
   return STRTAB[id][lang];
 }
@@ -349,12 +356,19 @@ void setup() {
 #elif BOARD_TOUCH_DRIVER == TOUCH_FT6336
   // FT6336G on I2C; a missing controller is reported but does not halt the sketch.
   if (!touch.begin()) Serial.println("FT6336G not found at 0x38: touch disabled");
+#elif BOARD_TOUCH_DRIVER == TOUCH_GT911
+  // GT911 on I2C (0x5D or 0x14); a missing controller is reported but does not halt the sketch.
+  if (!touch.begin()) Serial.println("GT911 not found at 0x5D/0x14: touch disabled");
 #endif
 
 #ifdef TFT_BL
   // CYD / ES3C28P: the backlight is GPIO-controlled — without this the panel stays black.
   pinMode(TFT_BL, OUTPUT);
-  digitalWrite(TFT_BL, HIGH);
+#if PANEL_CUSTOM
+  digitalWrite(TFT_BL, !TFT_BL_ON);  // kept off until clearPanel(): the panel's memory powers up with noise
+#else
+  digitalWrite(TFT_BL, TFT_BL_ON);   // level per board (board_config.h): HIGH on most, LOW on a P-MOS switch
+#endif
 #endif
 
   // Hardware SPI on the board's pins (see BOARD HEADER). Must be called before
@@ -374,12 +388,26 @@ void setup() {
   tcYB = prefs.getInt("tcYB", TCAL_DEF_Y_BOTTOM);
 #endif
 
+#if PANEL_CUSTOM
+  tft.init(PANEL_H, PANEL_W);   // the panel's native portrait size (board_config.h), not the ST7789's 240x320
+  tft.zeroOffsets();            // init() computed offsets for a panel it does not know
+#else
   tft.init(240, 320);        // 240x320 ST7789 panel (both boards)
+#endif
 #if PANEL_ILI9341_INIT
   ili9341PanelInit();        // the ILI9341's own power / VCOM / gamma (board_config.h)
 #endif
+#if PANEL_ST7796_INIT
+  st7796PanelInit();         // the ST7796's own power / gamma (board_config.h)
+#endif
   tft.invertDisplay(PANEL_INVERT);  // per board (board_config.h): OFF on the ST7789 / CYD panels, ON on the ES3C28P
   applyRotation();
+#if PANEL_CUSTOM
+  tft.clearPanel(COL_BG);    // wipe the whole panel (its memory powers up with noise)
+#ifdef TFT_BL
+  digitalWrite(TFT_BL, TFT_BL_ON);   // backlight on only now, over a clean panel
+#endif
+#endif
 
   // Boot splash, then straight to the launcher (or the PC bridge if configured). We deliberately
   // do NOT auto-read the pack at boot: a full read is ~seconds (the ENABLE wake dominates), which

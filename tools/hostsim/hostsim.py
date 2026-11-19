@@ -29,7 +29,7 @@ import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.normpath(os.path.join(HERE, "..", ".."))   # firmware repo root
-BOARDS = {"c3": "BOARD_LXT_C3", "cyd": "BOARD_CYD"}
+BOARDS = {"c3": "BOARD_LXT_C3", "cyd": "BOARD_CYD", "st7796u": "BOARD_S3_ST7796U"}
 
 
 def find_gfx(explicit):

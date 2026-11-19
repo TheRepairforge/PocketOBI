@@ -181,16 +181,19 @@ void goHome() {
   if (state != LAUNCHER) { state = LAUNCHER; render(); }
 }
 #if BOARD_HAS_TOUCH
+// The calibration / test prompts were laid out for 320x240: shift them to the middle of a bigger UI.
+#define PROMPT_DX ((SCREEN_W - 320) / 2)
+#define PROMPT_DY ((SCREEN_H - 240) / 2)
 // ---------- Touch input (CYD, ES3C28P): tap-target, drives the shared nav core ----------
 // Map a raw touch reading to screen pixels, correcting axis swap/flip and the 180-degree
 // display flip (cfgFlip). The raw range depends on the controller: XPT2046 0..4095 per axis,
 // FT6336 panel pixels (x 0..239, y 0..319). The TCAL_DEF_* defaults in board_config.h match each.
 void mapTouch(int rawX, int rawY, int *sx, int *sy) {
-  long x = map(rawY, tcXL, tcXR, 0, 319);   // screen X <- raw Y axis (calibration in NVS)
-  long y = map(rawX, tcYT, tcYB, 0, 239);   // screen Y <- raw X axis
-  if (cfgFlip) { x = 319 - x; y = 239 - y; }                 // screen rotated 180 in settings
-  *sx = constrain((int)x, 0, 319);
-  *sy = constrain((int)y, 0, 239);
+  long x = map(rawY, tcXL, tcXR, 0, SCREEN_W - 1);   // screen X <- raw Y axis (calibration in NVS)
+  long y = map(rawX, tcYT, tcYB, 0, SCREEN_H - 1);   // screen Y <- raw X axis
+  if (cfgFlip) { x = SCREEN_W - 1 - x; y = SCREEN_H - 1 - y; }                 // screen rotated 180 in settings
+  *sx = constrain((int)x, 0, SCREEN_W - 1);
+  *sy = constrain((int)y, 0, SCREEN_H - 1);
 }
 // Brief visual acknowledgement at the tap point: a touch panel gives no mechanical
 // click, so a ring is drawn and shown for a moment before the screen reacts. The
@@ -205,15 +208,15 @@ void touchFeedback(int x, int y) {
 // from Settings > Calibrate; blocks until done, then the caller redraws.
 void calibrateTouch() {
   const int M = 20;
-  const int tx[3] = { M, 319 - M, M };       // TL, TR, BL target centres
-  const int ty[3] = { M, M, 239 - M };
+  const int tx[3] = { M, SCREEN_W - 1 - M, M };       // TL, TR, BL target centres
+  const int ty[3] = { M, M, SCREEN_H - 1 - M };
   int rx[3], ry[3];
   for (int i = 0; i < 3; i++) {
     tft.fillScreen(COL_BG);
     tft.setTextSize(1); tft.setTextColor(COL_TEXT, COL_BG);
-    tft.setCursor(84, 108); tft.print(tr(S_CAL_TAP));
+    tft.setCursor(84 + PROMPT_DX, 108 + PROMPT_DY); tft.print(tr(S_CAL_TAP));
     tft.setTextColor(COL_MUTED, COL_BG);
-    tft.setCursor(140, 128); tft.printf("%d / 3", i + 1);
+    tft.setCursor(140 + PROMPT_DX, 128 + PROMPT_DY); tft.printf("%d / 3", i + 1);
     tft.drawCircle(tx[i], ty[i], 9, COL_ACCENT);
     tft.drawFastHLine(tx[i] - 13, ty[i], 27, COL_ACCENT);
     tft.drawFastVLine(tx[i], ty[i] - 13, 27, COL_ACCENT);
@@ -222,7 +225,7 @@ void calibrateTouch() {
 #if TOUCH_TEST_MENU
     if (i == 0) {
       tft.setTextColor(COL_MUTED, COL_BG);
-      tft.setCursor(72, 148); tft.print("Hold 2 s: touch test only");
+      tft.setCursor(72 + PROMPT_DX, 148 + PROMPT_DY); tft.print("Hold 2 s: touch test only");
     }
 #endif
     for (;;) {                                // wait for a firm tap
@@ -244,7 +247,7 @@ void calibrateTouch() {
   // Axis map: screen X <- raw Y, screen Y <- raw X. Extrapolate the inset to the edges.
   long rawY_L = (ry[0] + ry[2]) / 2, rawY_R = ry[1];   // left (TL,BL) / right (TR)
   long rawX_T = (rx[0] + rx[1]) / 2, rawX_B = rx[2];   // top (TL,TR) / bottom (BL)
-  int spanX = (319 - M) - M, spanY = (239 - M) - M;
+  int spanX = (SCREEN_W - 1 - M) - M, spanY = (SCREEN_H - 1 - M) - M;
   tcXL = rawY_L - (rawY_R - rawY_L) * M / spanX;
   tcXR = rawY_R + (rawY_R - rawY_L) * M / spanX;
   tcYT = rawX_T - (rawX_B - rawX_T) * M / spanY;
@@ -252,7 +255,7 @@ void calibrateTouch() {
   prefs.putInt("tcXL", tcXL); prefs.putInt("tcXR", tcXR);
   prefs.putInt("tcYT", tcYT); prefs.putInt("tcYB", tcYB);
   tft.fillScreen(COL_BG); tft.setTextColor(COL_GREEN, COL_BG); tft.setTextSize(2);
-  tft.setCursor(96, 108); tft.print(tr(S_CAL_SAVED)); delay(700);
+  tft.setCursor(96 + PROMPT_DX, 108 + PROMPT_DY); tft.print(tr(S_CAL_SAVED)); delay(700);
 #if TOUCH_TEST_MENU
   touchTest();                                // check the new calibration straight away
 #endif
@@ -264,13 +267,13 @@ void calibrateTouch() {
 // English only, like the Debug screen (D33).
 void touchTest() {
   const int M = 20;
-  const int tx[5] = { M, 319 - M, M, 319 - M, 160 };   // TL, TR, BL, BR, centre
-  const int ty[5] = { M, M, 239 - M, 239 - M, 120 };
+  const int tx[5] = { M, SCREEN_W - 1 - M, M, SCREEN_W - 1 - M, SCREEN_W / 2 };   // TL, TR, BL, BR, centre
+  const int ty[5] = { M, M, SCREEN_H - 1 - M, SCREEN_H - 1 - M, SCREEN_H / 2 };
   tft.fillScreen(COL_BG);
   tft.setTextSize(1); tft.setTextColor(COL_TEXT, COL_BG);
-  tft.setCursor(88, 96);  tft.print("Touch test: tap each target");
+  tft.setCursor(88 + PROMPT_DX, 96 + PROMPT_DY);  tft.print("Touch test: tap each target");
   tft.setTextColor(COL_MUTED, COL_BG);
-  tft.setCursor(112, 140); tft.print("Hold 2 s to exit");
+  tft.setCursor(112 + PROMPT_DX, 140 + PROMPT_DY); tft.print("Hold 2 s to exit");
   for (int i = 0; i < 5; i++) {
     tft.drawCircle(tx[i], ty[i], 9, COL_ACCENT);
     tft.drawFastHLine(tx[i] - 13, ty[i], 27, COL_ACCENT);
@@ -287,8 +290,8 @@ void touchTest() {
     const bool ok = p.z >= TOUCH_Z_MIN;
     const bool none = !ok && p.x == 0 && p.y == 0;   // no usable sample at all: no dot to draw
     if (!none) tft.fillCircle(sx, sy, 4, ok ? COL_RED : COL_MUTED);
-    tft.fillRect(0, 224 - 32, 320, 12, COL_BG);   // the BL/BR targets sit lower, keep them
-    tft.setTextColor(COL_TEXT, COL_BG); tft.setCursor(40, 194);
+    tft.fillRect(0, SCREEN_H - 16 - 32, SCREEN_W, 12, COL_BG);   // the BL/BR targets sit lower, keep them
+    tft.setTextColor(COL_TEXT, COL_BG); tft.setCursor(40, SCREEN_H - 46);
     tft.printf("raw %3d,%3d  map %3d,%3d  ev %u%s", p.x, p.y, sx, sy, touch.lastEvent, ok ? "" : " REJ");
     Serial.printf("raw %d,%d  map %d,%d  ev %u%s\n", p.x, p.y, sx, sy, touch.lastEvent,
                   ok ? "" : "  REJECTED");
@@ -321,8 +324,8 @@ void serviceTouch() {
 #if TOUCH_DEBUG
     // Calibration aid: show where the tap lands, print raw+mapped, do NOT navigate.
     tft.fillCircle(sx, sy, 4, COL_RED);
-    tft.fillRect(0, 224, 320, 16, COL_BG);
-    tft.setTextSize(1); tft.setTextColor(COL_TEXT, COL_BG); tft.setCursor(2, 228);
+    tft.fillRect(0, SCREEN_H - 16, SCREEN_W, 16, COL_BG);
+    tft.setTextSize(1); tft.setTextColor(COL_TEXT, COL_BG); tft.setCursor(2, SCREEN_H - 12);
     tft.printf("raw %4d,%4d  map %3d,%3d", p.x, p.y, sx, sy);
     Serial.printf("raw %d,%d  map %d,%d\n", p.x, p.y, sx, sy);
     return;
@@ -332,7 +335,7 @@ void serviceTouch() {
     if (sy < HEADER_H && state != LAUNCHER) { handleBack(); return; }  // tap header = back
     if (state == BATTERY) {                        // page nav: side edges = prev/next, centre = refresh
       if (sx < 64)       { handleRotate(-1); return; }
-      else if (sx > 255) { handleRotate(+1); return; }
+      else if (sx > SCREEN_W - 1 - 64) { handleRotate(+1); return; }   // mirror of the left edge (255 at 320 wide)
     }
     if (state == PC_BRIDGE) { handleRotate(1); return; }   // tap body = toggle bridge active
     if (state == ABOUT) {                                  // easter egg

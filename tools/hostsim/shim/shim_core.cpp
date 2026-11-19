@@ -6,10 +6,12 @@
 #ifdef POCKETOBI_HOSTSIM
 #include "Arduino.h"
 #include "SPI.h"
+#include "Wire.h"
 #include "../../../OneWire2.h"
 
 HardwareSerial Serial;
 SPIClass SPI;
+TwoWire Wire;
 void (*hostsimTouchHook)() = nullptr;
 
 static unsigned long g_us = 0;          // simulated clock: advances only when code waits

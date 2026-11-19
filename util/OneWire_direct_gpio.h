@@ -164,6 +164,17 @@ bool directRead(IO_REG_TYPE mask)
 #define IO_REG_BASE_ATTR
 #define IO_REG_MASK_ATTR
 
+// Highest GPIO the second register bank (GPIO.in1 / out1 / enable1) is used for, and the highest GPIO
+// that may be switched to OUTPUT. A plain ESP32 has input-only pins above 33 and no GPIO above 45; the
+// ESP32-S3 has ordinary bidirectional GPIO 0..48, so a 1-Wire pin such as GPIO 36, 45 or 47 must work too.
+#if CONFIG_IDF_TARGET_ESP32S3
+#define OW_MAX_GPIO     48
+#define OW_MAX_OUT_GPIO 48
+#else
+#define OW_MAX_GPIO     45
+#define OW_MAX_OUT_GPIO 33     // pins above 33 can be only inputs
+#endif
+
 static inline __attribute__((always_inline))
 IO_REG_TYPE directRead(IO_REG_TYPE pin)
 {
@@ -172,7 +183,7 @@ IO_REG_TYPE directRead(IO_REG_TYPE pin)
 #else // plain ESP32
     if ( pin < 32 )
         return (GPIO.in >> pin) & 0x1;
-    else if ( pin < 46 )
+    else if ( pin <= OW_MAX_GPIO )
         return (GPIO.in1.val >> (pin - 32)) & 0x1;
 #endif
 
@@ -187,7 +198,7 @@ void directWriteLow(IO_REG_TYPE pin)
 #else // plain ESP32
     if ( pin < 32 )
         GPIO.out_w1tc = ((uint32_t)1 << pin);
-    else if ( pin < 46 )
+    else if ( pin <= OW_MAX_GPIO )
         GPIO.out1_w1tc.val = ((uint32_t)1 << (pin - 32));
 #endif
 }
@@ -200,7 +211,7 @@ void directWriteHigh(IO_REG_TYPE pin)
 #else // plain ESP32
     if ( pin < 32 )
         GPIO.out_w1ts = ((uint32_t)1 << pin);
-    else if ( pin < 46 )
+    else if ( pin <= OW_MAX_GPIO )
         GPIO.out1_w1ts.val = ((uint32_t)1 << (pin - 32));
 #endif
 }
@@ -237,7 +248,7 @@ void directModeOutput(IO_REG_TYPE pin)
 #if CONFIG_IDF_TARGET_ESP32C3
     GPIO.enable_w1ts.val = ((uint32_t)1 << (pin));
 #else
-    if ( digitalPinIsValid(pin) && pin <= 33 ) // pins above 33 can be only inputs
+    if ( digitalPinIsValid(pin) && pin <= OW_MAX_OUT_GPIO )
     {
 #if ESP_IDF_VERSION_MAJOR < 4      // IDF 3.x ESP32/PICO-D4
         uint32_t rtc_reg(rtc_gpio_desc[pin].reg);
@@ -251,7 +262,7 @@ void directModeOutput(IO_REG_TYPE pin)
         // Output
         if ( pin < 32 )
             GPIO.enable_w1ts = ((uint32_t)1 << pin);
-        else // already validated to pins <= 33
+        else // already validated to pins <= OW_MAX_OUT_GPIO
             GPIO.enable1_w1ts.val = ((uint32_t)1 << (pin - 32));
     }
 #endif

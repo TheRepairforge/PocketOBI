@@ -166,7 +166,7 @@ const char* const STRTAB_ZH_TW[] = {
   /*S_ERR_NOW_FMT*/         "目前錯誤：%s", // EN: "Error now: %s"
   /*S_CAP_ERRFLAG*/         "錯誤標誌", // EN: "error flag"
   /*S_STEP_DATA*/           "檢查通訊接線", // EN: "Check DATA wiring"
-  /*S_STEP_PULLUPS*/        "檢查電阻和 負極接線", // EN: "Check pull-ups and GND"
+  /*S_STEP_PULLUPS*/        "檢查電阻和負極接線", // EN: "Check pull-ups and GND"
   /*S_STEP_RESEAT*/         "重新插緊電池", // EN: "Re-seat the pack"
   /*S_BADGE_WRITE*/         "寫入", // EN: "Write"
   /*S_WRITE_LEGEND*/        "向電池發送命令", // EN: "sends a command to the pack"

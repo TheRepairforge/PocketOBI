@@ -19,7 +19,8 @@ printed, so every `print()` / `printf()` of a translated string works unchanged:
   keep their width and lose height, so a status word keeps its accent inside its card.
 - **The advance is the base letter's advance.** Text stays proportional, measuring needs no new data,
   and a translated string is never wider than the same string without its accents.
-- **Full glyphs** cover what is not a base letter plus marks. Today only the German sharp s (ß): the
+- **Full glyphs** cover what is not a base letter plus marks: the Spanish ¿ ¡, Cyrillic (below) and the
+  German sharp s (ß): the
   classic one comes from the classic font, the GFX ones are rasterised once per UI font from Noto Sans JP
   Medium (SIL OFL 1.1, already used by the CJK path), matched on the cap height. A font with no full
   glyph prints a fallback ("ss").
@@ -37,7 +38,8 @@ Every letter of Latin-1 Supplement, Latin Extended-A and Vietnamese (Latin Exten
 an ASCII letter plus supported marks, plus ß, đ/Đ, Ð, ł/Ł, dotless ı and the Spanish ¿ ¡. That is 268 characters: French,
 German, Spanish, Polish, Czech, Hungarian, Romanian, Turkish, Vietnamese and most other Latin-script
 languages. Not drawn yet: Æ æ Ø ø Œ œ Þ þ ð Ħ ħ Ŧ ŧ Ŋ ŋ Ĳ ĳ ŀ ĸ ŉ ſ and the punctuation « »
-(the generated header lists them).
+(the generated header lists them). With `NARROW_CYRILLIC` (the standard build, D78), the 66 letters of the
+Russian alphabet too: 334 characters in all.
 
 ## The data and the generator
 
@@ -67,11 +69,25 @@ buffer in bytes (strings are at most 63).
 `upperLabel()` (the small-caps labels) also uppercases accented letters (é -> É) when the capital has
 the same UTF-8 length.
 
-## Adding a script: Cyrillic
+## Cyrillic (Russian)
 
-Cyrillic (Russian) is the next table of the same kind as the sharp s: full glyphs per UI font and for the
-classic font, rasterised from an OFL font that has Cyrillic, plus the shared shapes (А В Е К М Н О Р С Т
-Х) that can reuse the Latin base letter. The language takes the next free pinned id (Polish has 9).
+The 66 letters of the Russian alphabet are drawn by the same path, in three ways, cheapest first:
+
+- **Same shape as a Latin letter in every UI font** (А В Е К М Н О Р С Т Х, а е о р с у х): the
+  font's own ASCII letter, no data at all.
+- **A mark on a letter:** ё/Ё are e/E + diaeresis; й/Й are и/И + breve, a mark placed on a full glyph.
+- **Full glyphs** for the 44 others: for the classic font, 5x8 art drawn by the maintainers (in the
+  generator); for each GFX font, rasterised from Noto Sans JP (Medium, and Bold for the bold fonts),
+  capitals sized on the font's own `H`, small letters on its `x`. Each full letter takes the advance of
+  an ASCII stand-in, the letter whose advance is closest to its own over the five fonts, so measuring
+  stays the same as for accents.
+
+It is compiled only when `NARROW_CYRILLIC` is set, which follows `ENABLE_RU` (`cjk_config.h`): the
+Cyrillic part of `glyphs_narrow.h` sits inside `#if NARROW_CYRILLIC`. The standard build has it (D78):
+about 19 KB with the Russian strings (measured +19.4 KB on the C3, +19.0 KB on the CYD); the Asia build,
+without Russian, does not. The full-glyph base codes start at 128 (`NARROW_FULL_BASE`), room for
+128 full glyphs. Other Cyrillic letters (Ukrainian Є І Ї Ґ, Belarusian Ў, Serbian ...) are not drawn
+yet: `--check` refuses them; adding one is a line in `CYR_FULL` (art + fallback) or `CYR_SHARED`.
 
 ## Limits
 

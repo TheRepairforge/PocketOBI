@@ -27,6 +27,14 @@ Its notice:
   BSD license, all text here must be included in any redistribution.
   https://github.com/adafruit/Adafruit_ILI9341
 
+## TFT_eSPI (register values only)
+
+`st7796PanelInit()` in `display.cpp` sends the ST7796 power, driving and gamma register values of the
+`TFT_Drivers/ST7796_Init.h` table of the TFT_eSPI library by Bodmer. No other code is reused. See that
+project's `license.txt`:
+
+  https://github.com/Bodmer/TFT_eSPI
+
 ## Open Battery Information (base project / protocol implementation)
 
 PocketOBI builds on the Open Battery Information project by Martin Jansson, from
