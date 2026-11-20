@@ -27,6 +27,14 @@ Its notice:
   BSD license, all text here must be included in any redistribution.
   https://github.com/adafruit/Adafruit_ILI9341
 
+## TFT_eSPI (register values only)
+
+`st7796PanelInit()` in `display.cpp` sends the ST7796 power, driving and gamma register values of the
+`TFT_Drivers/ST7796_Init.h` table of the TFT_eSPI library by Bodmer. No other code is reused. See that
+project's `license.txt`:
+
+  https://github.com/Bodmer/TFT_eSPI
+
 ## Open Battery Information (base project / protocol implementation)
 
 PocketOBI builds on the Open Battery Information project by Martin Jansson, from
@@ -74,6 +82,11 @@ Sans KR Medium, Noto Sans SC Medium and Noto Sans TC Medium (Noto Sans CJK, vers
 monospaced, Japanese, Korean, Simplified Chinese and Traditional Chinese (Taiwan) variants (release 2026.09.25; its Hangul comes from Galmuri).
 They are a modified form of the fonts and stay under the SIL Open Font License 1.1, reproduced
 below. The standard build contains none of them.
+
+Every build (standard included) also carries the German sharp s (ß) of `glyphs_narrow.h`, one
+bitmap per UI font, rasterised from Noto Sans JP Medium by `tools/gen_narrow_glyphs.py`: a
+modified form of that font, under the same licence. The other accented letters of that file are
+drawn from the Adafruit GFX fonts' own unaltered ASCII glyphs plus mark bitmaps of our own.
 
   https://github.com/notofonts/noto-cjk
   Copyright 2014-2021 Adobe (http://www.adobe.com/). Noto is a trademark of Google Inc.

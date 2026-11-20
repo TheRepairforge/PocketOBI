@@ -6,6 +6,82 @@ Versioning follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH
 The version is defined in `pocketobi.h` as `FW_VERSION` and shown
 on the boot splash and the About screen.
 
+## [2.9.0] - 2026-11-19
+
+Russian, Korean/Japanese/Chinese on the ILI9341 CYD, old 14.4 V packs, and a contributed 3.5" board.
+
+### Added
+- **Asia build for the ILI9341 CYD** (backlog #85, discussion #44): new release download
+  `cyd-ili9341-asia`, the `cyd-asia` languages (EN/JA/KO/VI/ZH/TW) with the ILI9341 panel orientation.
+  Until now an ILI9341 CYD could only run the standard languages. Tested on one tester's panel.
+- **Russian** (requested in #37), in the standard build after Polish: every screen, in Cyrillic. The Russian alphabet
+  is drawn by the same narrow text path as the accents: letters that look like Latin ones reuse
+  the screen font's own letter, the others are full glyphs per screen font
+  ([docs/NARROW_GLYPHS.md](docs/NARROW_GLYPHS.md)). **Provisional:** a draft by kmklpd-maker
+  (thanks!) over our machine translation; **review by a native speaker wanted** on #37.
+- **ESP32-S3-DevKitC-1 + ST7796U + GT911 board** (`BOARD_S3_ST7796U`, envs `s3-st7796u` and
+  `s3-st7796u-asia`), contributed by yukonx (#43): a 3.5" 320x480 SPI panel used in landscape, touch
+  only, the UI uses the whole 480x320. Header-only GT911 driver (`touch_gt911.h`, `TOUCH_GT911`), ST7796
+  start-up sequence (`st7796PanelInit()`). Wiring and the module's resistor mod: README, alternative
+  boards. Tested on the contributor's board only; not in the release downloads.
+- A board can now have a panel bigger than 320x240: `SCREEN_W` / `SCREEN_H` (ui_theme.h) default to
+  320x240 and a board overrides them; `PANEL_W` / `PANEL_H` select a panel class that skips the ST7789
+  offset maths (`narrow_render.h`). The touch map and the calibration / test screens follow the size.
+- `TFT_BL_ON`: backlight level per board (default HIGH, unchanged for every existing board).
+- hostsim: `--board st7796u`, with a fake GT911 on a `Wire` shim.
+
+### Fixed
+- **Old 14.4 V packs that do not report their model** (BL1440, #43): read as 4 cells, read-only,
+  instead of 5 cells with an impossible fifth reading that made the whole read fail. The two CLEARs
+  sent before this cell read now go only to a pack identified as F0513. Idea and capture by yukonx.
+- A KPI card label had room for 23 ASCII characters only; a two-byte script (Russian) needs 40 bytes.
+- Traditional Chinese: stray space removed from a wiring-help step.
+- OneWire on an ESP32-S3: the direct-GPIO code treated GPIO 34+ as input-only and ignored GPIO 46+
+  (plain-ESP32 limits), so a 1-Wire pin such as 45 never drove the bus. The S3's GPIO 0..48 are all
+  bidirectional now (a change to the bundled copy of Paul Stoffregen's OneWire library). Other targets
+  are unchanged.
+
+## [2.8.0] - 2026-11-12
+
+Real accents on the screen, and Polish.
+
+### Added
+- **Accented letters.** French, German and Spanish are shown with their accents ("Réglages",
+  "Brücke", "Batería") instead of ASCII spellings, and Vietnamese with its diacritics. An accented
+  letter is the screen font's own letter plus small marks, so text keeps its width
+  ([docs/NARROW_GLYPHS.md](docs/NARROW_GLYPHS.md)). Latin-1 and Latin Extended-A are covered, so
+  a new Latin-script translation needs no font work. Spanish gets its opening "¿" and "¡".
+- **Polish** (requested in #39), in the standard build after Spanish: every screen, with its
+  diacritics. **Review by a native speaker wanted**: send corrections on #39.
+- The Vietnamese diacritics were restored from the original ASCII translation: **review by a native
+  speaker wanted.**
+
+### Changed
+- Fault rows draw their title one pixel lower, so a stacked accent over a capital clears the card edge.
+
+## [2.7.2] - 2026-11-12
+
+Two screens that said more than they knew.
+
+### Changed
+- **Repair, a pack with only a stored error code.** When the BMS has an error code recorded but no
+  charger lock, the verdict says UNLOCK (the error can be cleared) but Repair answered "Nothing to
+  repair". It now points to the tool that clears it: "Use Tools > Reset error".
+- **Tools > Reset error on an older (F0513) pack** is no longer offered: this generation's error
+  register is not read, so the result screen could only say "no error" without knowing it. It now
+  shows NOT SUPPORTED, and nothing is written.
+- The Repair card of such a pack says the same ("Reset error", "Use Tools > Reset error") instead of
+  "False lockout, our unlock should hold"; the pointer is not shown on a 14.4 V pack or without a valid
+  reading.
+
+### Fixed
+- **A pack swapped on a confirm screen.** Unlock and Reset error now re-read the pack right before
+  writing and compare its ID with the one read before: the unlock builds its write from the earlier
+  reading, so a pack changed in between could have been written with another pack's data. On a
+  different pack nothing is written, a "Pack changed" message shows, and Battery shows the new pack.
+- **PC bridge version.** The bridge reported 2.5.2 to PackScope since 2.5.2; it now reports the
+  firmware's own version. Display only: PackScope checks the protocol version, which is unchanged.
+
 ## [2.7.1] - 2026-11-03
 
 A native-speaker review of the Japanese, and finer readings.

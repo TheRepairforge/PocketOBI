@@ -15,7 +15,7 @@
 // label renders at its true point size. Return/measure the width in px (JA-aware, D33).
 int  gfxText(const GFXfont *f, int x, int baseY, const char *s, uint16_t col);
 int  gfxWidth(const GFXfont *f, const char *s);
-const char *upperLabel(const char *in, char *out, size_t n);   // ASCII-uppercase copy, UTF-8-safe
+const char *upperLabel(const char *in, char *out, size_t n);   // uppercase copy (ASCII + accented), UTF-8-safe
 void gfxCenter(const GFXfont *f, int cx, int baseY, const char *s, uint16_t col);
 // Level-4 caption: classic font, size 1, left at (x, y); `col` defaults to the muted caption colour.
 void drawCaption(int x, int y, const char *s, uint16_t col = COL_MUTED2);

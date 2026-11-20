@@ -126,6 +126,12 @@ jobs:
           if grep -q 'BOARD_ES3C28P' PocketOBI/board_config.h; then
             variants+=("es3c28p|esp32:esp32:esp32s3:CDCOnBoot=cdc|-DPOCKETOBI_BOARD=BOARD_ES3C28P -DENABLE_VI=1")
           fi
+          # Fourth carrier, community board (ESP32-S3-DevKitC-1 + ST7796U + GT911), on the branches that carry it
+          if grep -q 'BOARD_S3_ST7796U' PocketOBI/board_config.h; then
+            S3DK=esp32:esp32:esp32s3:CDCOnBoot=cdc
+            variants+=("s3-st7796u|$S3DK|-DPOCKETOBI_BOARD=BOARD_S3_ST7796U -DENABLE_VI=1")
+            variants+=("s3-st7796u-asia|$S3DK|-DPOCKETOBI_BOARD=BOARD_S3_ST7796U $ASIA")
+          fi
           failed=""
           echo "### arduino-cli ($ESP32_CORE)" >> "$GITHUB_STEP_SUMMARY"
           for v in "${variants[@]}"; do

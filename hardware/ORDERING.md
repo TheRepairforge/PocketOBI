@@ -3,6 +3,16 @@
 You don't need to read a schematic. You just send one `.zip` file, copy a
 few settings, and PCBWay makes the board. Plan for about 10 minutes.
 
+## Fastest way: the ready-to-order project
+
+The board is shared on PCBWay with the Gerbers already attached:
+**[PocketOBI on PCBWay](https://www.pcbway.com/project/shareproject/PocketOBI_Makita_18V_LXT_battery_diagnostic_tool_ESP32_C3_carrier_PCB_d090f32a.html)**. Click **Add to cart**, set the quantity, and
+go straight to step 5 below (address, shipping, payment). No file to upload,
+nothing to unzip.
+
+The manual route below does the same thing by hand, if you prefer it or use
+another fab house.
+
 ## Settings to copy
 
 Board: **91 × 34.5 mm · 2 layers**
@@ -58,6 +68,14 @@ cheapest option.
 8. **Receive your boards.** Manufacturing takes 2-3 days, then it ships. You
    get a **tracking number** by email. All that's left is soldering the
    components. 🔧
+
+## The enclosure
+
+No 3D printer? The case is a ready-to-order project too:
+**[PocketOBI enclosure on PCBWay](https://www.pcbway.com/project/shareproject/PocketOBI_enclosure_3D_printed_case_for_the_Makita_18V_LXT_battery_diagnostic_cb6f891f.html)**. Add it to the same cart as the board,
+and keep only **one** connector holder, the one matching your male terminals
+(6.3 or 7.8 mm). The files are also free on
+[Printables](https://www.printables.com/model/1833871-pocketobi-makita-18v-lxt-battery-diagnostic-tool-c).
 
 ## Something went wrong?
 

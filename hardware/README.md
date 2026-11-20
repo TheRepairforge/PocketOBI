@@ -26,7 +26,10 @@ First fabricated and **bench-validated** revision — Gerbers dated **2026-08-05
 
 ## Order the board
 
-Upload `gerber/PocketOBI-HW-gerbers-2026-08-05.zip` to a fab house (JLCPCB, PCBWay, …).
+Easiest: the [ready-to-order PocketOBI project on PCBWay](https://www.pcbway.com/project/shareproject/PocketOBI_Makita_18V_LXT_battery_diagnostic_tool_ESP32_C3_carrier_PCB_d090f32a.html) has these Gerbers
+attached, so you only click **Add to cart**. Step by step: [ORDERING.md](ORDERING.md).
+
+Or upload `gerber/PocketOBI-HW-gerbers-2026-08-05.zip` to a fab house (JLCPCB, PCBWay, …).
 Defaults are fine: **2 layers**, 1.6 mm, HASL, any colour — no controlled impedance and no
 special stackup.
 
@@ -55,6 +58,9 @@ A 3D-printable enclosure is on Printables:
 **<https://www.printables.com/model/1833871-pocketobi-makita-18v-lxt-battery-diagnostic-tool-c>**
 — "PocketOBI – Makita 18V LXT Battery Diagnostic Tool", by The Repair Forge. The STL files
 are not committed here; download them from the Printables page.
+
+No printer? The same parts are a [ready-to-order project on PCBWay](https://www.pcbway.com/project/shareproject/PocketOBI_enclosure_3D_printed_case_for_the_Makita_18V_LXT_battery_diagnostic_cb6f891f.html): print only the
+connector holder that matches your terminals (6.3 or 7.8 mm).
 
 ## License
 

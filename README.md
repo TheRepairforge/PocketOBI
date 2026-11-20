@@ -101,7 +101,7 @@ runs on the [ES3C28P](#alternative-board-es3c28p-esp32-s3) (ESP32-S3, capacitive
   pack back into service. See below.
 - **Error reset** with before → after feedback (full test-mode + power-cycle sequence).
 - Automatic detection of standard vs older **F0513** BMS generations.
-- **Multilingual UI** — English, French, German, Spanish; Japanese, Korean, Vietnamese,
+- **Multilingual UI** — English, French, German, Spanish, Polish, Russian; Japanese, Korean, Vietnamese,
   Simplified and Traditional Chinese in the Asia build (see below).
 - **PC bridge mode** — acts as a USB↔OneWire adapter (drop-in ArduinoOBI), so a desktop
   app works through PocketOBI: the original *Open Battery Information* app, or our own
@@ -200,8 +200,12 @@ Notes:
   BMS can cut its own output on error).
 
 A carrier PCB has been **fabricated and bench-validated**. The fabrication files
-(Gerbers, schematic PDF, BOM) and ordering notes are in [`hardware/`](hardware/); the
+(Gerbers, schematic PDF, BOM) and ordering notes are in [`hardware/`](hardware/), and the
+board can be ordered in one click from its [ready-to-order PCBWay project](https://www.pcbway.com/project/shareproject/PocketOBI_Makita_18V_LXT_battery_diagnostic_tool_ESP32_C3_carrier_PCB_d090f32a.html); the
 wiring and pinout reference stays in [HARDWARE.md](HARDWARE.md).
+
+The 3D-printed enclosure is free on [Printables](https://www.printables.com/model/1833871-pocketobi-makita-18v-lxt-battery-diagnostic-tool-c), or ready to order
+without a printer from its [PCBWay project](https://www.pcbway.com/project/shareproject/PocketOBI_enclosure_3D_printed_case_for_the_Makita_18V_LXT_battery_diagnostic_cb6f891f.html).
 
 ### Alternative board: CYD (ESP32-2432S028R)
 
@@ -246,6 +250,31 @@ on the silkscreen).
 
 Leave the I2C socket's IO15 / IO16 alone: they are the touch controller's bus. Never use the UART
 socket's 5V for the pull-ups.
+
+### Alternative board: ESP32-S3-DevKitC-1 + ST7796U + GT911 (3.5", 480x320)
+
+The firmware also builds for an **ESP32-S3-DevKitC-1** with a generic 3.5" **ST7796U** 320x480 SPI module
+and its **GT911** capacitive touch (`pio run -e s3-st7796u`, Asia build `s3-st7796u-asia`). Touch only, the UI
+uses the whole 480x320 panel; Settings > Calibrate is there if taps land off target. Contributed and tested
+on one board by yukonx ([issue #43](https://github.com/TheRepairforge/PocketOBI/issues/43)); not tested by us
+yet, and not in the release downloads.
+
+| Function | ESP32-S3 GPIO | Note |
+|---|---|---|
+| Battery pin 2, **DATA** | 45 | + 470 Ω pull-up to 3V3 |
+| Battery pin 6, **ENABLE** | 46 | + 470 Ω pull-up to 3V3 |
+| Battery **B-** | GND | ground |
+| Battery pin 1, **B+ (18 V)** | — | **NEVER CONNECT** |
+| TFT CS / DC / RST | 10 / 9 / 14 | |
+| TFT MOSI / SCLK | 11 / 12 | no MISO |
+| TFT backlight | 4 | the module switches it high-side: LOW = on |
+| Touch SDA / SCL / INT / RST | 42 / 41 / 40 / 15 | RST is the pad marked "CPT_CS" on the module |
+
+- **The module ships in 8-bit parallel mode.** For SPI, populate R7 and R10 (0 Ω) and remove R11 and R12
+  (check against your module: the silkscreen differs between sellers), and feed its VCC from **5 V**.
+- **GPIO45 and GPIO46 are strapping pins**, and the pull-ups hold them high at reset. That works on the
+  contributor's board; if yours does not boot or will not enter download mode with the pack lead fitted,
+  move DATA and ENABLE to two free GPIOs (`ONEWIRE_PIN` / `ENABLE_PIN` in `board_config.h`).
 
 ## Build & flash
 
@@ -324,6 +353,7 @@ pio run -e esp32-c3             # build the ESP32-C3 product
 pio run -e esp32-c3 -t upload   # build + flash
 pio run -e cyd -t upload        # CYD alternative board
 pio run -e es3c28p -t upload    # ES3C28P alternative board
+pio run -e s3-st7796u -t upload # ESP32-S3-DevKitC-1 + ST7796U + GT911 touch
 pio device monitor              # serial monitor (115200)
 ```
 

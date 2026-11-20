@@ -11,9 +11,13 @@
 #include <Fonts/FreeSansBold24pt7b.h>
 #include <Fonts/FreeSansBold9pt7b.h>
 
-// ---------- Panel ----------
+// ---------- Panel (default; a board with a bigger panel overrides it in board_config.h) ----------
+#ifndef SCREEN_W
 #define SCREEN_W           320
+#endif
+#ifndef SCREEN_H
 #define SCREEN_H           240
+#endif
 
 // ---------- Chrome ----------
 #define HEADER_H           32

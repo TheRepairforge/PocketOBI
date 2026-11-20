@@ -138,6 +138,43 @@ void ili9341PanelInit() {
 }
 #endif
 
+#if PANEL_ST7796_INIT
+// Full ST7796 start-up, sent after tft.init() (the ST7789 sequence, which does not know this controller):
+// software reset, sleep-out, extension commands, pixel format, power / driving / gamma, display-on.
+// Register values only, taken from the TFT_eSPI (Bodmer) ST7796_Init.h table (see THIRD-PARTY.md).
+// The reset clears what tft.init() set, so setup() applies the inversion and applyRotation() (MADCTL)
+// after this function.
+void st7796PanelInit() {
+  auto cmd0 = [](uint8_t c)                           { tft.sendCommand(c); };
+  auto cmd1 = [](uint8_t c, uint8_t a)                { tft.sendCommand(c, &a, 1); };
+  auto cmdN = [](uint8_t c, const uint8_t *d, uint8_t n) { tft.sendCommand(c, d, n); };
+  static const uint8_t b6[]  = { 0x80, 0x02, 0x3B };
+  static const uint8_t e8[]  = { 0x40, 0x8A, 0x00, 0x00, 0x29, 0x19, 0xA5, 0x33 };
+  static const uint8_t gp[]  = { 0xF0, 0x09, 0x0B, 0x06, 0x04, 0x15, 0x2F, 0x54, 0x42, 0x3C, 0x17, 0x14, 0x18, 0x1B };
+  static const uint8_t gn[]  = { 0xE0, 0x09, 0x0B, 0x06, 0x04, 0x03, 0x2B, 0x43, 0x42, 0x3B, 0x16, 0x14, 0x17, 0x1B };
+  cmd0(0x01); delay(120);            // software reset
+  cmd0(0x11); delay(120);            // sleep out
+  cmd1(0xF0, 0xC3);                  // command set control: enable extension commands
+  cmd1(0xF0, 0x96);
+  cmd1(0x3A, 0x55);                  // pixel format: 16 bit
+  cmd1(0xB4, 0x01);                  // 1-dot inversion
+  cmdN(0xB6, b6, sizeof(b6));        // display function control
+  cmdN(0xE8, e8, sizeof(e8));        // output ctrl adjust
+  cmd1(0xC1, 0x06);                  // power control 2
+  cmd1(0xC2, 0xA7);                  // power control 3
+  cmd1(0xC5, 0x18);                  // VCOM
+  delay(120);
+  cmdN(0xE0, gp, sizeof(gp));        // gamma +
+  cmdN(0xE1, gn, sizeof(gn));        // gamma -
+  delay(120);
+  cmd1(0xF0, 0x3C);                  // command set control: disable extension commands
+  cmd1(0xF0, 0x69);
+  delay(120);
+  cmd0(0x29);                        // display on
+  delay(20);
+}
+#endif
+
 // ---------- Small helpers shared by the screens ----------
 // Header bar with the glyph of the current screen (the component takes the glyph, it does not know
 // the screens). LAUNCHER: no glyph.
@@ -282,9 +319,14 @@ static void diagFinding(Finding &f) {
   } else if (!f.causes && !bat.locked) {
     f.title = tr(S_NO_LOCK_NO_FAULT); f.color = COL_GREEN;
     strcpy(f.line2, tr(S_PACK_HEALTHY));
+  } else if (!f.causes && bat.valid && !packReadOnly()) {
+    // Only the error register (nybble 40) is set: no charger lock for the unlock to clear, Tools >
+    // Reset error does it. Same pointer as the Repair toast (ui_nav.cpp), never "unlock should hold".
+    f.title = tr(S_RESET_ERROR); f.color = COL_YELLOW;
+    strcpy(f.line2, tr(S_TOAST_USE_RESET));
   } else if (packReadOnly()) {
-    // Charger-locked 14.4 V pack: the lock is a fact, the unlock is not offered (#28).
-    f.title = tr(S_CHARGER_LOCK); f.color = COL_YELLOW;
+    // 14.4 V pack: the lock (or the stored error) is a fact, no write is offered (#28). Name which.
+    f.title = f.causes ? tr(S_CHARGER_LOCK) : tr(S_RESET_ERROR); f.color = COL_YELLOW;
     snprintf(f.line2, sizeof(f.line2), "LXT 14.4V - %s", tr(S_W_NOT_SUPPORTED));
   } else {
     // Charger-locked, no fault marker -> a false lockout our unlock should clear.
@@ -701,10 +743,7 @@ void drawWrapCentered(const char* s, int y, uint16_t col, uint8_t size) {
   while (i < n) {
     int take = 0, lastSpace = -1, w = 0;
     while (i + take < n) {                       // grow the line one character at a time
-      int cl = 1;
-#if ENABLE_CJK
-      cl = cjkCharLen(s + i + take);
-#endif
+      int cl = cjkCharLen(s + i + take);
       char one[5]; memcpy(one, s + i + take, cl); one[cl] = 0;
       int cw = txtW(one, size);
       if (w + cw > maxPx || take + cl > (int)sizeof(line) - 1) break;

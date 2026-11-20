@@ -99,6 +99,8 @@ const char* const STRTAB_KO[] = {
   /*S_UNLOCK_SHOULD_HOLD*/    "잠금 해제가 유지될 것입니다.", // EN: "Our unlock should hold."
   /*S_TOAST_FIXHW*/           "하드웨어 먼저 수리", // EN: "Fix hardware first"
   /*S_TOAST_NOTHING*/         "수리할 것 없음", // EN: "Nothing to repair"
+  /*S_TOAST_USE_RESET*/        "도구 > 오류 초기화", // EN: "Use Tools > Reset error" (composed from S_TOOLS + S_RESET_ERROR)
+  /*S_TOAST_PACK_CHANGED*/     "팩이 바뀌었습니다", // EN: "Pack changed" (ours, provisional)
   /*S_WORKING*/               "처리 중...", // EN: "Working..."
   /*S_FRAME_STORE_PC*/        "프레임 수리 -> 저장 -> 전원 재투입", // EN: "repair frame  ->  store  ->  power-cycle"
   /*S_TEMP_CB*/               "셀/보드", // EN: "Cell/Board"

@@ -135,6 +135,9 @@ int main(int argc, char** argv) {
   const char* out = argc > 1 ? argv[1] : "out";
   MKDIR(out);
   tft.init(240, 320);
+#if BOARD_TOUCH_DRIVER == TOUCH_GT911
+  touch.begin();                            // the shim's fake GT911 (shim/Wire.h) must be found first
+#endif
   tft.setRotation(1);                       // landscape 320x240, as setup() does
   int n = (int)(sizeof(SCREENS) / sizeof(SCREENS[0]));
   for (int k = 0; k < LANG_NUM; k++) {

@@ -21,6 +21,8 @@
 #include <XPT2046_Touchscreen.h>
 #elif BOARD_TOUCH_DRIVER == TOUCH_FT6336
 #include "touch_ft6336.h"        // FT6336_Touch + a minimal TS_Point (header-only, no library)
+#elif BOARD_TOUCH_DRIVER == TOUCH_GT911
+#include "touch_gt911.h"          // GT911_Touch + a minimal TS_Point (header-only, no library)
 #endif
 
 // Factory touch calibration (TCAL_DEF_*) is per board: board_config.h.
@@ -36,9 +38,9 @@
 // of truth reported by the PC bridge (interface-version query); keep FW_VERSION
 // consistent with it.
 #define FW_VER_MAJOR 2
-#define FW_VER_MINOR 5
-#define FW_VER_PATCH 2
-#define FW_VERSION "2.7.1"
+#define FW_VER_MINOR 9
+#define FW_VER_PATCH 0
+#define FW_VERSION "2.9.0"
 
 // Companion-app compatibility-contract version. Distinct from FW_VERSION: it bumps
 // ONLY when the coupling with the companion app changes — a bridge command is
@@ -194,6 +196,8 @@ extern SPIClass touchSPI;
 extern XPT2046_Touchscreen touch;
 #elif BOARD_TOUCH_DRIVER == TOUCH_FT6336
 extern FT6336_Touch touch;
+#elif BOARD_TOUCH_DRIVER == TOUCH_GT911
+extern GT911_Touch touch;
 #endif
 #if BOARD_HAS_TOUCH
 extern int tcXL, tcXR, tcYT, tcYB;
