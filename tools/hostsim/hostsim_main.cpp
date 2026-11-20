@@ -32,11 +32,11 @@ static void fixturePack() {
   bat.capacityAh = 5.0f;
   bat.batteryType = 0;
   bat.overloadPct = 12; bat.overdischargePct = 8; bat.healthEstPct = 87;
-  const float c[5] = { 4.089f, 3.911f, 3.999f, 3.962f, 4.011f };
+  const float c[5] = { 3.980f, 3.978f, 3.991f, 3.962f, 3.986f };
   float sum = 0, mn = 9, mx = 0;
   for (int i = 0; i < 5; i++) { bat.cell[i] = c[i]; sum += c[i]; if (c[i] < mn) mn = c[i]; if (c[i] > mx) mx = c[i]; }
   bat.packVoltage = sum; bat.cellDiff = mx - mn;
-  bat.tempCell = 23.4f; bat.tempMosfet = 23.1f; bat.boardTempValid = true;
+  bat.tempCell = 22.4f; bat.tempMosfet = 23.1f; bat.boardTempValid = true;
   bat.extValid = true; bat.socRaw = 812; bat.odEventCount = 3; bat.olEventCount = 5;
   bat.odWearPct = round5up(bat.odEventCount, bat.chargeCount);
   bat.olWearPct = round5up(bat.olEventCount, bat.chargeCount);
@@ -90,7 +90,7 @@ static void sBattery(int page) { state = BATTERY; batteryPage = page; }
 // A 14.4 V LXT pack (#28): 4S, cell 5 reads 0, read-only. Illustrative values, not a capture.
 static void sPack14(bool locked) {
   strcpy(bat.model, "BL1415N"); bat.capacityAh = 1.5f; cellCount = 4;
-  const float c[4] = { 3.95f, 3.96f, 3.95f, 3.96f };
+  const float c[4] = { 3.950f, 3.961f, 3.953f, 3.964f };
   float sum = 0;
   for (int i = 0; i < 4; i++) { bat.cell[i] = c[i]; sum += c[i]; }
   bat.cell[4] = 0.0f; bat.packVoltage = sum; bat.cellDiff = 0.01f;
@@ -113,7 +113,8 @@ static const Screen SCREENS[] = {
   { "unlock_result",  [] { state = UNLOCK_RESULT; unlockCausesBefore = LF_N34; unlockCausesAfter = 0; } },
   { "confirm_reset",  [] { state = CONFIRM_RESET; } },
   { "reset_result",   [] { state = RESET_RESULT; resetLockedBefore = true; resetLockedAfter = false; } },
-  { "tools",          [] { state = TOOLS; toolIndex = 0; } },
+  { "tools_1",        [] { state = TOOLS; toolIndex = 0; } },
+  { "tools_2",        [] { state = TOOLS; toolIndex = 3; } },
   { "settings",       [] { state = SETTINGS; settingsIndex = 2; } },
   { "debug_raw",      [] { state = DEBUG_RAW; } },
   { "pc_bridge",      [] { state = PC_BRIDGE; bridgeActive = true; } },
