@@ -367,8 +367,8 @@ void drawBatteryOverview() {
     // Pinned sensor = confirmed fault (red); spread-only = empirical suspicion (orange, explained on Health).
     const uint16_t tcol = tPinned ? COL_RED : (thermistorSuspect() ? COL_ORANGE : COL_TEXT);
     snprintf(buf, sizeof(buf), "%.2f V", bat.packVoltage);
-    // (Japanese reads label-then-count ("充電回数 127", #35); every other language keeps "127 Charges".
-    if (lang == LANG_JA) snprintf(cap, sizeof(cap), "%s：%u", tr(S_CHARGES), bat.chargeCount);
+    // Japanese reads label-then-count ("充電回数：127", #35); every other language keeps "127 Charges".
+    if (lang == LANG_JA) snprintf(cap, sizeof(cap), "%s %u", tr(S_CHARGES), bat.chargeCount);
     else                 snprintf(cap, sizeof(cap), "%u %s", bat.chargeCount, tr(S_CHARGES));
     kpiCard(GUTTER, y, COL2_W, KPI_H, iconBattery, tr(S_PACK), buf, COL_TEXT, cap);
     fmtTemp(buf, sizeof(buf));

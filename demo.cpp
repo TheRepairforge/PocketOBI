@@ -26,13 +26,13 @@ static void base() {
   const uint8_t rom[8] = { 0x2C, 0x41, 0x7E, 0x13, 0x00, 0x00, 0x00, 0x9A };
   memcpy(bat.romId, rom, 8);
   bat.chargeCount = 127;
-  bat.mfgYear = 2021; bat.mfgMonth = 11; bat.mfgDay = 14; //suzuki
+  bat.mfgYear = 2021; bat.mfgMonth = 6; bat.mfgDay = 14;
   bat.asmY = 21; bat.asmM = 6; bat.asmD = 2;
   bat.capacityAh = 5.0f;
   bat.overloadPct = 12; bat.overdischargePct = 8; bat.healthEstPct = 87;
-  const float c[5] = { 4.082f, 3.933f, 4.111f, 3.999f, 3.989f };//suzuki
+  const float c[5] = { 3.982f, 3.937f, 3.991f, 3.967f, 3.984f };
   for (int i = 0; i < 5; i++) bat.cell[i] = c[i];
-  bat.tempCell = 28.4f; bat.tempMosfet = 23.1f; bat.boardTempValid = true;//suzuki
+  bat.tempCell = 22.4f; bat.tempMosfet = 23.1f; bat.boardTempValid = true;
   bat.extValid = true; bat.socRaw = 812; bat.odEventCount = 3; bat.olEventCount = 5;
   frameWithLock(bat.msg, false);
   cellCount = 5;
@@ -48,7 +48,7 @@ static void fxHealthy() { base(); finish(); }
 static void fxLocked()  { base(); frameWithLock(bat.msg, true); bat.chargerLocked = true; bat.locked = true; bat.errorCode = 0x03; finish(); }
 static void fxFault()   {
   base();
-  bat.cell[2] = 2.31f; bat.cell[0] = 3.71f; bat.cell[1] = 3.70f; bat.cell[3] = 3.72f; bat.cell[4] = 3.71f;
+  bat.cell[2] = 2.317f; bat.cell[0] = 3.717f; bat.cell[1] = 3.707f; bat.cell[3] = 3.727f; bat.cell[4] = 3.717f;
   bat.tempCell = -30.0f; bat.tempMosfet = 24.0f;
   bat.odEventCount = 41; bat.olEventCount = 9; bat.healthEstPct = 38; bat.chargeCount = 612; finish();
 }
