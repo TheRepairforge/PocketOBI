@@ -98,12 +98,48 @@ static void sPack14(bool locked) {
   if (locked) { bat.msg[21] = 0x7E; bat.chargerLocked = true; }
 }
 static const Screen SCREENS[] = {
+  {"splash",         [] { state = LAUNCHER; drawSplash(); }, true},
+  {"launcher",       [] { state = LAUNCHER; launcherIndex = 0; }, false},
+  {"battery 1",      [] { state = BATTERY; batteryPage = 0; }, false},
+  {"battery 2",      [] { state = BATTERY; batteryPage = 1; }, false},
+  {"battery 3",      [] { state = BATTERY; batteryPage = 2; }, false},
+  {"repair 1",       [] { state = REPAIR_DIAG; }, false},
+  {"repair 2",       [] { state = CONFIRM_UNLOCK; }, false},
+  {"repair 3",       [] { state = REPAIR_DIAG; drawUnlockWorking(); drawUnlockProgress(2, 4); }, true},
+  {"repair 4 ok",    [] { state = UNLOCK_RESULT; unlockCausesBefore = LF_N34; unlockCausesAfter = 0; }, false},
+  {"repair 4 still", [] { state = UNLOCK_RESULT; unlockCausesBefore = LF_N34; unlockCausesAfter = LF_N34 | LF_CS2; }, false},
+  {"reset confirm",  [] { state = CONFIRM_RESET; }, false},
+  {"reset cleared",  [] { state = RESET_RESULT; resetLockedBefore = true; resetLockedAfter = false; resetReread = true; }, false},
+  {"reset still",    [] { state = RESET_RESULT; resetLockedBefore = true; resetLockedAfter = true; resetReread = true; }, false},
+  {"reset no reread",[] { state = RESET_RESULT; resetLockedBefore = true; resetLockedAfter = true; resetReread = false; }, false},
+  {"reset none",     [] { state = RESET_RESULT; resetLockedBefore = false; resetLockedAfter = false; resetReread = true; }, false},
+  {"tools 1",        [] { state = TOOLS; toolIndex = 0; }, false},
+  {"tools 2",        [] { state = TOOLS; toolIndex = 3; }, false},
+  {"settings",       [] { state = SETTINGS; settingsIndex = 2; }, false},
+  {"debug",          [] { state = DEBUG_RAW; }, false},
+  {"bridge on",      [] { state = PC_BRIDGE; bridgeActive = true; }, false},
+  {"bridge off",     [] { state = PC_BRIDGE; bridgeActive = false; }, false},
+  {"about",          [] { state = ABOUT; aboutEgg = 0; }, false},
+  {"about egg",      [] { state = ABOUT; aboutEgg = 3; }, false},
+  {"comm error",     [] { state = COMM_ERROR; }, false},
+};
+  
+  
+  /*
+  
   { "splash",         [] { state = LAUNCHER; drawSplash(); }, true },
   { "launcher",       [] { state = LAUNCHER; launcherIndex = 0; } },
   { "battery_overview", [] { sBattery(0); } },
   { "battery_health", [] { sBattery(1); } },
   { "battery_identity", [] { sBattery(2); } },
   { "repair_diag",    [] { state = REPAIR_DIAG; } },
+
+  {"repair_2_4",     [] { state = CONFIRM_UNLOCK; }, },
+  {"repair_3_4",     [] { state = REPAIR_DIAG; drawUnlockWorking(); drawUnlockProgress(2, 4); }, true},
+  {"repair_4_4 ok",  [] { state = UNLOCK_RESULT; unlockCausesBefore = LF_N34; unlockCausesAfter = 0; }, false},
+  {"repair_4_4 still",[] { state = UNLOCK_RESULT; unlockCausesBefore = LF_N34; unlockCausesAfter = LF_N34 | LF_CS2; }, false},
+  
+
   // A charger lock on byte 21 (nyb 42/43 mismatch) -> lockCauses != 0, so the confirm screen
   // draws the real unlock card. Modern pack (boardTempValid stays true from the fixture).
   { "confirm_unlock", [] { memset(bat.msg, 0, 32); bat.msg[21] = 0x7E; state = CONFIRM_UNLOCK; } },
@@ -113,8 +149,8 @@ static const Screen SCREENS[] = {
   { "unlock_result",  [] { state = UNLOCK_RESULT; unlockCausesBefore = LF_N34; unlockCausesAfter = 0; } },
   { "confirm_reset",  [] { state = CONFIRM_RESET; } },
   { "reset_result",   [] { state = RESET_RESULT; resetLockedBefore = true; resetLockedAfter = false; } },
-  { "tools_1",        [] { state = TOOLS; toolIndex = 0; } },
-  { "tools_2",        [] { state = TOOLS; toolIndex = 3; } },
+  { "tools 1",        [] { state = TOOLS; toolIndex = 0; } },
+  { "tools 2",        [] { state = TOOLS; toolIndex = 3; } },
   { "settings",       [] { state = SETTINGS; settingsIndex = 2; } },
   { "debug_raw",      [] { state = DEBUG_RAW; } },
   { "pc_bridge",      [] { state = PC_BRIDGE; bridgeActive = true; } },
@@ -131,6 +167,43 @@ static const Screen SCREENS[] = {
   { "calibrate_saved", sCalibrate, true },
 #endif
 };
+*/
+
+//-------------------------------------------------------
+static void finish() {                         // the derived values the decoder would compute
+  float sum = 0, mn = 9, mx = 0;
+  for (int i = 0; i < cellCount; i++) { sum += bat.cell[i]; if (bat.cell[i] < mn) mn = bat.cell[i]; if (bat.cell[i] > mx) mx = bat.cell[i]; }
+  bat.packVoltage = sum; bat.cellDiff = mx - mn;
+  bat.odWearPct = round5up(bat.odEventCount, bat.chargeCount);
+  bat.olWearPct = round5up(bat.olEventCount, bat.chargeCount);
+}
+static void fxHealthy() { base(); finish(); }
+static void fxLocked()  { base(); frameWithLock(bat.msg, true); bat.chargerLocked = true; bat.locked = true; bat.errorCode = 0x03; finish(); }
+static void fxFault()   {
+  base();
+  bat.cell[2] = 2.317f; bat.cell[0] = 3.717f; bat.cell[1] = 3.707f; bat.cell[3] = 3.727f; bat.cell[4] = 3.717f;
+  bat.tempCell = -30.0f; bat.tempMosfet = 24.0f;
+  bat.odEventCount = 41; bat.olEventCount = 9; bat.healthEstPct = 38; bat.chargeCount = 612; finish();
+}
+static void fxSuspect() {
+  base();
+  for (int i = 0; i < 5; i++) bat.cell[i] = 2.30f + 0.01f * i;
+  bat.tempCell = 21.0f; bat.tempMosfet = 33.0f; bat.odEventCount = 12; finish();
+}
+static void fxF0513()   { base(); strcpy(bat.commandVersion, "F0513"); strcpy(bat.model, "BL1415");
+                          cellCount = 4; bat.cell[4] = 0.0f;   // 14.4 V: 4S, cell 5 reads 0 (#28)
+                          bat.boardTempValid = false; bat.extValid = false; bat.chargeCount = 0; finish(); }
+static void fxNoPack()  { base(); finish(); bat.valid = false; }
+
+struct DemoPack { const char *name; void (*apply)(); };
+static const DemoPack PACKS[] = {
+  {"healthy", fxHealthy}, {"locked", fxLocked}, {"fault", fxFault},
+  {"suspect", fxSuspect}, {"F0513", fxF0513}, {"no pack", fxNoPack},
+};
+static const int NPACKS = sizeof(PACKS) / sizeof(PACKS[0]);
+
+//----------------------------------------------------------
+
 
 int main(int argc, char** argv) {
   const char* out = argc > 1 ? argv[1] : "out";
