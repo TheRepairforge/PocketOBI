@@ -42,13 +42,12 @@ static void fixturePack() {
   bat.olWearPct = round5up(bat.olEventCount, bat.chargeCount);
   cellCount = 5;
 }
-// *****************************************
+
 // ---------- fictional packs (raw facts, illustrative values, not captures) ----------
 static void frameWithLock(uint8_t *f, bool n34) {
   memset(f, 0, 32);
   if (n34) f[17] = (f[17] & 0xF0) | 0x03;     // nybble 34 = 3: the charger-lock signature (N34 + CS2)
 }
-
 
 static void base() {
   bat = BatteryData();
@@ -120,7 +119,7 @@ static void sPack14(bool locked) {
   const float c[4] = { 3.950f, 3.961f, 3.953f, 3.964f };
   float sum = 0;
   for (int i = 0; i < 4; i++) { bat.cell[i] = c[i]; sum += c[i]; }
-  bat.cell[4] = 0.0f; bat.packVoltage = sum; bat.cellDiff = 0.014f;
+  bat.cell[4] = 0.0f; bat.packVoltage = sum; bat.cellDiff = 0.011f;
   memset(bat.msg, 0, 32);
   if (locked) { bat.msg[21] = 0x7E; bat.chargerLocked = true; }
 }
@@ -150,7 +149,6 @@ static const Screen SCREENS[] = {
   {"about_egg",      [] { state = ABOUT; aboutEgg = 3; }, false},
   {"comm_error",     [] { state = COMM_ERROR; }, false},
 
-
   { "bl14_overview",  [] { sPack14(false); sBattery(0); } },
   { "bl14_health",    [] { sPack14(false); sBattery(1); } },
   { "bl14_identity",  [] { sPack14(false); sBattery(2); } },
@@ -162,45 +160,6 @@ static const Screen SCREENS[] = {
   { "calibrate_saved", sCalibrate, true },
 #endif
 };
-
-  
-  
-  /*
-  
-  { "splash",         [] { state = LAUNCHER; drawSplash(); }, true },
-  { "launcher",       [] { state = LAUNCHER; launcherIndex = 0; } },
-  { "battery_overview", [] { sBattery(0); } },
-  { "battery_health", [] { sBattery(1); } },
-  { "battery_identity", [] { sBattery(2); } },
-  { "repair_diag",    [] { state = REPAIR_DIAG; } },
-  // A charger lock on byte 21 (nyb 42/43 mismatch) -> lockCauses != 0, so the confirm screen
-  // draws the real unlock card. Modern pack (boardTempValid stays true from the fixture).
-  { "confirm_unlock", [] { memset(bat.msg, 0, 32); bat.msg[21] = 0x7E; state = CONFIRM_UNLOCK; } },
-  // Same lock on the F0513 cell path (boardTempValid=false): the 2.5.1 honest caveat replaces
-  // the scope line. Longest-language render here is what the warning string must fit.
-  { "confirm_unlock_f0513", [] { memset(bat.msg, 0, 32); bat.msg[21] = 0x7E; bat.boardTempValid = false; state = CONFIRM_UNLOCK; } },
-  { "unlock_result",  [] { state = UNLOCK_RESULT; unlockCausesBefore = LF_N34; unlockCausesAfter = 0; } },
-  { "confirm_reset",  [] { state = CONFIRM_RESET; } },
-  { "reset_result",   [] { state = RESET_RESULT; resetLockedBefore = true; resetLockedAfter = false; } },
-  { "tools",          [] { state = TOOLS; toolIndex = 0; } },
-  { "settings",       [] { state = SETTINGS; settingsIndex = 2; } },
-  { "debug_raw",      [] { state = DEBUG_RAW; } },
-  { "pc_bridge",      [] { state = PC_BRIDGE; bridgeActive = true; } },
-  { "about",          [] { state = ABOUT; aboutEgg = 0; } },
-  { "comm_error",     [] { state = COMM_ERROR; } },
-  { "bl14_overview",  [] { sPack14(false); sBattery(0); } },
-  { "bl14_health",    [] { sPack14(false); sBattery(1); } },
-  { "bl14_identity",  [] { sPack14(false); sBattery(2); } },
-  { "bl14_repair_locked", [] { sPack14(true); state = REPAIR_DIAG; } },
-  { "bl14_confirm_unlock", [] { sPack14(true); state = CONFIRM_UNLOCK; } },
-  { "nopack_overview", [] { bat.valid = false; sBattery(0); } },
-  { "nopack_repair",  [] { bat.valid = false; state = REPAIR_DIAG; } },
-#if BOARD_HAS_TOUCH
-  { "calibrate_saved", sCalibrate, true },
-#endif
-};
-*/
-// *********************************************************
 
 //-------------------------------------------------------
 static void finish() {                         // the derived values the decoder would compute
@@ -258,9 +217,9 @@ int main(int argc, char** argv) {
     MKDIR(out);
 
     tft.init(240, 320);
-// #if BOARD_TOUCH_DRIVER == TOUCH_GT911
-//     touch.begin();                            // the shim's fake GT911 (shim/Wire.h) must be found first
-// #endif
+#if BOARD_TOUCH_DRIVER == TOUCH_GT911
+    touch.begin();                            // the shim's fake GT911 (shim/Wire.h) must be found first
+#endif
     tft.setRotation(1);                       // landscape 320x240, as setup() does
 
     int n = (int)(sizeof(SCREENS) / sizeof(SCREENS[0]));
