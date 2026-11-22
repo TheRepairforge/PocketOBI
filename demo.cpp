@@ -30,7 +30,7 @@ static void base() {
   bat.asmY = 21; bat.asmM = 6; bat.asmD = 2;
   bat.capacityAh = 5.0f;
   bat.overloadPct = 12; bat.overdischargePct = 8; bat.healthEstPct = 87;
-  const float c[5] = { 3.982f, 3.937f, 3.991f, 3.967f, 3.984f };
+  const float c[5] = { 3.980f, 3.978f, 3.991f, 3.962f, 3.986f };
   for (int i = 0; i < 5; i++) bat.cell[i] = c[i];
   bat.tempCell = 22.4f; bat.tempMosfet = 23.1f; bat.boardTempValid = true;
   bat.extValid = true; bat.socRaw = 812; bat.odEventCount = 3; bat.olEventCount = 5;
