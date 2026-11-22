@@ -68,7 +68,7 @@ static void base() {
   //    frameWithLock(bat.msg, false);
   cellCount = 5;
 }
-//******************************************
+
 static void savePpm(const char* path) {
   FILE* f = fopen(path, "wb");
   if (!f) { fprintf(stderr, "cannot write %s\n", path); exit(1); }
@@ -194,71 +194,52 @@ static const DemoPack PACKS[] = {
 };
 static const int NPACKS = sizeof(PACKS) / sizeof(PACKS[0]);
 
-//----------------------------------------------------------
-
-// // fxHealthy() 等から呼ばれる base() を fixturePack() のエイリアスとして定義
-// static void base() {
-//     fixturePack();
-// }
-
 static bool isSinglePackScreen(int idx) {
-    switch (idx) {
-        case 0:  case 7:  case 15: case 16: case 17:
-        case 19: case 20: case 21: case 22: case 23:
-        case 31: case 32: case 33:
-            return true;
-                    default:
-            return false;
-    }
+  switch (idx) {
+    case 0:  case 7:  case 15: case 16: case 17:
+    case 19: case 20: case 21: case 22: case 23:
+    case 31: case 32: case 33:
+      return true;
+    default:
+      return false;
+  }
 }
 
 int main(int argc, char** argv) {
-    const char* out = argc > 1 ? argv[1] : "out";
-    MKDIR(out);
-
-    tft.init(240, 320);
+  const char* out = argc > 1 ? argv[1] : "out";
+  MKDIR(out);
+  tft.init(240, 320);
 #if BOARD_TOUCH_DRIVER == TOUCH_GT911
     touch.begin();                            // the shim's fake GT911 (shim/Wire.h) must be found first
 #endif
     tft.setRotation(1);                       // landscape 320x240, as setup() does
-
     int n = (int)(sizeof(SCREENS) / sizeof(SCREENS[0]));
-
     for (int k = 0; k < LANG_NUM; k++) {
         lang = LANG_AVAIL[k];
         snprintf(g_dir, sizeof(g_dir), "%s/%s", out, langCode(lang));
         MKDIR(g_dir);
-
-        // 画面のループ
         for (int i = 0; i < n; i++) {
             g_index = i;
             bool single_pack = isSinglePackScreen(i);
-
             for (int p = 0; p < NPACKS; p++) {
                 lastRenderedState = -1;
                 lastBatteryPage = -1;
                 tft.setFont(NULL);
                 tft.setTextSize(1);
                 tft.fillScreen(COL_BG);
-
                 SCREENS[i].setup();
                 PACKS[p].apply();
                 if (!SCREENS[i].selfDraw) render();
-
                 char pack_name[64];
                 snprintf(pack_name, sizeof(pack_name), "%s", PACKS[p].name);
-
                 char tag[128];
                 snprintf(tag, sizeof(tag), "%s_%s", SCREENS[i].name, pack_name);
                 saveFrame(tag);
-
                 if (single_pack)  break;
             }
         }
     }
-
-    printf("hostsim: %d screens x %d languages -> %s\n", n, LANG_NUM, out);
-    return 0;
+  printf("hostsim: %d screens x %d languages -> %s\n", n, LANG_NUM, out);
+  return 0;
 }
-
 #endif // POCKETOBI_HOSTSIM
