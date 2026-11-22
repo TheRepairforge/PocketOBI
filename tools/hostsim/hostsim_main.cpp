@@ -161,7 +161,6 @@ static const Screen SCREENS[] = {
 #endif
 };
 
-//-------------------------------------------------------
 static void finish() {                         // the derived values the decoder would compute
   float sum = 0, mn = 9, mx = 0;
   for (int i = 0; i < cellCount; i++) { sum += bat.cell[i]; if (bat.cell[i] < mn) mn = bat.cell[i]; if (bat.cell[i] > mx) mx = bat.cell[i]; }
@@ -210,35 +209,35 @@ int main(int argc, char** argv) {
   MKDIR(out);
   tft.init(240, 320);
 #if BOARD_TOUCH_DRIVER == TOUCH_GT911
-    touch.begin();                            // the shim's fake GT911 (shim/Wire.h) must be found first
+  touch.begin();                            // the shim's fake GT911 (shim/Wire.h) must be found first
 #endif
-    tft.setRotation(1);                       // landscape 320x240, as setup() does
-    int n = (int)(sizeof(SCREENS) / sizeof(SCREENS[0]));
-    for (int k = 0; k < LANG_NUM; k++) {
-        lang = LANG_AVAIL[k];
-        snprintf(g_dir, sizeof(g_dir), "%s/%s", out, langCode(lang));
-        MKDIR(g_dir);
-        for (int i = 0; i < n; i++) {
-            g_index = i;
-            bool single_pack = isSinglePackScreen(i);
-            for (int p = 0; p < NPACKS; p++) {
-                lastRenderedState = -1;
-                lastBatteryPage = -1;
-                tft.setFont(NULL);
-                tft.setTextSize(1);
-                tft.fillScreen(COL_BG);
-                SCREENS[i].setup();
-                PACKS[p].apply();
-                if (!SCREENS[i].selfDraw) render();
-                char pack_name[64];
-                snprintf(pack_name, sizeof(pack_name), "%s", PACKS[p].name);
-                char tag[128];
-                snprintf(tag, sizeof(tag), "%s_%s", SCREENS[i].name, pack_name);
-                saveFrame(tag);
-                if (single_pack)  break;
-            }
-        }
+  tft.setRotation(1);                       // landscape 320x240, as setup() does
+  int n = (int)(sizeof(SCREENS) / sizeof(SCREENS[0]));
+  for (int k = 0; k < LANG_NUM; k++) {
+    lang = LANG_AVAIL[k];
+    snprintf(g_dir, sizeof(g_dir), "%s/%s", out, langCode(lang));
+    MKDIR(g_dir);
+    for (int i = 0; i < n; i++) {
+      g_index = i;
+      bool single_pack = isSinglePackScreen(i);
+      for (int p = 0; p < NPACKS; p++) {
+        lastRenderedState = -1;
+        lastBatteryPage = -1;
+        tft.setFont(NULL);
+        tft.setTextSize(1);
+        tft.fillScreen(COL_BG);
+        SCREENS[i].setup();
+        PACKS[p].apply();
+        if (!SCREENS[i].selfDraw) render();
+        char pack_name[64];
+        snprintf(pack_name, sizeof(pack_name), "%s", PACKS[p].name);
+        char tag[128];
+        snprintf(tag, sizeof(tag), "%s_%s", SCREENS[i].name, pack_name);
+        saveFrame(tag);
+        if (single_pack)  break;
+      }
     }
+  }
   printf("hostsim: %d screens x %d languages -> %s\n", n, LANG_NUM, out);
   return 0;
 }
