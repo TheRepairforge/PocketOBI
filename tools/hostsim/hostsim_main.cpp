@@ -148,13 +148,13 @@ static const Screen SCREENS[] = {
   {"about",          [] { state = ABOUT; aboutEgg = 0; }, false},
   {"about_egg",      [] { state = ABOUT; aboutEgg = 3; }, false},
   {"comm_error",     [] { state = COMM_ERROR; }, false},
-  { "bl14_overview",  [] { sPack14(false); sBattery(0); } },
-  { "bl14_health",    [] { sPack14(false); sBattery(1); } },
-  { "bl14_identity",  [] { sPack14(false); sBattery(2); } },
-  { "bl14_repair_locked", [] { sPack14(true); state = REPAIR_DIAG; } },
-  { "bl14_confirm_unlock", [] { sPack14(true); state = CONFIRM_UNLOCK; } },
-  { "nopack_overview", [] { bat.valid = false; sBattery(0); } },
-  { "nopack_repair",  [] { bat.valid = false; state = REPAIR_DIAG; } },
+  { "bl14_overview",  [] { sPack14(false); sBattery(0); }, false},
+  { "bl14_health",    [] { sPack14(false); sBattery(1); }, false},
+  { "bl14_identity",  [] { sPack14(false); sBattery(2); }, false},
+  { "bl14_repair_locked", [] { sPack14(true); state = REPAIR_DIAG; }, false},
+  { "bl14_confirm_unlock", [] { sPack14(true); state = CONFIRM_UNLOCK; }, false},
+  { "nopack_overview", [] { bat.valid = false; sBattery(0); }, false},
+  { "nopack_repair",  [] { bat.valid = false; state = REPAIR_DIAG; }, false},
 #if BOARD_HAS_TOUCH
   { "calibrate_saved", sCalibrate, true },
 #endif
@@ -196,8 +196,8 @@ static bool isFixedPackScreen(int idx) {
   switch (idx) {
     case 0:  case 7:  case 15: case 16: case 17:
     case 19: case 20: case 21: case 22: case 23:
-    case 24: case 25: case 26: case 27: case 28: case 29: case 30:
-    case 31:
+    case 24: case 25: case 26: case 27: case 28:
+    case 29: case 30: case 31:
       return true;
     default:
       return false;
