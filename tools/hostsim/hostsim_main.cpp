@@ -148,7 +148,6 @@ static const Screen SCREENS[] = {
   {"about",          [] { state = ABOUT; aboutEgg = 0; }, false},
   {"about_egg",      [] { state = ABOUT; aboutEgg = 3; }, false},
   {"comm_error",     [] { state = COMM_ERROR; }, false},
-
   { "bl14_overview",  [] { sPack14(false); sBattery(0); } },
   { "bl14_health",    [] { sPack14(false); sBattery(1); } },
   { "bl14_identity",  [] { sPack14(false); sBattery(2); } },
@@ -189,15 +188,16 @@ static void fxNoPack()  { base(); finish(); bat.valid = false; }
 struct DemoPack { const char *name; void (*apply)(); };
 static const DemoPack PACKS[] = {
   {"healthy", fxHealthy}, {"locked", fxLocked}, {"fault", fxFault},
-  {"suspect", fxSuspect}, {"F0513", fxF0513}, {"no pack", fxNoPack},
+  {"suspect", fxSuspect}, {"F0513", fxF0513}, {"nopack", fxNoPack},
 };
 static const int NPACKS = sizeof(PACKS) / sizeof(PACKS[0]);
 
-static bool isSinglePackScreen(int idx) {
+static bool isFixedPackScreen(int idx) {
   switch (idx) {
     case 0:  case 7:  case 15: case 16: case 17:
     case 19: case 20: case 21: case 22: case 23:
-    case 31: case 32: case 33:
+    case 24: case 25: case 26: case 27: case 28: case 29: case 30:
+    case 31:
       return true;
     default:
       return false;
@@ -219,7 +219,7 @@ int main(int argc, char** argv) {
     MKDIR(g_dir);
     for (int i = 0; i < n; i++) {
       g_index = i;
-      bool single_pack = isSinglePackScreen(i);
+      bool fixed_pack = isFixedPackScreen(i);
       for (int p = 0; p < NPACKS; p++) {
         lastRenderedState = -1;
         lastBatteryPage = -1;
@@ -227,14 +227,18 @@ int main(int argc, char** argv) {
         tft.setTextSize(1);
         tft.fillScreen(COL_BG);
         SCREENS[i].setup();
-        PACKS[p].apply();
+        if (!fixed_pack) {
+          PACKS[p].apply();
+        }
         if (!SCREENS[i].selfDraw) render();
-        char pack_name[64];
-        snprintf(pack_name, sizeof(pack_name), "%s", PACKS[p].name);
         char tag[128];
-        snprintf(tag, sizeof(tag), "%s_%s", SCREENS[i].name, pack_name);
+        if (fixed_pack) {
+          snprintf(tag, sizeof(tag), "%s", SCREENS[i].name);
+        } else {
+          snprintf(tag, sizeof(tag), "%s_%s", SCREENS[i].name, PACKS[p].name);
+        }
         saveFrame(tag);
-        if (single_pack)  break;
+        if (fixed_pack) break;
       }
     }
   }
