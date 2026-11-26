@@ -65,7 +65,7 @@ static void base() {
   for (int i = 0; i < 5; i++) bat.cell[i] = c[i];
   bat.tempCell = 22.4f; bat.tempMosfet = 23.1f; bat.boardTempValid = true;
   bat.extValid = true; bat.socRaw = 812; bat.odEventCount = 3; bat.olEventCount = 5;
-  //    frameWithLock(bat.msg, false);
+  frameWithLock(bat.msg, false);
   cellCount = 5;
 }
 
