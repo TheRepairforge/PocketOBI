@@ -221,11 +221,9 @@ int main(int argc, char** argv) {
       g_index = i;
       bool fixed_pack = isFixedPackScreen(i);
       for (int p = 0; p < NPACKS; p++) {
-        lastRenderedState = -1;
-        lastBatteryPage = -1;
-        tft.setFont(NULL);
-        tft.setTextSize(1);
-        tft.fillScreen(COL_BG);
+        base();
+        lastRenderedState = -1; lastBatteryPage = -1;
+        tft.setFont(NULL); tft.setTextSize(1); tft.fillScreen(COL_BG);
         SCREENS[i].setup();
         if (!fixed_pack) {
           PACKS[p].apply();
